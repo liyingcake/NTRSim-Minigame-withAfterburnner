@@ -1,8 +1,18 @@
 'use strict';
 const sim = new NTRSimulation();
-const $ = id => document.getElementById(id);
+const elements = new Map();
+const $ = id => { if (!elements.has(id)) elements.set(id, document.getElementById(id)); return elements.get(id); };
+const lastHtml = new Map();
+function setText(id, value) { const element = $(id), next = String(value); if (element.textContent !== next) element.textContent = next; }
+function setAttr(element, name, value) { const next = String(value); if (element.getAttribute(name) !== next) element.setAttribute(name, next); }
+function setHtml(id, value) { if (lastHtml.get(id) !== value) { $(id).innerHTML = value; lastHtml.set(id, value); } }
+function setUnit(id, value) {
+  const element = $(id), next = value + ' ';
+  if (element.firstChild?.nodeType === 3 && element.firstChild.nodeValue !== next) element.firstChild.nodeValue = next;
+}
 const canvas = $('mfdCanvas');
 const ctx = canvas.getContext('2d');
+const profiler = NTRPerformance.create();
 const mono = '"IBM Plex Mono", Consolas, "Microsoft YaHei", monospace';
 const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835', amber: '#d3b372', blue: '#8abcc1', red: '#db8e70', bg: '#111d18' };
 let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = -1;
@@ -17,6 +27,12 @@ let scoreStorage;
 try { scoreStorage = window.localStorage; } catch { /* Private/file contexts may disallow browser storage. */ }
 const leaderboard = new NTRLeaderboard(scoreStorage);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let mfdBounds = null, mfdVisible = true, mfdDirty = true, lastMfdDraw = -Infinity;
+const mfdResize = new ResizeObserver(entries => {
+  mfdBounds = { width: entries[0].contentRect.width, height: entries[0].contentRect.height }; mfdDirty = true;
+});
+mfdResize.observe(canvas);
+new IntersectionObserver(entries => { mfdVisible = entries[0].isIntersecting; if (mfdVisible) mfdDirty = true; }).observe(canvas);
 const MODE = { RUNNING: '稳定运行', STARTING: '启动序列', SHUTDOWN: '停机冷却', STANDBY: '系统待机', SCRAM: '紧急停堆', DAMAGED: '堆芯损坏' };
 const pageNames = { overview: 'SYS / 系统总览', thermal: 'THM / 热力回路', propulsion: 'PRP / 推进性能', trend: 'TEL / 遥测趋势', diagnostics: 'DGN / 故障诊断', lantr: 'LANTR / 补燃与储罐' };
 const num = (v, places = 0) => Number.isFinite(v) ? v.toFixed(places) : '—';
@@ -48,8 +64,10 @@ $('lampMatrix').innerHTML = sim.lamps.map(([id, label, english, color]) => `<div
 
 function drawGauge(id, value, maximum, places) {
   const svg = $(id);
-  svg.querySelector('.needle').style.transform = `rotate(${-120 + Math.min(1, Math.max(0, value / maximum)) * 240}deg)`;
-  svg.querySelector('.gauge-reading').textContent = num(value, places);
+  const needle = svg.querySelector('.needle'), reading = svg.querySelector('.gauge-reading');
+  const transform = `rotate(${-120 + Math.min(1, Math.max(0, value / maximum)) * 240}deg)`, label = num(value, places);
+  if (needle.style.transform !== transform) needle.style.transform = transform;
+  if (reading.textContent !== label) reading.textContent = label;
 }
 
 function updateSliders() {
@@ -67,57 +85,58 @@ function updateSliders() {
 }
 
 function render() {
-  $('missionTime').textContent = 'T+ ' + clock(mission ? mission.elapsed : sim.time); $('screenTime').textContent = clock(sim.time);
-  $('runState').textContent = mission?.complete ? '挑战已结算' : paused ? '模拟暂停' : MODE[sim.mode];
+  mfdDirty = true;
+  setText('missionTime', 'T+ ' + clock(mission ? mission.elapsed : sim.time)); setText('screenTime', clock(sim.time));
+  setText('runState', mission?.complete ? '挑战已结算' : paused ? '模拟暂停' : MODE[sim.mode]);
   const isDanger = sim.mode === 'SCRAM' || sim.mode === 'DAMAGED';
   $('runLed').className = 'tiny-light on ' + (isDanger ? 'red' : paused || !sim.isActive ? 'amber' : 'green');
-  $('thrustValue').textContent = num(sim.thrust, 1); $('powerValue').textContent = num(sim.power);
-  $('temperatureValue').textContent = num(sim.measuredTemperature); $('pressureValue').textContent = num(sim.pressure, 2);
-  $('flowValue').textContent = num(sim.totalFlow, 2); $('velocityValue').textContent = num(sim.exhaustVelocity / 1000, 2);
-  $('chemicalPowerValue').innerHTML = num(sim.afterburnerPower, 2) + ' <small>MW</small>';
-  $('totalPowerValue').innerHTML = num(sim.totalPower, 2) + ' <small>MW</small>';
-  $('mixtureValue').textContent = num(sim.mixtureRatio, 3) + ' : 1';
-  $('nozzleTemperatureValue').innerHTML = num(sim.nozzleTemperature) + ' <small>K</small>';
-  $('oxygenFlowValue').innerHTML = num(sim.oxygenFlow, 3) + ' <small>kg/s</small>';
-  $('tankVolumeValue').innerHTML = num(sim.tankState.usedVolume, 2) + ' <small>/ 150 m³</small>';
-  $('tankVolumeDetail').textContent = num(sim.tankState.usedVolume, 2) + ' / ' + num(sim.tankState.freeVolume, 2) + ' m³';
-  $('oxygenTankMass').textContent = points(sim.oxygen, 1) + ' kg';
+  setText('thrustValue', num(sim.thrust, 1)); setText('powerValue', num(sim.power));
+  setText('temperatureValue', num(sim.measuredTemperature)); setText('pressureValue', num(sim.pressure, 2));
+  setText('flowValue', num(sim.totalFlow, 2)); setText('velocityValue', num(sim.exhaustVelocity / 1000, 2));
+  setUnit('chemicalPowerValue', num(sim.afterburnerPower, 2));
+  setUnit('totalPowerValue', num(sim.totalPower, 2));
+  setText('mixtureValue', num(sim.mixtureRatio, 3) + ' : 1');
+  setUnit('nozzleTemperatureValue', num(sim.nozzleTemperature));
+  setUnit('oxygenFlowValue', num(sim.oxygenFlow, 3));
+  setUnit('tankVolumeValue', num(sim.tankState.usedVolume, 2));
+  setText('tankVolumeDetail', num(sim.tankState.usedVolume, 2) + ' / ' + num(sim.tankState.freeVolume, 2) + ' m³');
+  setText('oxygenTankMass', points(sim.oxygen, 1) + ' kg');
   $('oxygenValveSlider').value = sim.oxygenValve; $('oxygenValveSlider').style.setProperty('--range', sim.oxygenValve + '%');
-  $('oxygenValveOutput').innerHTML = num(sim.oxygenValve) + ' <small>%</small>';
-  $('oxygenRatedFlow').textContent = num(sim.ratedOxygenFlow, 1) + ' kg/s MAX';
-  $('oxygenStatus').textContent = sim.oxygenInterlock;
-  $('pumpFlowDetail').textContent = '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3);
-  $('oxygenPumpDetail').textContent = '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3);
-  $('exhaustProducts').textContent = '尾流 / kg/s：H₂O 蒸气 ' + num(sim.products.steam, 3) + ' · 未反应 H₂ ' + num(sim.products.hydrogen, 3) + ' · 未反应 O₂ ' + num(sim.products.oxygen, 3) + ' ｜ 总推进功率 = 核热 + 化学放热';
+  setUnit('oxygenValveOutput', num(sim.oxygenValve));
+  setText('oxygenRatedFlow', num(sim.ratedOxygenFlow, 1) + ' kg/s MAX');
+  setText('oxygenStatus', sim.oxygenInterlock);
+  setText('pumpFlowDetail', '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3));
+  setText('oxygenPumpDetail', '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3));
+  setText('exhaustProducts', '尾流 / kg/s：H₂O 蒸气 ' + num(sim.products.steam, 3) + ' · 未反应 H₂ ' + num(sim.products.hydrogen, 3) + ' · 未反应 O₂ ' + num(sim.products.oxygen, 3) + ' ｜ 总推进功率 = 核热 + 化学放热');
   const oxygenDisabled = !sim.oxygenTankInstalled || sim.propellant !== 'hydrogen' || Boolean(mission?.complete);
   $('oxygenPumpToggle').disabled = $('oxygenValveSlider').disabled = oxygenDisabled;
   $('tankConfigButton').disabled = Boolean(mission);
-  $('tankConfigButton').textContent = mission ? '本局储罐已锁定 / ' + num(mission.initialVolume, 2) + ' m³' : '储罐加注 / 150 m³ ↗';
-  if (page === 'lantr') canvas.setAttribute('aria-label', 'LANTR 补燃与储罐：液氧 ' + num(sim.oxygen, 2) + ' kg，补燃功率 ' + num(sim.afterburnerPower, 2) + ' MW，混合比 ' + num(sim.mixtureRatio, 3) + '，喷管 ' + num(sim.nozzleTemperature) + ' K');
+  setText('tankConfigButton', mission ? '本局储罐已锁定 / ' + num(mission.initialVolume, 2) + ' m³' : '储罐加注 / 150 m³ ↗');
+  if (page === 'lantr') setAttr(canvas, 'aria-label', 'LANTR 补燃与储罐：液氧 ' + num(sim.oxygen, 2) + ' kg，补燃功率 ' + num(sim.afterburnerPower, 2) + ' MW，混合比 ' + num(sim.mixtureRatio, 3) + '，喷管 ' + num(sim.nozzleTemperature) + ' K');
   $('temperatureValue').style.color = sim.measuredTemperature > 3050 ? '#e0a17a' : '';
   const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / 8, flow: sim.totalFlow / (sim.ratedFlow + (sim.oxygenTankInstalled ? sim.ratedOxygenFlow : 0)), velocity: sim.exhaustVelocity / 10000 };
   for (const [key, value] of Object.entries(bars)) $(key + 'Bar').style.width = `${Math.min(100, Math.max(0, value * 100))}%`;
   drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, 8, 2);
-  $('tankPercent').textContent = num(sim.fuelPercent, 1) + '%'; $('tankLabel').textContent = sim.prop.symbol + ' / ' + sim.prop.label;
-  $('tankMass').textContent = Math.round(sim.fuel).toLocaleString('en-US') + ' kg';
+  setText('tankPercent', num(sim.fuelPercent, 1) + '%'); setText('tankLabel', sim.prop.symbol + ' / ' + sim.prop.label);
+  setText('tankMass', Math.round(sim.fuel).toLocaleString('en-US') + ' kg');
   [...$('tankSegments').children].forEach((segment, i) => segment.classList.toggle('empty', i >= Math.ceil(sim.fuelPercent / 5)));
   for (const [id, label, , color, active] of sim.lamps) {
     const el = $('lamp-' + id); const on = lampTest || active;
     el.classList.toggle('on', on); el.classList.toggle('flashing', active && (color === 'red' || color === 'yellow') && !sim.acknowledged && !lampTest);
-    el.setAttribute('aria-label', label + (on ? '：亮' : '：灭'));
+    setAttr(el, 'aria-label', label + (on ? '：亮' : '：灭'));
   }
   const alarms = sim.lamps.filter(l => l[4] && ['red', 'yellow', 'amber'].includes(l[3]) && l[0] !== 'decay');
-  $('healthText').textContent = sim.mode === 'DAMAGED' ? '堆芯受损 · 试验终止' : alarms.length ? `${alarms.length} 项告警 ${sim.acknowledged ? '· 已确认' : '· 待处理'}` : sim.isActive ? '所有子系统正常' : sim.coreTemperature > 500 ? '余热冷却进行中' : '所有子系统就绪';
+  setText('healthText', sim.mode === 'DAMAGED' ? '堆芯受损 · 试验终止' : alarms.length ? `${alarms.length} 项告警 ${sim.acknowledged ? '· 已确认' : '· 待处理'}` : sim.isActive ? '所有子系统正常' : sim.coreTemperature > 500 ? '余热冷却进行中' : '所有子系统就绪');
   $('healthLed').className = 'tiny-light on ' + (alarms.length ? 'red' : 'green');
-  $('footerPropellant').textContent = sim.oxygenTankInstalled ? 'LH₂ + LOX / LANTR' : sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE';
-  $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
+  setText('footerPropellant', sim.oxygenTankInstalled ? 'LH₂ + LOX / LANTR' : sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE');
+  setText('mfdStatus', paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE');
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
-  if (page === 'trend') canvas.setAttribute('aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
-  if (page === 'overview') canvas.setAttribute('aria-label', sim.oxygenTankInstalled
+  if (page === 'trend') setAttr(canvas, 'aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
+  if (page === 'overview') setAttr(canvas, 'aria-label', sim.oxygenTankInstalled
     ? '系统总览：液氢储罐、主泵、反应堆及下游液氧补燃系统。液氧 ' + points(sim.oxygen, 1) + ' kg，氧泵' + (sim.oxygenPump ? '开启' : '关闭') + '，氧阀 ' + num(sim.oxygenValve) + '%，注氧 ' + num(sim.oxygenFlow, 2) + ' kg/s'
     : '系统总览：主推进剂储罐、供液泵、反应堆和再生冷却喷管');
-  if (page === 'overview') $('screenHint').textContent = sim.engineModel + ' · CLOSED EXPANDER CYCLE';
-  $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
+  if (page === 'overview') setText('screenHint', sim.engineModel + ' · CLOSED EXPANDER CYCLE');
+  setHtml('runButton', sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>');
   $('runButton').classList.toggle('start-ready', !sim.isActive);
   $('runButton').disabled = sim.mode === 'DAMAGED' || Boolean(mission?.complete || mission?.autoReason);
   for (const [id, key] of [['pumpToggle', 'pump'], ['oxygenPumpToggle', 'oxygenPump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) {
@@ -130,7 +149,7 @@ function render() {
   $('hydrogenButton').title = $('waterButton').title = mission ? '本局推进剂已锁定' : sim.canConfigure ? '选择推进剂' : '请先停机，等待热功率低于 5 MW';
   for (const id of ['powerSlider', 'valveSlider', 'pumpToggle', 'coolingToggle', 'autoToggle', 'scramButton', 'faultButton']) $(id).disabled = Boolean(mission?.complete);
   document.querySelector('.instrument-rack').classList.toggle('controls-frozen', Boolean(mission?.complete));
-  $('resetButton').textContent = mission ? '↺ 重试挑战' : '↺ 重置试验';
+  setText('resetButton', mission ? '↺ 重试挑战' : '↺ 重置试验');
   if (lastLogId !== sim.eventId) {
     $('eventLog').innerHTML = sim.events.slice(0, 20).map(e => `<div class="event-entry ${e.severity}"><time>${clock(e.time).slice(3)}</time><span>${safe(e.message)}</span></div>`).join('');
     lastLogId = sim.eventId;
@@ -297,34 +316,34 @@ function renderMission() {
   document.querySelector('.operations-content').classList.toggle('has-mission', Boolean(mission));
   $('sandboxModeButton').classList.toggle('active', !mission); $('sandboxModeButton').setAttribute('aria-pressed', !mission);
   $('challengeModeButton').classList.toggle('active', Boolean(mission)); $('challengeModeButton').setAttribute('aria-pressed', Boolean(mission));
-  $('modeDescription').textContent = mission ? '推进剂锁定 · 一次航行，一份成绩' : '自由试车 · 自定义参数与故障';
+  setText('modeDescription', mission ? '推进剂锁定 · 一次航行，一份成绩' : '自由试车 · 自定义参数与故障');
   if (!mission) return;
   const info = NTR_CHALLENGE_TYPES[mission.type], score = mission.result || mission.liveScore;
-  $('missionCode').textContent = info.code + ' / ' + sim.prop.symbol + (mission.initialOxygen ? ' + LOX' : '');
-  $('missionName').textContent = info.title;
-  $('missionStage').textContent = mission.complete ? '挑战完成' : paused ? '模拟暂停' : !mission.started ? '冷态准备' : mission.autoReason ? '自动冷却结算' : sim.isActive ? '推进加速' : '滑行 / 冷却';
+  setText('missionCode', info.code + ' / ' + sim.prop.symbol + (mission.initialOxygen ? ' + LOX' : ''));
+  setText('missionName', info.title);
+  setText('missionStage', mission.complete ? '挑战完成' : paused ? '模拟暂停' : !mission.started ? '冷态准备' : mission.autoReason ? '自动冷却结算' : sim.isActive ? '推进加速' : '滑行 / 冷却');
   $('missionPanel').classList.toggle('finished', mission.complete);
   $('missionPanel').classList.toggle('is-burning', sim.thrust > .1 && !mission.complete && !paused);
-  $('flightDv').textContent = num(mission.deltaV, 2);
-  $('flightAcceleration').textContent = num(mission.acceleration, mission.type !== 'endurance' ? 2 : 3);
-  $('flightDistance').textContent = num(mission.distance / 1000, 2);
-  $('flightMass').textContent = num(mission.mass / 1000, 2);
-  $('flightScore').textContent = points(score.total);
-  $('flightScoreLabel').textContent = mission.complete ? '最终得分' : '当前预计得分';
-  $('flightTargetLabel').textContent = mission.type !== 'endurance' ? '目标速度增量' : '挑战目标';
-  $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target, 2);
-  $('flightTargetUnit').textContent = mission.target === null ? 'MAX Δv' : 'm/s';
+  setText('flightDv', num(mission.deltaV, 2));
+  setText('flightAcceleration', num(mission.acceleration, mission.type !== 'endurance' ? 2 : 3));
+  setText('flightDistance', num(mission.distance / 1000, 2));
+  setText('flightMass', num(mission.mass / 1000, 2));
+  setText('flightScore', points(score.total));
+  setText('flightScoreLabel', mission.complete ? '最终得分' : '当前预计得分');
+  setText('flightTargetLabel', mission.type !== 'endurance' ? '目标速度增量' : '挑战目标');
+  setText('flightTarget', mission.target === null ? '∞' : num(mission.target, 2));
+  setText('flightTargetUnit', mission.target === null ? 'MAX Δv' : 'm/s');
   const progress = Math.min(1, Math.max(0, mission.target ? mission.deltaV / mission.target : 1 - sim.fuel / mission.initialFuel));
   $('flightProgressFill').style.width = progress * 100 + '%';
   $('flightShip').style.left = (3 + progress * 94) + '%';
-  $('flightEndMarker').textContent = mission.target === null ? '∞' : '⊕';
-  $('flightProgressLabel').textContent = mission.target === null ? '推进剂使用进度 ' + num(progress * 100, 1) + '%' : '变轨完成度 ' + num(mission.deltaV / mission.target * 100, 2) + '%';
-  $('flightError').textContent = mission.target === null ? '尽可能获得更高 Δv' : mission.remainingError >= 0 ? '距目标 ' + num(mission.remainingError, 2) + ' m/s' : '超调 ' + num(-mission.remainingError, 2) + ' m/s';
+  setText('flightEndMarker', mission.target === null ? '∞' : '⊕');
+  setText('flightProgressLabel', mission.target === null ? '推进剂使用进度 ' + num(progress * 100, 1) + '%' : '变轨完成度 ' + num(mission.deltaV / mission.target * 100, 2) + '%');
+  setText('flightError', mission.target === null ? '尽可能获得更高 Δv' : mission.remainingError >= 0 ? '距目标 ' + num(mission.remainingError, 2) + ' m/s' : '超调 ' + num(-mission.remainingError, 2) + ' m/s');
   $('flightError').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
-  $('missionCompactDv').textContent = num(mission.deltaV, 2) + ' m/s';
-  $('missionCompactTarget').textContent = $('flightError').textContent;
+  setText('missionCompactDv', num(mission.deltaV, 2) + ' m/s');
+  setText('missionCompactTarget', $('flightError').textContent);
   $('missionCompactTarget').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
-  $('flightMassNote').textContent = '干重 ' + num(mission.dryMass / 1000, 2) + ' t（货物 ' + points(mission.payload) + ' kg）· ' + sim.prop.symbol + ' ' + points(sim.fuel, 1) + ' / LOX ' + points(sim.oxygen, 1) + ' kg';
+  setText('flightMassNote', '干重 ' + num(mission.dryMass / 1000, 2) + ' t（货物 ' + points(mission.payload) + ' kg）· ' + sim.prop.symbol + ' ' + points(sim.fuel, 1) + ' / LOX ' + points(sim.oxygen, 1) + ' kg');
   $('flightHint').textContent = mission.complete ? '已结算 · 可以查看报告、复盘遥测或开始新挑战'
     : !mission.started ? '冷启动：开启泵与冷却 → 主阀约 70% → 功率约 60% → 启动试车'
     : mission.autoReason ? mission.autoReason + ' · 保持冷却开启，低于 800 K 自动结算（当前 ' + num(sim.coreTemperature) + ' K）'
@@ -334,7 +353,7 @@ function renderMission() {
     : '持续监控温压和耐久 · 停机后冷却至低于 800 K，才能结算';
   const settle = $('settleButton'); settle.classList.toggle('locked', !mission.canSettle && !mission.complete); settle.classList.toggle('complete', mission.complete);
   settle.querySelector('span').textContent = mission.complete ? '查看结算报告' : '结算本次变轨';
-  $('settleHint').textContent = mission.complete ? points(score.total) + ' PTS' : !mission.started ? '等待首次点火' : mission.canSettle ? '温度合格 · 可结算' : num(sim.coreTemperature) + ' K / 需 < 800 K';
+  setText('settleHint', mission.complete ? points(score.total) + ' PTS' : !mission.started ? '等待首次点火' : mission.canSettle ? '温度合格 · 可结算' : num(sim.coreTemperature) + ' K / 需 < 800 K');
   if (mission.complete && !resultShown) { leaderboard.add(mission.result); resultShown = true; showResult(); }
 }
 
@@ -383,6 +402,7 @@ function openLeaderboard() {
 }
 
 function setPage(value) {
+  mfdDirty = true; lastMfdDraw = -Infinity;
   page = value; $('mfdTitle').textContent = pageNames[page];
   document.querySelectorAll('[data-page]').forEach(button => { const selected = button.dataset.page === value; button.classList.toggle('selected', selected); button.setAttribute('aria-selected', selected); });
   $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · ISP AXIS 0–1,000 s', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.', lantr: '150 m³ · LOX INJECTION DOWNSTREAM OF THROAT' }[page];
@@ -417,11 +437,18 @@ function miniMetric(label, value, unit, x, y, color = C.bright) {
   text(label, x, y, 8, C.dim); text(value, x, y + 25, 22, color); text(unit, x + ctx.measureText(value).width + 7, y + 24, 9, C.dim);
 }
 
+let overviewGrid = null, overviewGridSize = '';
 function drawOverview() {
   // Subtle drafting grid and reference marks.
-  ctx.globalAlpha = .15;
-  for (let x = 28; x < 670; x += 25) for (let y = 65; y < 330; y += 25) { ctx.fillStyle = C.green; ctx.fillRect(x, y, 1, 1); }
-  ctx.globalAlpha = 1;
+  const gridSize = canvas.width + 'x' + canvas.height;
+  if (overviewGridSize !== gridSize) {
+    overviewGrid ||= document.createElement('canvas'); overviewGrid.width = canvas.width; overviewGrid.height = canvas.height;
+    const grid = overviewGrid.getContext('2d'); grid.setTransform(canvas.width / 680, 0, 0, canvas.height / 420, 0, 0);
+    grid.globalAlpha = .15; grid.fillStyle = C.green;
+    for (let x = 28; x < 670; x += 25) for (let y = 65; y < 330; y += 25) grid.fillRect(x, y, 1, 1);
+    overviewGridSize = gridSize;
+  }
+  ctx.drawImage(overviewGrid, 0, 0, 680, 420);
   line([[35, 203], [647, 203]], C.faint, .7, [3, 6]);
   text('ENGINE SCHEMATIC', 32, 69, 8, C.dim); text('SECTION A–A', 648, 69, 8, C.dim, 'right');
 
@@ -641,13 +668,19 @@ function drawDiagnostics() {
   text(faults.length ? `${faults.length} 项注入故障 · 打开「故障注入」进行检修` : 'NO ACTIVE FAULTS / READY FOR TEST', 44, 382, 9, faults.length ? C.amber : C.dim);
 }
 
-function drawMFD() {
-  const dpr = Math.min(devicePixelRatio || 1, 2); const bounds = canvas.getBoundingClientRect();
+function drawMFD(now = performance.now()) {
+  if (!mfdVisible) return false;
+  const interval = ['overview', 'thermal', 'lantr'].includes(page) ? 1000 / 60 : 100;
+  if (!mfdDirty && (paused || mission?.complete)) return false;
+  if (now - lastMfdDraw < interval - .5) return false;
+  // ResizeObserver supplies dimensions before paint; never force layout after the HUD writes.
+  const dpr = Math.min(devicePixelRatio || 1, 2); const bounds = mfdBounds || canvas.getBoundingClientRect();
   const w = Math.round(bounds.width * dpr), h = Math.round(bounds.height * dpr);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   ctx.setTransform(canvas.width / 680, 0, 0, canvas.height / 420, 0, 0);
   ctx.clearRect(0, 0, 680, 420);
   ({ overview: drawOverview, thermal: drawThermal, propulsion: drawPropulsion, trend: drawTrend, diagnostics: drawDiagnostics, lantr: drawLantr })[page]();
+  mfdDirty = false; lastMfdDraw = now; return true;
 }
 
 function faultOptions() {
@@ -734,10 +767,16 @@ document.addEventListener('keydown', event => {
   if (event.key === '?') $('manualDialog').showModal();
 });
 function frame(now) {
-  const delta = Math.min((now - lastFrame) / 1000, 1); lastFrame = now;
+  const begin = profiler.enabled ? performance.now() : 0, interval = now - lastFrame;
+  const delta = Math.min(interval / 1000, 1); lastFrame = now;
   if (!paused) { if (mission) mission.tick(delta * speed); else sim.tick(delta * speed); motionTime += delta * speed; }
-  if (now - lastRender >= 90) { render(); lastRender = now; }
-  drawMFD(); requestAnimationFrame(frame);
+  const physicalEnd = profiler.enabled ? performance.now() : 0;
+  let dom = -1;
+  if (!paused && now - lastRender >= 90) { render(); lastRender = now; if (profiler.enabled) dom = performance.now() - physicalEnd; }
+  const drawStart = profiler.enabled ? performance.now() : 0;
+  const drawn = drawMFD(now);
+  if (profiler.enabled) { const end = performance.now(); profiler.record({ interval, physics: physicalEnd - begin, dom, mfd: drawn ? end - drawStart : -1, js: end - begin }); }
+  requestAnimationFrame(frame);
 }
 // Exposed read-only instrumentation is useful for inspecting the demo in DevTools.
 window.nerva = { sim, get mission() { return mission; }, get page() { return page; }, get paused() { return paused; }, get speed() { return speed; } };

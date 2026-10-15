@@ -16,7 +16,12 @@
   const release = typeof module !== 'undefined' && module.exports ? require('./version.js') : root.NTR_RELEASE;
   let resultSequence = 0;
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-  const formatPoints = (value, places = 0) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: places, maximumFractionDigits: places }) : '—';
+  const numberFormats = new Map();
+  const formatPoints = (value, places = 0) => {
+    if (!Number.isFinite(value)) return '—';
+    if (!numberFormats.has(places)) numberFormats.set(places, new Intl.NumberFormat('en-US', { minimumFractionDigits: places, maximumFractionDigits: places }));
+    return numberFormats.get(places).format(value);
+  };
 
   function calculateScore({ type, deltaV, target, propellant, initialFuel, fuel, initialOxygen = 0, oxygen = 0, payload = 0, elapsed, integrity }) {
     const targeted = type !== 'endurance', info = TYPES[type];
