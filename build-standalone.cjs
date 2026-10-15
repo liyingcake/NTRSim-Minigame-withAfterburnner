@@ -1,11 +1,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const release = require('./build-version.cjs');
 const read = file => fs.readFileSync(path.join(__dirname, file), 'utf8');
 const html = read('index.html')
   .replace('<link rel="stylesheet" href="style.css">', () => '<style>\n' + read('style.css') + '\n</style>')
   .replace('<script src="simulation.js" defer></script>', '')
+  .replace('<script src="version.js" defer></script>', '')
+  .replace('<script src="leaderboard.js" defer></script>', '')
   .replace('<script src="challenge.js" defer></script>', '')
   .replace('<script src="app.js" defer></script>', '')
-  .replace('</body>', () => '<script>\n' + read('simulation.js') + '\n</script>\n<script>\n' + read('challenge.js') + '\n</script>\n<script>\n' + read('app.js') + '\n</script>\n</body>');
+  .replace('</body>', () => ['version.js', 'simulation.js', 'challenge.js', 'leaderboard.js', 'app.js'].map(file => '<script>\n' + read(file) + '\n</script>').join('\n') + '\n</body>')
+  .replace(/\r\n/g, '\n').replace(/^[\t ]+$/gm, '');
 fs.writeFileSync(path.join(__dirname, 'NERVA.html'), html);
-console.log('Standalone demo written: NERVA.html');
+console.log('Standalone demo written: NERVA.html / ' + release.label);

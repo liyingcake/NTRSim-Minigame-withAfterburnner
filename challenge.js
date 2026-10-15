@@ -7,31 +7,41 @@
     precision: { title: '精确入轨注入', subtitle: '在目标速度附近，留下更多推进剂', code: '02 / PRECISION' }
   };
   const CAPACITIES = { hydrogen: 10000, water: 30000 };
+  const DEFAULT_LOADS = { hydrogen: 1000, water: 3000 };
+  const FUEL_COSTS = { hydrogen: 5, water: 2 };
+  const PRECISION_TARGET = 325;
+  const release = typeof module !== 'undefined' && module.exports ? require('./version.js') : root.NTR_RELEASE;
+  let resultSequence = 0;
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const formatPoints = (value, places = 0) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: places, maximumFractionDigits: places }) : '—';
 
-  function calculateScore({ type, deltaV, target, fuel, elapsed, integrity }) {
-    if (!TYPES[type] || ![deltaV, fuel, elapsed, integrity].every(Number.isFinite) || (type === 'precision' && !Number.isFinite(target))) throw new TypeError('Invalid challenge score inputs');
+  function calculateScore({ type, deltaV, target, propellant, initialFuel, fuel, elapsed, integrity }) {
+    if (!TYPES[type] || ![deltaV, fuel, elapsed, integrity].every(Number.isFinite) || (type === 'precision' && (!Number.isFinite(target) || !FUEL_COSTS[propellant] || !Number.isFinite(initialFuel) || initialFuel < 10 || initialFuel > CAPACITIES[propellant] || fuel < 0 || fuel > initialFuel))) throw new TypeError('Invalid challenge score inputs');
     const error = type === 'precision' ? Math.abs(deltaV - target) : 0;
     const dvPoints = type === 'endurance' ? Math.max(0, deltaV) * 10 : 0;
-    const basePoints = type === 'precision' ? 10000 : 0;
+    const basePoints = type === 'precision' ? 100000 : 0;
+    const fuelUnitCost = type === 'precision' ? FUEL_COSTS[propellant] : 0;
+    const loadingCost = type === 'precision' ? initialFuel * fuelUnitCost : 0;
     const fuelPoints = type === 'precision' ? Math.max(0, fuel) : 0;
-    const base = basePoints + dvPoints + fuelPoints;
+    const base = Math.max(0, basePoints + dvPoints - loadingCost + fuelPoints);
     const errorPenalty = clamp(error / 100, 0, 1);
     const timePenalty = clamp(Math.max(0, elapsed) / 10000, 0, 1);
     const durabilityPenalty = (100 - clamp(integrity, 0, 100)) / 100 * .5;
     const accuracySubtotal = base * (1 - errorPenalty);
     const timeSubtotal = accuracySubtotal * (1 - timePenalty);
-    return Object.freeze({ base, basePoints, dvPoints, fuelPoints, error, errorPenalty, timePenalty, durabilityPenalty,
+    return Object.freeze({ base, basePoints, dvPoints, fuelPoints, fuelUnitCost, loadingCost, error, errorPenalty, timePenalty, durabilityPenalty,
       errorDeduction: base - accuracySubtotal, timeDeduction: accuracySubtotal - timeSubtotal,
       durabilityDeduction: timeSubtotal * durabilityPenalty,
       total: Math.max(0, Math.floor(timeSubtotal * (1 - durabilityPenalty))) });
   }
 
   class NTRChallenge {
-    constructor(engine, { type = 'endurance', propellant = 'hydrogen', diameter = 1.4, random = Math.random } = {}) {
+    constructor(engine, { type = 'endurance', propellant = 'hydrogen', diameter = 1.4, fuelLoad } = {}) {
       if (!TYPES[type] || !CAPACITIES[propellant] || !Number.isFinite(diameter) || diameter < .8 || diameter > 2.4) throw new TypeError('Invalid challenge configuration');
+      const initialFuel = fuelLoad ?? (type === 'precision' ? DEFAULT_LOADS[propellant] : CAPACITIES[propellant]);
+      if (!Number.isInteger(initialFuel) || initialFuel < 10 || initialFuel > CAPACITIES[propellant] || (type === 'endurance' && initialFuel !== CAPACITIES[propellant])) throw new TypeError('Invalid propellant load');
       this.engine = engine; this.type = type; this.propellant = propellant; this.dryMass = 10000;
-      this.initialFuel = CAPACITIES[propellant]; this.target = type === 'precision' ? 2750 + Math.floor(clamp(random(), 0, .999999999) * 101) : null;
+      this.initialFuel = initialFuel; this.target = type === 'precision' ? PRECISION_TARGET : null;
       this.state = 'PREPARING'; this.started = false; this.elapsed = 0; this.deltaV = 0;
       this.distance = 0; this.acceleration = 0; this.peakAcceleration = 0; this.result = null; this.autoReason = null;
       engine.reset(true); engine.configure(propellant, diameter);
@@ -47,7 +57,7 @@
     get complete() { return this.state === 'COMPLETE'; }
     get remainingError() { return this.target === null ? null : this.target - this.deltaV; }
     get canSettle() { return this.started && !this.complete && this.engine.coreTemperature < 800; }
-    get liveScore() { return calculateScore({ type: this.type, deltaV: this.deltaV, target: this.target, fuel: this.engine.fuel, elapsed: this.elapsed, integrity: this.engine.integrity }); }
+    get liveScore() { return calculateScore({ type: this.type, deltaV: this.deltaV, target: this.target, propellant: this.propellant, initialFuel: this.initialFuel, fuel: this.engine.fuel, elapsed: this.elapsed, integrity: this.engine.integrity }); }
 
     startEngine() {
       if (this.complete) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
@@ -90,7 +100,7 @@
       if (!this.started) return { ok: false, message: '请先完成冷启动，开始本次挑战' };
       if (this.engine.coreTemperature >= 800) return { ok: false, message: '结算联锁：堆芯需低于 800 K；请先停机并保持冷却' };
       const score = this.liveScore;
-      this.result = Object.freeze({ ...score, type: this.type, propellant: this.propellant, diameter: this.engine.diameter, reason,
+      this.result = Object.freeze({ ...score, id: Date.now().toString(36) + '-' + (++resultSequence), version: release.version, scoreSchema: release.scoreSchema, type: this.type, propellant: this.propellant, diameter: this.engine.diameter, reason,
         target: this.target, deltaV: this.deltaV, distance: this.distance, elapsed: this.elapsed,
         fuel: this.engine.fuel, initialFuel: this.initialFuel, integrity: this.engine.integrity,
         temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration });
@@ -100,6 +110,6 @@
       return { ok: true, message: '挑战已结算', result: this.result };
     }
   }
-  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRChallenge, calculateScore, CHALLENGE_TYPES: TYPES, CHALLENGE_CAPACITIES: CAPACITIES };
-  else { root.NTRChallenge = NTRChallenge; root.NTR_CHALLENGE_TYPES = TYPES; root.NTR_CHALLENGE_CAPACITIES = CAPACITIES; }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRChallenge, calculateScore, formatPoints, CHALLENGE_TYPES: TYPES, CHALLENGE_CAPACITIES: CAPACITIES, DEFAULT_LOADS, FUEL_COSTS, PRECISION_TARGET };
+  else { root.NTRChallenge = NTRChallenge; root.NTR_CHALLENGE_TYPES = TYPES; root.NTR_CHALLENGE_CAPACITIES = CAPACITIES; root.NTR_DEFAULT_LOADS = DEFAULT_LOADS; root.NTR_FUEL_COSTS = FUEL_COSTS; root.NTR_FORMAT_POINTS = formatPoints; }
 })(typeof window !== 'undefined' ? window : globalThis);

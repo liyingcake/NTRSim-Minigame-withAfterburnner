@@ -10,10 +10,15 @@ let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
 let motionTime = 0;
 let mission = null, resultShown = false;
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
+const selectedFuelLoads = { ...NTR_DEFAULT_LOADS };
+let scoreStorage;
+try { scoreStorage = window.localStorage; } catch { /* Private/file contexts may disallow browser storage. */ }
+const leaderboard = new NTRLeaderboard(scoreStorage);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const MODE = { RUNNING: '稳定运行', STARTING: '启动序列', SHUTDOWN: '停机冷却', STANDBY: '系统待机', SCRAM: '紧急停堆', DAMAGED: '堆芯损坏' };
 const pageNames = { overview: 'SYS / 系统总览', thermal: 'THM / 热力回路', propulsion: 'PRP / 推进性能', trend: 'TEL / 遥测趋势', diagnostics: 'DGN / 故障诊断' };
 const num = (v, places = 0) => Number.isFinite(v) ? v.toFixed(places) : '—';
+const points = NTR_FORMAT_POINTS;
 const clock = t => [Math.floor(t / 3600), Math.floor(t / 60) % 60, Math.floor(t) % 60].map(n => String(n).padStart(2, '0')).join(':');
 const safe = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -111,8 +116,8 @@ function resetUIClock() {
   updatePauseButton(); $('speedButton').textContent = '1×'; lastLogId = -1; resultShown = false;
 }
 
-function beginMission(type, propellant, diameter) {
-  mission = new NTRChallenge(sim, { type, propellant, diameter });
+function beginMission(type, propellant, diameter, fuelLoad) {
+  mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad });
   resetUIClock(); setPage('overview'); updateSliders(); render();
   $('challengeDialog').close();
   $('missionPanel').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
@@ -126,15 +131,41 @@ function updateChallengeSetup() {
   $('challengeSizeSlider').style.setProperty('--range', `${(diameter - .8) / 1.6 * 100}%`);
   $('challengeSizeOutput').textContent = num(diameter, 2) + ' m';
   $('challengeRatedPower').textContent = num(600 * (diameter / 1.4) ** 2) + ' MW';
-  $('loadoutMass').textContent = selectedPropellant === 'hydrogen' ? '20.00 t' : '40.00 t';
+  const precision = selectedChallenge === 'precision';
+  const maximum = NTR_CHALLENGE_CAPACITIES[selectedPropellant], load = precision ? selectedFuelLoads[selectedPropellant] : maximum;
+  $('fuelLoadControl').hidden = !precision;
+  $('fuelLoadInput').max = $('fuelLoadSlider').max = maximum;
+  $('fuelLoadInput').value = $('fuelLoadSlider').value = load;
+  $('fuelLoadInput').setAttribute('aria-invalid', 'false'); $('fuelLoadInput').setCustomValidity('');
+  $('beginChallengeButton').disabled = false;
+  $('fuelLoadSlider').style.setProperty('--range', `${(load - 10) / (maximum - 10) * 100}%`);
+  $('fuelLoadMax').textContent = points(maximum) + ' kg';
+  $('loadoutCost').textContent = '装载成本 −' + points(load * NTR_FUEL_COSTS[selectedPropellant]) + ' 分';
+  $('loadoutCost').classList.remove('invalid');
+  $('fuelPresets').innerHTML = (selectedPropellant === 'hydrogen' ? [500, 1000, 2000] : [1000, 3000, 5000]).map(value => `<button data-fuel-preset="${value}" class="${value === load ? 'selected' : ''}">${points(value)} kg</button>`).join('');
+  $('hydrogenLoadLabel').textContent = precision ? '装载 −5 分 / kg' : '10,000 kg';
+  $('waterLoadLabel').textContent = precision ? '装载 −2 分 / kg' : '30,000 kg';
+  $('loadoutMass').textContent = num((10000 + load) / 1000, 2) + ' t';
   $('challengeBrief').textContent = selectedChallenge === 'endurance'
     ? '每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。每 100 秒扣 1%；每损失 10% 耐久扣 5%。'
-    : '每局随机目标 2,750–2,850 m/s。基础 10,000 分 + 剩余推进剂，每 1 m/s 误差扣 1%；时间与耐久修正同无限加速。必须冷却至低于 800 K 才可结算。';
+    : '固定目标 325 m/s。原始分 = 100,000 − 装载成本 + 剩余推进剂返分。液氢每 kg 扣 5 分，水扣 2 分，每剩 1 kg 均返 1 分。误差、时间和耐久修正继续适用，低于 800 K 才可结算。';
+}
+
+function changeFuelLoad(value) {
+  const maximum = NTR_CHALLENGE_CAPACITIES[selectedPropellant];
+  if (!Number.isInteger(value) || value < 10 || value > maximum) {
+    const message = '请输入 10–' + points(maximum) + ' kg 之间的整数';
+    $('fuelLoadInput').setAttribute('aria-invalid', 'true'); $('fuelLoadInput').setCustomValidity(message);
+    $('beginChallengeButton').disabled = true; $('loadoutCost').textContent = message; $('loadoutCost').classList.add('invalid');
+    return;
+  }
+  selectedFuelLoads[selectedPropellant] = value; updateChallengeSetup();
 }
 
 function openChallengeSetup() {
   selectedChallenge = mission?.type || selectedChallenge;
   selectedPropellant = mission?.propellant || sim.propellant;
+  if (mission?.type === 'precision') selectedFuelLoads[mission.propellant] = mission.initialFuel;
   $('challengeSizeSlider').value = sim.diameter;
   updateChallengeSetup(); $('challengeDialog').showModal();
 }
@@ -156,7 +187,7 @@ function renderMission() {
   $('flightAcceleration').textContent = num(mission.acceleration, 3);
   $('flightDistance').textContent = num(mission.distance / 1000, 2);
   $('flightMass').textContent = num(mission.mass / 1000, 2);
-  $('flightScore').textContent = score.total.toLocaleString('en-US');
+  $('flightScore').textContent = points(score.total);
   $('flightScoreLabel').textContent = mission.complete ? '最终得分' : '当前预计得分';
   $('flightTargetLabel').textContent = mission.type === 'precision' ? '目标速度增量' : '挑战目标';
   $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target);
@@ -168,37 +199,57 @@ function renderMission() {
   $('flightProgressLabel').textContent = mission.target === null ? '推进剂使用进度 ' + num(progress * 100, 1) + '%' : '变轨完成度 ' + num(mission.deltaV / mission.target * 100, 2) + '%';
   $('flightError').textContent = mission.target === null ? '尽可能获得更高 Δv' : mission.remainingError >= 0 ? '距目标 ' + num(mission.remainingError, 2) + ' m/s' : '超调 ' + num(-mission.remainingError, 2) + ' m/s';
   $('flightError').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
-  $('flightMassNote').textContent = '干重＋载荷 10.00 t · 剩余 ' + sim.prop.symbol + ' ' + num(sim.fuel, 1) + ' kg · 一维真空变轨';
+  $('flightMassNote').textContent = '干重＋载荷 10.00 t · ' + sim.prop.symbol + ' 初装 ' + points(mission.initialFuel) + ' / 剩余 ' + points(sim.fuel, 1) + ' kg';
   $('flightHint').textContent = mission.complete ? '已结算 · 可以查看报告、复盘遥测或开始新挑战'
     : !mission.started ? '冷启动：开启泵与冷却 → 主阀约 70% → 功率约 60% → 启动试车'
     : mission.autoReason ? mission.autoReason + ' · 保持冷却开启，低于 800 K 自动结算（当前 ' + num(sim.coreTemperature) + ' K）'
     : !sim.isActive ? '余热仍可能产生 Δv · 关闭主阀可减少推进剂消耗，保持冷却回路开启'
-    : mission.target && mission.remainingError < 300 ? '接近目标！提前降功率，预留停机后余热产生的额外 Δv'
+    : mission.target && mission.remainingError < 0 ? '已超调！停止推进并保持冷却，低于 800 K 后结算'
+    : mission.target && mission.remainingError < Math.min(300, mission.target * .15) ? '接近目标！提前降功率，预留停机后余热产生的额外 Δv'
     : '持续监控温压和耐久 · 停机后冷却至低于 800 K，才能结算';
   const settle = $('settleButton'); settle.classList.toggle('locked', !mission.canSettle && !mission.complete); settle.classList.toggle('complete', mission.complete);
   settle.querySelector('span').textContent = mission.complete ? '查看结算报告' : '结算本次变轨';
-  $('settleHint').textContent = mission.complete ? score.total.toLocaleString('en-US') + ' PTS' : !mission.started ? '等待首次点火' : mission.canSettle ? '温度合格 · 可结算' : num(sim.coreTemperature) + ' K / 需 < 800 K';
-  if (mission.complete && !resultShown) { resultShown = true; showResult(); }
+  $('settleHint').textContent = mission.complete ? points(score.total) + ' PTS' : !mission.started ? '等待首次点火' : mission.canSettle ? '温度合格 · 可结算' : num(sim.coreTemperature) + ' K / 需 < 800 K';
+  if (mission.complete && !resultShown) { leaderboard.add(mission.result); resultShown = true; showResult(); }
 }
 
 function showResult() {
   if (!mission?.result) return;
   const r = mission.result;
-  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + sim.prop.symbol + ' / ' + r.reason;
+  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + sim.prop.symbol + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
   $('resultTitle').textContent = r.type === 'precision' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
-  $('resultTotal').textContent = r.total.toLocaleString('en-US');
-  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target) + ' / ' + num(r.error, 2) + ' m/s'], ['剩余推进剂', num(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 1) + ' s'], ['剩余耐久', num(r.integrity, 1) + '%'], ['结算堆芯温度', num(r.temperature, 1) + ' K']];
+  $('resultTotal').textContent = points(r.total);
+  const settledTemperature = r.temperature < 800 && Math.round(r.temperature * 100) / 100 >= 800 ? '＜800' : num(r.temperature, 2);
+  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target) + ' / ' + num(r.error, 2) + ' m/s'], ['初装 / 剩余推进剂', points(r.initialFuel) + ' / ' + points(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 1) + ' s'], ['剩余耐久', num(r.integrity, 1) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
   $('resultMetrics').innerHTML = metrics.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
   const row = (label, detail, value, penalty = false) => `<div class="score-row ${penalty ? 'penalty' : ''}"><span>${label}<small>${detail}</small></span><b>${value}</b></div>`;
-  let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + num(r.dvPoints, 2)) : row('基础分', 'PRECISION', '+10,000') + row('剩余推进剂奖励', '1 分 / kg', '+' + num(r.fuelPoints, 2));
-  if (r.type === 'precision') rows += row('速度误差扣分', num(r.error, 2) + ' m/s · ' + num(r.errorPenalty * 100, 2) + '%', '−' + num(r.errorDeduction, 2), true);
-  rows += row('耗时扣分', num(r.elapsed, 1) + ' s · ' + num(r.timePenalty * 100, 2) + '%', '−' + num(r.timeDeduction, 2), true);
-  rows += row('耐久扣分', '每损失 10% 扣 5% · ' + num(r.durabilityPenalty * 100, 2) + '%', '−' + num(r.durabilityDeduction, 2), true);
-  rows += `<div class="score-row total"><span>最终得分<small>向下取整</small></span><b>${r.total.toLocaleString('en-US')}</b></div>`;
+  let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + points(r.dvPoints, 2))
+    : row('基础分', 'PRECISION', '+' + points(r.basePoints)) + row('推进剂装载成本', points(r.initialFuel) + ' kg × ' + r.fuelUnitCost + ' 分/kg', '−' + points(r.loadingCost, 2), true) + row('剩余推进剂返分', '1 分 / kg', '+' + points(r.fuelPoints, 2)) + row('修正前原始分', 'BASE SUBTOTAL', points(r.base, 2));
+  if (r.type === 'precision') rows += row('速度误差扣分', num(r.error, 2) + ' m/s · ' + num(r.errorPenalty * 100, 2) + '%', '−' + points(r.errorDeduction, 2), true);
+  rows += row('耗时扣分', num(r.elapsed, 1) + ' s · ' + num(r.timePenalty * 100, 2) + '%', '−' + points(r.timeDeduction, 2), true);
+  rows += row('耐久扣分', '每损失 10% 扣 5% · ' + num(r.durabilityPenalty * 100, 2) + '%', '−' + points(r.durabilityDeduction, 2), true);
+  rows += `<div class="score-row total"><span>最终得分<small>向下取整</small></span><b>${points(r.total)}</b></div>`;
   $('scoreBreakdown').innerHTML = rows;
-  $('resultFormula').textContent = `${num(r.base, 2)} × ${num(1 - r.errorPenalty, 4)}（精度）× ${num(1 - r.timePenalty, 4)}（时间）× ${num(1 - r.durabilityPenalty, 4)}（耐久）`;
+  $('resultFormula').textContent = `${points(r.base, 2)} × ${num(1 - r.errorPenalty, 4)}（精度）× ${num(1 - r.timePenalty, 4)}（时间）× ${num(1 - r.durabilityPenalty, 4)}（耐久）`;
+  $('resultLeaderboard').innerHTML = rankingTable(leaderboard.top(r.type, 'all', 3), true);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   $('resultDialog').showModal();
+}
+
+function rankingTable(records, compact = false) {
+  if (!records.length) return '<div class="ranking-empty">当前版本尚无已结算的飞行记录。完成挑战后自动入榜。</div>';
+  const rows = records.map((record, index) => `<tr class="${record.id === mission?.result?.id ? 'current-flight' : ''}"><td>${index + 1}</td><td>${NTR_PROPELLANTS[record.propellant].symbol}</td>${compact ? '' : `<td>${points(record.initialFuel)} kg</td><td>${num(record.deltaV, 2)}</td><td>${num(record.elapsed, 1)} s</td>`}<td class="rank-score">${points(record.total)}</td></tr>`).join('');
+  return `<table class="ranking-table"><thead><tr><th>#</th><th>推进剂</th>${compact ? '' : '<th>加注量</th><th>Δv / m/s</th><th>耗时</th>'}<th>得分</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderLeaderboard() {
+  $('leaderboardTable').innerHTML = rankingTable(leaderboard.top($('leaderboardMode').value, $('leaderboardPropellant').value));
+  $('leaderboardNote').textContent = leaderboard.persistent ? '仅保存于当前浏览器。' + NTR_RELEASE.label + ' 与其他版本独立排行，同分时用时更短者优先。' : '当前环境无法持久保存，成绩暂存于本次会话。不同版本独立排行。';
+}
+
+function openLeaderboard() {
+  $('leaderboardMode').value = mission?.type || 'precision'; renderLeaderboard();
+  document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close()); $('leaderboardDialog').showModal();
 }
 
 function setPage(value) {
@@ -424,7 +475,7 @@ $('faultOptions').addEventListener('click', event => {
 $('repairButton').addEventListener('click', () => { toast(sim.repairAll() ? '全部故障已修复' : '当前没有需要修复的故障'); faultOptions(); render(); });
 $('runButton').addEventListener('click', () => { const result = sim.isActive ? sim.shutdown() : mission ? mission.startEngine() : sim.start(); toast(result.message); if (result.ok && paused) togglePause(); updateSliders(); render(); });
 $('scramButton').addEventListener('click', () => { const result = sim.scram(); toast(result.message); if (paused) togglePause(); render(); });
-$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter); return; } sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
+$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter, mission.initialFuel); return; } sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
 $('ackButton').addEventListener('click', () => { sim.acknowledge(); toast('告警已确认；故障修复后指示灯将熄灭'); render(); });
 $('lampTestButton').addEventListener('click', () => { lampTest = true; $('lampTestButton').classList.add('testing'); render(); clearTimeout(lampTimeout); lampTimeout = setTimeout(() => { lampTest = false; $('lampTestButton').classList.remove('testing'); render(); }, 2200); });
 function updatePauseButton() { $('pauseButton').textContent = paused ? '▶' : 'Ⅱ'; $('pauseButton').setAttribute('aria-label', paused ? '继续模拟' : '暂停模拟'); }
@@ -443,10 +494,18 @@ $('challengeRulesButton').addEventListener('click', () => $('rulesDialog').showM
 document.querySelectorAll('[data-challenge]').forEach(button => button.addEventListener('click', () => { selectedChallenge = button.dataset.challenge; updateChallengeSetup(); }));
 document.querySelectorAll('[data-loadout]').forEach(button => button.addEventListener('click', () => { selectedPropellant = button.dataset.loadout; updateChallengeSetup(); }));
 $('challengeSizeSlider').addEventListener('input', updateChallengeSetup);
-$('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value)));
+$('fuelLoadInput').addEventListener('input', event => changeFuelLoad(event.target.valueAsNumber));
+$('fuelLoadSlider').addEventListener('input', event => changeFuelLoad(Number(event.target.value)));
+$('fuelPresets').addEventListener('click', event => { const button = event.target.closest('[data-fuel-preset]'); if (button) changeFuelLoad(Number(button.dataset.fuelPreset)); });
+$('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value), selectedChallenge === 'precision' ? selectedFuelLoads[selectedPropellant] : undefined));
 $('settleButton').addEventListener('click', () => { if (mission?.complete) { showResult(); return; } if (!mission) return; const result = mission.settle(); if (!result.ok) toast(result.message); render(); });
 $('retryChallengeButton').addEventListener('click', () => { $('resultDialog').close(); openChallengeSetup(); });
 $('reviewFlightButton').addEventListener('click', () => $('resultDialog').close());
+$('leaderboardButton').addEventListener('click', openLeaderboard);
+$('resultLeaderboardButton').addEventListener('click', openLeaderboard);
+$('leaderboardMode').addEventListener('change', renderLeaderboard);
+$('leaderboardPropellant').addEventListener('change', renderLeaderboard);
+document.querySelectorAll('[data-release]').forEach(element => { element.textContent = NTR_RELEASE.label; });
 document.addEventListener('keydown', event => {
   if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
   if (event.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { event.preventDefault(); togglePause(); }
