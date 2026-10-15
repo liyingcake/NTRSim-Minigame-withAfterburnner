@@ -232,13 +232,13 @@
         <div class="panel-title"><span><b>07</b> 液氧补燃系统</span><small>LOX-AUGMENTED NTR / LANTR</small></div>
         <div class="lantr-controls"><div><label class="control-label" for="oxygenValveSlider">液氧注入阀 <output id="oxygenValveOutput">0 <small>%</small></output></label><input id="oxygenValveSlider" type="range" min="0" max="100" step="1" value="0"><div class="range-labels"><span>CLOSED</span><span id="oxygenRatedFlow">80 kg/s MAX</span><span>OPEN</span></div></div>
           <button class="toggle-control" id="oxygenPumpToggle" aria-pressed="false"><span>液氧泵</span><i><em></em></i><small>LOX PUMP</small></button>
-          <div class="lantr-feed-readout"><b id="oxygenStatus">未安装液氧舱</b><p id="pumpFlowDetail">主泵指令 0.00 / 实际 0.00 kg/s</p><p id="oxygenPumpDetail">液氧指令 0.00 / 实际 0.00 kg/s</p><small>每 10 kg/s 指令流量：最大 ±0.325 kg/s 波动。热氢 ≥ 700 K 后注氧，实际 O/H 限幅 8；停机自动切氧。</small></div>
+          <div class="lantr-feed-readout"><b id="oxygenStatus">未安装液氧舱</b><p id="pumpFlowDetail">主泵指令 0.00 / 实际 0.00 kg/s</p><p id="oxygenPumpDetail">液氧指令 0.00 / 实际 0.00 kg/s</p><small>每 1 秒更新波动目标并平滑过渡；每 10 kg/s 流量最大 ±0.100 kg/s（±1%）。热氢 ≥ 700 K 后注氧，O/H 限幅 8；停机切氧。</small></div>
         </div>
       </section>
       <div class="rack-footer"><span><i class="tiny-light green on" id="healthLed"></i><b id="healthText">所有子系统正常</b><span class="footer-divider">│</span><span id="footerPropellant">LH₂ CYCLE</span></span><span>INTERACTIVE ENGINEERING DEMO <b>·</b> SIMULATION MODEL / 非工程计算</span></div>
       <i class="rack-screw s1"></i><i class="rack-screw s2"></i><i class="rack-screw s3"></i><i class="rack-screw s4"></i>
     </section>
-    <footer class="page-footer"><span><b>☢</b> NUCLEAR THERMAL PROPULSION PROGRAM</span><span><span class="release-badge" data-release>v0.5</span> DESIGNED FOR THE NEXT FRONTIER. <span class="footer-serial">S/N 1963–024</span></span></footer>
+    <footer class="page-footer"><span><b>☢</b> NUCLEAR THERMAL PROPULSION PROGRAM</span><span><span class="release-badge" data-release>v0.5.1</span> DESIGNED FOR THE NEXT FRONTIER. <span class="footer-serial">S/N 1963–024</span></span></footer>
   </main>
 
   <dialog id="tankDialog" class="tank-dialog"><div class="dialog-top"><span>150 m³ / 储罐配置</span><button data-close="tankDialog" aria-label="关闭储罐配置">×</button></div><div class="dialog-body"><h2>把每一立方米，用在航程上。</h2><p>按当前推进剂加注。液氧仅可与液氢组合；双舱固定占用 10 m³ 隔断。挑战中的装载量在开局后锁定。</p><div class="tank-inputs"><label>主推进剂 <span id="sandboxFuelType">LH₂</span> / kg<input id="sandboxFuelLoad" type="number" min="10" step="1" value="6000"></label><label>液氧 LOX / kg<input id="sandboxOxygenLoad" type="number" min="0" step="1" value="0"></label></div><div class="tank-volume-bar"><i id="sandboxFuelVolumeBar"></i><i id="sandboxOxygenVolumeBar"></i><i id="sandboxDividerBar"></i></div><p id="sandboxTankSummary"></p><p class="tank-error" id="sandboxTankError" role="status"></p><div class="fuel-presets"><button id="sandboxFullTank">装满主推进剂</button><button id="sandboxLantrPreset">LANTR：5 t LH₂ + 20 t LOX</button></div><button class="launch-challenge" id="applyTankButton">确认加注 <span>→</span></button></div></dialog>
@@ -268,11 +268,11 @@
       <div class="result-section-label">试飞配置 <span>FLIGHT CONFIGURATION</span></div><div id="resultConfiguration" class="result-configuration" aria-label="本次试飞的发动机与初始配置"></div>
       <div id="resultMetrics" class="result-metrics"></div>
       <details class="flight-details" id="resultFlightDetails"><summary>飞行数据明细 <span>PERFORMANCE LOG</span></summary><div id="resultFlightStats" class="flight-stats"></div></details>
-      <div class="score-breakdown" id="scoreBreakdown"></div><p id="resultFormula" class="result-formula"></p><section class="result-ranking"><div class="ranking-heading"><span>本模式分数排行榜</span><button id="resultLeaderboardButton">完整排行 ↗</button></div><div id="resultLeaderboard"></div><div class="version-watermark">NERVA / <span data-release>v0.5</span> · LOCAL FLIGHT RECORDS</div></section><div class="result-actions"><button id="retryChallengeButton" class="primary-dialog-button">按此配置再挑战 ↗</button><button id="reviewFlightButton">返回控制台</button></div>
+      <div class="score-breakdown" id="scoreBreakdown"></div><p id="resultFormula" class="result-formula"></p><section class="result-ranking"><div class="ranking-heading"><span>本模式分数排行榜</span><button id="resultLeaderboardButton">完整排行 ↗</button></div><div id="resultLeaderboard"></div><div class="version-watermark">NERVA / <span data-release>v0.5.1</span> · LOCAL FLIGHT RECORDS</div></section><div class="result-actions"><button id="retryChallengeButton" class="primary-dialog-button">按此配置再挑战 ↗</button><button id="reviewFlightButton">返回控制台</button></div>
     </div>
   </dialog>
 
-  <dialog id="leaderboardDialog" class="leaderboard-dialog"><div class="dialog-top"><span>FLIGHT RECORDS / 分数排行榜</span><button data-close="leaderboardDialog" aria-label="关闭排行榜">×</button></div><div class="dialog-body"><span class="manual-kicker">LOCAL RECORDS · TOP 10</span><h2>把每一次飞行，留下来。</h2><div class="leaderboard-filters"><label for="leaderboardMode">挑战模式<select id="leaderboardMode"><option value="precision">02 / 精确入轨 · 325.00 m/s</option><option value="lunar">03 / 地月转移 · 2,000.00 m/s</option><option value="endurance">01 / 无限加速</option></select></label><label for="leaderboardPropellant">推进剂<select id="leaderboardPropellant"><option value="all">全部推进剂</option><option value="hydrogen">液氢 / LH₂</option><option value="water">水 / H₂O</option></select></label></div><div id="leaderboardTable" class="leaderboard-table-wrap"></div><div class="version-watermark">NERVA / <span data-release>v0.5</span> · LOCAL FLIGHT RECORDS</div><p class="leaderboard-note" id="leaderboardNote">成绩保存在当前浏览器中，不同版本独立排行。</p></div></dialog>
+  <dialog id="leaderboardDialog" class="leaderboard-dialog"><div class="dialog-top"><span>FLIGHT RECORDS / 分数排行榜</span><button data-close="leaderboardDialog" aria-label="关闭排行榜">×</button></div><div class="dialog-body"><span class="manual-kicker">LOCAL RECORDS · TOP 10</span><h2>把每一次飞行，留下来。</h2><div class="leaderboard-filters"><label for="leaderboardMode">挑战模式<select id="leaderboardMode"><option value="precision">02 / 精确入轨 · 325.00 m/s</option><option value="lunar">03 / 地月转移 · 2,000.00 m/s</option><option value="endurance">01 / 无限加速</option></select></label><label for="leaderboardPropellant">推进剂<select id="leaderboardPropellant"><option value="all">全部推进剂</option><option value="hydrogen">液氢 / LH₂</option><option value="water">水 / H₂O</option></select></label></div><div id="leaderboardTable" class="leaderboard-table-wrap"></div><div class="version-watermark">NERVA / <span data-release>v0.5.1</span> · LOCAL FLIGHT RECORDS</div><p class="leaderboard-note" id="leaderboardNote">成绩保存在当前浏览器中，不同版本独立排行。</p></div></dialog>
 
   <dialog id="faultDialog"><div class="dialog-top"><span>故障注入 / FAULT INJECTION</span><button data-close="faultDialog" aria-label="关闭">×</button></div><div class="dialog-body"><h2>没有完美的试车。</h2><p>向正在运行的系统注入故障，观察温度、压力和推力的连锁变化。自动保护开启时，超限将触发紧急停堆。</p><div id="faultOptions" class="fault-options"></div><div class="dialog-actions"><button id="repairButton" class="primary-dialog-button">修复全部故障</button><span>也可在 MFD「故障诊断」中查看详情</span></div></div></dialog>
   <dialog id="manualDialog"><div class="dialog-top"><span>操作手册 / OPERATOR HANDBOOK</span><button data-close="manualDialog" aria-label="关闭">×</button></div><div class="dialog-body manual-body"><span class="manual-kicker">NERVA · NT–024</span><h2>下一次点火，由你指挥。</h2><p>沙盒保留原有 60% 功率试车。挑战从零功率冷机开始：先打开推进剂泵与冷却回路，再将主阀设为约 70%、功率设为约 60%，执行启动。提前降功率，留意停机后余热仍会贡献 Δv。</p><ol><li><b>沙盒与挑战</b><span>顶部可选择自由沙盒，或「无限加速」「精确入轨注入」「地月转移注入」。挑战中推进剂锁定，堆芯尺寸在首次点火前可调；点火后锁定。</span></li><li><b>调节与观察</b><span>提高功率会先增加产热，随后堆芯温度和排气速度逐渐升高。增大主阀开度会增加流量，同时降低温度。飞船质量随推进剂消耗下降，相同推力会产生更高加速度。</span></li><li><b>储罐与液氧补燃</b><span>150 m³ 罐容按密度分配；双剂另扣 10 m³ 隔断。带液氧后，开启独立液氧泵与阀，热氢就绪后在下游喷管补燃。补燃提高推力和喷管温度，通常降低比冲；接近目标先关氧。F6 显示储罐、混合比和尾流产物。</span></li><li><b>货运挑战</b><span>任务 2 可额外带 0–40 吨货物，每 kg 奖励 2 分；任务 3 目标 2,000 m/s，可带 5–100 吨货物，每 kg 奖励 10 分。载荷加入基础 10 吨干重，真实影响加速度。</span></li><li><b>处理故障</b><span>注入泵故障、冷却失效、管路泄漏、阀门卡滞或温度传感器漂移。确认告警可停止闪烁，修复故障后可重新启动。</span></li><li><b>停堆与结算</b><span>停机后保持冷却回路运行，堆芯低于 800 K 才可结算。关闭主阀能减少推进剂消耗，独立闭式冷却回路仍可带走余热。精确挑战尤其需要预留停机过程产生的额外 Δv。</span></li></ol><div class="keyboard-guide"><span><kbd>Space</kbd>暂停</span><span><kbd>1–6</kbd>切换 MFD</span><span><kbd>Esc</kbd>关闭窗口</span><span><kbd>?</kbd>操作手册</span></div><p class="model-note">演示模型使用集总热容、质量流量与理想喷管近似，含简化水汽化能耗。LANTR 使用简化质量 / 能量模型：2H₂ + O₂ → 2H₂O，尾流为水蒸气与未反应的氢。未求解高温化学平衡、解离及喷管内激波。水模式无液氧补燃。仅用于交互与概念探索。<a href="https://www.nasa.gov/space-technology-mission-directorate/tdm/space-nuclear-propulsion/" target="_blank" rel="noreferrer">参考：NASA 核热推进原理 ↗</a></p></div></dialog>
@@ -280,7 +280,7 @@
 <script>
 // Generated by build-version.cjs from package.json. Do not edit manually.
 (function(root){
-  const release = Object.freeze({"version":"0.5.0","label":"v0.5","scoreSchema":4});
+  const release = Object.freeze({"version":"0.5.1","label":"v0.5.1","scoreSchema":4});
   if (typeof module !== 'undefined' && module.exports) module.exports = release;
   else root.NTR_RELEASE = release;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -294,6 +294,7 @@
   const TANK = Object.freeze({ volume: 150, divider: 10, hydrogen: 70.8, oxygen: 1138, water: 1000 });
   const PRICES = Object.freeze({ hydrogen: 10, oxygen: 3, water: 2 });
   const OXIDIZER_RATIO = 8; // Approximate O2:H2 stoichiometric mass ratio.
+  const PUMP_WAVE = Object.freeze({ interval: 1, amplitude: .01 });
   function loadout(propellant, fuel, oxygen = 0, installed = oxygen > 0) {
     const known = ['hydrogen', 'water'].includes(propellant);
     const fuelVolume = known ? fuel / TANK[propellant] : Infinity;
@@ -308,9 +309,13 @@
       maxFuel: known ? Math.max(0, Math.floor((TANK.volume - oxygenVolume - dividerVolume) * TANK[propellant] + 1e-8)) : 0,
       maxOxygen: propellant === 'hydrogen' ? Math.max(0, Math.floor((TANK.volume - TANK.divider - fuelVolume) * TANK.oxygen + 1e-8)) : 0 };
   }
-  // Bounded, repeatable quasi-periodic pump variation: ±3.25% of commanded flow.
+  // One target per simulated second. Quintic blending keeps value, slope and
+  // curvature continuous at each update; the convex blend cannot overshoot.
   function pumpRipple(command, time, phase = 0) {
-    return command * .0325 * (.62 * Math.sin(time * 7.1 + phase) + .26 * Math.sin(time * 17.3 + phase * 1.7) + .12 * Math.sin(time * 31.7 + phase * .6));
+    const position = time / PUMP_WAVE.interval, index = Math.floor(position), fraction = position - index;
+    const blend = fraction ** 3 * (fraction * (fraction * 6 - 15) + 10);
+    const target = step => .65 * Math.sin(step * .73 + phase) + .25 * Math.sin(step * 1.31 + phase * 1.7) + .1 * Math.sin(step * 2.11 + phase * .6);
+    return command * PUMP_WAVE.amplitude * (target(index) * (1 - blend) + target(index + 1) * blend);
   }
   function mixExhaust(hydrogen, oxygen, baseVelocity, gasTemperature) {
     const reactedHydrogen = Math.min(hydrogen, oxygen / OXIDIZER_RATIO);
@@ -326,7 +331,7 @@
     return { flow, chemicalPower, kineticPower, velocity, temperature, steam, hydrogen: unburnedHydrogen, oxygen: unburnedOxygen,
       mixtureRatio: hydrogen > 0 ? oxygen / hydrogen : 0 };
   }
-  const api = { TANK, PRICES, OXIDIZER_RATIO, loadout, pumpRipple, mixExhaust };
+  const api = { TANK, PRICES, OXIDIZER_RATIO, PUMP_WAVE, loadout, pumpRipple, mixExhaust };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NTR_SYSTEMS = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -941,6 +946,9 @@ function render() {
   $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
   if (page === 'trend') canvas.setAttribute('aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
+  if (page === 'overview') canvas.setAttribute('aria-label', sim.oxygenTankInstalled
+    ? '系统总览：液氢储罐、主泵、反应堆及下游液氧补燃系统。液氧 ' + points(sim.oxygen, 1) + ' kg，氧泵' + (sim.oxygenPump ? '开启' : '关闭') + '，氧阀 ' + num(sim.oxygenValve) + '%，注氧 ' + num(sim.oxygenFlow, 2) + ' kg/s'
+    : '系统总览：主推进剂储罐、供液泵、反应堆和再生冷却喷管');
   if (page === 'overview') $('screenHint').textContent = sim.engineModel + ' · CLOSED EXPANDER CYCLE';
   $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
   $('runButton').classList.toggle('start-ready', !sim.isActive);
@@ -1301,6 +1309,7 @@ function drawOverview() {
     for (let i = 0; i < 14; i++) { const offset = reducedMotion ? i * 18 : ((motionTime * 50 + i * 18) % 210); const x = 435 + offset; const fan = (x - 435) / 200; const y = 203 + Math.sin(i * 8.3) * fan * 44; line([[x, y], [x + 13, y + (y - 203) * .05]], '#9cbf8977', .7); }
     ctx.restore();
   }
+  if (sim.oxygenTankInstalled) drawOverviewOxygen();
   text('REGENERATIVE NOZZLE', 502, 294, 8, C.dim, 'center');
   flowLine([[565, 270], [565, 283], [407, 283], [407, 258]], sim.cooling && !sim.faults.has('cooling') ? C.blue : C.red);
   text(num(sim.pressure, 2) + ' MPa', 450, 247, 9, C.green, 'center');
@@ -1310,6 +1319,34 @@ function drawOverview() {
   miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 40, 347);
   miniMetric('CORE INTEGRITY', num(sim.integrity, 1), '%', 260, 347, sim.integrity < 90 ? C.amber : C.bright);
   miniMetric('EXHAUST TEMPERATURE', num(sim.nozzleTemperature), 'K', 464, 347, C.amber);
+}
+
+function drawOverviewOxygen() {
+  const injecting = sim.oxygenFlow > .001;
+  const color = injecting ? C.amber : C.dim, pumpColor = sim.oxygenPump && sim.oxygen > 0 ? C.amber : C.dim;
+  // Separate oxidizer feed stays outside the reactor and enters after the throat.
+  rect(458, 88, 86, 44, C.amber, '#19281d', 10);
+  const fraction = sim.initialOxygen > 0 ? Math.min(1, sim.oxygen / sim.initialOxygen) : 0;
+  ctx.save(); ctx.beginPath(); ctx.roundRect(462, 92, 78, 36, 7); ctx.clip();
+  ctx.fillStyle = '#9e864638'; ctx.fillRect(462, 128 - fraction * 36, 78, 36); ctx.restore();
+  text('LOX / O₂', 501, 104, 9, C.amber, 'center');
+  text(points(sim.oxygen, 0) + ' kg', 501, 121, 9, C.bright, 'center');
+  const feed = points => injecting ? flowLine(points, C.amber) : line(points, C.dim, 1, [3, 4]);
+  feed([[544, 108], [562, 108]]);
+  circle(576, 108, 14, pumpColor, C.bg); circle(576, 108, 4, pumpColor);
+  ctx.save(); ctx.translate(576, 108); ctx.rotate(sim.oxygenPump && sim.oxygen > 0 && !paused ? motionTime * 1.2 : 0);
+  for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); line([[0, -5], [7, -8], [3, -11]], pumpColor); } ctx.restore();
+  text('LOX PUMP ' + (sim.oxygenPump ? 'ON' : 'OFF'), 576, 85, 7, pumpColor, 'center');
+  feed([[590, 108], [624, 108], [624, 136], [494, 136], [494, 182]]);
+  line([[488, 147], [500, 159], [488, 159], [500, 147], [488, 147]], color, 1.2);
+  text('V ' + num(sim.oxygenValve) + '%', 480, 156, 8, color, 'right');
+  if (injecting) arrow(494, 177, 'down', C.amber);
+  circle(494, 184, 3, color, injecting ? C.amber : C.bg);
+  text(sim.oxygen <= 0 ? 'LOX EMPTY' : num(sim.oxygenFlow, 2) + ' kg/s', 645, 153, 8, color, 'right');
+  if (injecting) {
+    line([[494, 188], [510, 198], [536, 202]], C.amber, 1.5);
+    text('AFTERBURN', 612, 287, 8, C.amber, 'center');
+  }
 }
 
 function drawThermal() {

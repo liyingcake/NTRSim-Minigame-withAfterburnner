@@ -5,6 +5,7 @@
   const TANK = Object.freeze({ volume: 150, divider: 10, hydrogen: 70.8, oxygen: 1138, water: 1000 });
   const PRICES = Object.freeze({ hydrogen: 10, oxygen: 3, water: 2 });
   const OXIDIZER_RATIO = 8; // Approximate O2:H2 stoichiometric mass ratio.
+  const PUMP_WAVE = Object.freeze({ interval: 1, amplitude: .01 });
   function loadout(propellant, fuel, oxygen = 0, installed = oxygen > 0) {
     const known = ['hydrogen', 'water'].includes(propellant);
     const fuelVolume = known ? fuel / TANK[propellant] : Infinity;
@@ -19,9 +20,13 @@
       maxFuel: known ? Math.max(0, Math.floor((TANK.volume - oxygenVolume - dividerVolume) * TANK[propellant] + 1e-8)) : 0,
       maxOxygen: propellant === 'hydrogen' ? Math.max(0, Math.floor((TANK.volume - TANK.divider - fuelVolume) * TANK.oxygen + 1e-8)) : 0 };
   }
-  // Bounded, repeatable quasi-periodic pump variation: ±3.25% of commanded flow.
+  // One target per simulated second. Quintic blending keeps value, slope and
+  // curvature continuous at each update; the convex blend cannot overshoot.
   function pumpRipple(command, time, phase = 0) {
-    return command * .0325 * (.62 * Math.sin(time * 7.1 + phase) + .26 * Math.sin(time * 17.3 + phase * 1.7) + .12 * Math.sin(time * 31.7 + phase * .6));
+    const position = time / PUMP_WAVE.interval, index = Math.floor(position), fraction = position - index;
+    const blend = fraction ** 3 * (fraction * (fraction * 6 - 15) + 10);
+    const target = step => .65 * Math.sin(step * .73 + phase) + .25 * Math.sin(step * 1.31 + phase * 1.7) + .1 * Math.sin(step * 2.11 + phase * .6);
+    return command * PUMP_WAVE.amplitude * (target(index) * (1 - blend) + target(index + 1) * blend);
   }
   function mixExhaust(hydrogen, oxygen, baseVelocity, gasTemperature) {
     const reactedHydrogen = Math.min(hydrogen, oxygen / OXIDIZER_RATIO);
@@ -37,6 +42,6 @@
     return { flow, chemicalPower, kineticPower, velocity, temperature, steam, hydrogen: unburnedHydrogen, oxygen: unburnedOxygen,
       mixtureRatio: hydrogen > 0 ? oxygen / hydrogen : 0 };
   }
-  const api = { TANK, PRICES, OXIDIZER_RATIO, loadout, pumpRipple, mixExhaust };
+  const api = { TANK, PRICES, OXIDIZER_RATIO, PUMP_WAVE, loadout, pumpRipple, mixExhaust };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NTR_SYSTEMS = api;
 })(typeof window !== 'undefined' ? window : globalThis);

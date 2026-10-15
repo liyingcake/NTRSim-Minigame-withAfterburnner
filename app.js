@@ -113,6 +113,9 @@ function render() {
   $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
   if (page === 'trend') canvas.setAttribute('aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
+  if (page === 'overview') canvas.setAttribute('aria-label', sim.oxygenTankInstalled
+    ? '系统总览：液氢储罐、主泵、反应堆及下游液氧补燃系统。液氧 ' + points(sim.oxygen, 1) + ' kg，氧泵' + (sim.oxygenPump ? '开启' : '关闭') + '，氧阀 ' + num(sim.oxygenValve) + '%，注氧 ' + num(sim.oxygenFlow, 2) + ' kg/s'
+    : '系统总览：主推进剂储罐、供液泵、反应堆和再生冷却喷管');
   if (page === 'overview') $('screenHint').textContent = sim.engineModel + ' · CLOSED EXPANDER CYCLE';
   $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
   $('runButton').classList.toggle('start-ready', !sim.isActive);
@@ -473,6 +476,7 @@ function drawOverview() {
     for (let i = 0; i < 14; i++) { const offset = reducedMotion ? i * 18 : ((motionTime * 50 + i * 18) % 210); const x = 435 + offset; const fan = (x - 435) / 200; const y = 203 + Math.sin(i * 8.3) * fan * 44; line([[x, y], [x + 13, y + (y - 203) * .05]], '#9cbf8977', .7); }
     ctx.restore();
   }
+  if (sim.oxygenTankInstalled) drawOverviewOxygen();
   text('REGENERATIVE NOZZLE', 502, 294, 8, C.dim, 'center');
   flowLine([[565, 270], [565, 283], [407, 283], [407, 258]], sim.cooling && !sim.faults.has('cooling') ? C.blue : C.red);
   text(num(sim.pressure, 2) + ' MPa', 450, 247, 9, C.green, 'center');
@@ -482,6 +486,34 @@ function drawOverview() {
   miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 40, 347);
   miniMetric('CORE INTEGRITY', num(sim.integrity, 1), '%', 260, 347, sim.integrity < 90 ? C.amber : C.bright);
   miniMetric('EXHAUST TEMPERATURE', num(sim.nozzleTemperature), 'K', 464, 347, C.amber);
+}
+
+function drawOverviewOxygen() {
+  const injecting = sim.oxygenFlow > .001;
+  const color = injecting ? C.amber : C.dim, pumpColor = sim.oxygenPump && sim.oxygen > 0 ? C.amber : C.dim;
+  // Separate oxidizer feed stays outside the reactor and enters after the throat.
+  rect(458, 88, 86, 44, C.amber, '#19281d', 10);
+  const fraction = sim.initialOxygen > 0 ? Math.min(1, sim.oxygen / sim.initialOxygen) : 0;
+  ctx.save(); ctx.beginPath(); ctx.roundRect(462, 92, 78, 36, 7); ctx.clip();
+  ctx.fillStyle = '#9e864638'; ctx.fillRect(462, 128 - fraction * 36, 78, 36); ctx.restore();
+  text('LOX / O₂', 501, 104, 9, C.amber, 'center');
+  text(points(sim.oxygen, 0) + ' kg', 501, 121, 9, C.bright, 'center');
+  const feed = points => injecting ? flowLine(points, C.amber) : line(points, C.dim, 1, [3, 4]);
+  feed([[544, 108], [562, 108]]);
+  circle(576, 108, 14, pumpColor, C.bg); circle(576, 108, 4, pumpColor);
+  ctx.save(); ctx.translate(576, 108); ctx.rotate(sim.oxygenPump && sim.oxygen > 0 && !paused ? motionTime * 1.2 : 0);
+  for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); line([[0, -5], [7, -8], [3, -11]], pumpColor); } ctx.restore();
+  text('LOX PUMP ' + (sim.oxygenPump ? 'ON' : 'OFF'), 576, 85, 7, pumpColor, 'center');
+  feed([[590, 108], [624, 108], [624, 136], [494, 136], [494, 182]]);
+  line([[488, 147], [500, 159], [488, 159], [500, 147], [488, 147]], color, 1.2);
+  text('V ' + num(sim.oxygenValve) + '%', 480, 156, 8, color, 'right');
+  if (injecting) arrow(494, 177, 'down', C.amber);
+  circle(494, 184, 3, color, injecting ? C.amber : C.bg);
+  text(sim.oxygen <= 0 ? 'LOX EMPTY' : num(sim.oxygenFlow, 2) + ' kg/s', 645, 153, 8, color, 'right');
+  if (injecting) {
+    line([[494, 188], [510, 198], [536, 202]], C.amber, 1.5);
+    text('AFTERBURN', 612, 287, 8, C.amber, 'center');
+  }
 }
 
 function drawThermal() {

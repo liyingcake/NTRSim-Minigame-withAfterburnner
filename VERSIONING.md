@@ -4,15 +4,15 @@
 
 ## 当前版本
 
-- 发行版本：`0.5.0`，界面显示 `v0.5`，发布标签为 `v0.5`。
+- 发行版本：`0.5.1`，界面显示 `v0.5.1`，发布标签为 `v0.5.1`。
 - 计分规则版本：`package.json` 中的 `nerva.scoreSchema = 4`。
 - 修改前基线：`baseline-pre-v0.3`。
-- 前一发行版本：`v0.4`。v0.5 引入液氧、货物与新价格，计分规则版本递增为 4。
+- 前一发行版本：`v0.5`。v0.5.1 优化泵动态和液氧总览，计分公式不变，规则版本保持为 4。
 - `package.json` 是版本号唯一来源。`version.js` 由 `build-version.cjs` 生成，请勿手动修改。
 
 ## 后续发布
 
-1. 修改源码，并在 `package.json` 更新语义版本。新增功能更新次版本（如 `0.6.0`）；兼容修复更新修订号（如 `0.5.1`）。改变计分含义时同时递增 `nerva.scoreSchema`。
+1. 修改源码，并在 `package.json` 更新语义版本。新增功能更新次版本（如 `0.6.0`）；兼容修复更新修订号（如 `0.5.2`）。改变计分含义时同时递增 `nerva.scoreSchema`。
 2. 在 `CHANGELOG.md` 添加该版本变化与日期。
 3. 执行 `npm run version:sync`、`npm test` 和 `npm run check`。
 4. 执行 `npm run standalone`，生成与版本一致的 `version.js` 和 `NERVA.html`，再验证浏览器操作与水印。
@@ -23,8 +23,8 @@
 ## 比较与查看历史
 
 - 查看发布标签：`git tag --list`。
-- 查看版本变化：`git diff v0.4 v0.5 -- challenge.js app.js`。
-- 查看历史文件：`git show v0.5:package.json`。
+- 查看版本变化：`git diff v0.5 v0.5.1 -- challenge.js app.js`。
+- 查看历史文件：`git show v0.5.1:package.json`。
 - 当前可玩 HTML 随发布提交一起保存，任何版本标签都能追溯对应代码和计分规则。
 
 截图和临时验证产物由 `.gitignore` 排除。当前仅进行本地版本管理；未来配置远端后可另行推送提交与标签。

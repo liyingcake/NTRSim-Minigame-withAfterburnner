@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { TANK, loadout, pumpRipple, mixExhaust } = require('../systems.js');
+const { TANK, PUMP_WAVE, loadout, pumpRipple, mixExhaust } = require('../systems.js');
 const { NTRSimulation } = require('../simulation.js');
 const { NTRChallenge, calculateScore } = require('../challenge.js');
 const { NTRLeaderboard } = require('../leaderboard.js');
@@ -32,12 +32,25 @@ test('hydrogen oxygen products conserve mass, release heat, raise thrust and red
   const rich = mixExhaust(10, 100, 8000, 2500); near(rich.oxygen, 20); near(rich.steam + rich.oxygen, 110);
   near(mixed.kineticPower, .5 * 10 * 8000 ** 2 / 1e6 + 300 * .85);
 });
-test('pump ripple is deterministic, has both signs and remains within ±0.325 kg/s per ten', () => {
+test('pump ripple is deterministic, has both signs and remains within ±0.100 kg/s per ten', () => {
+  assert.equal(PUMP_WAVE.interval, 1); assert.equal(PUMP_WAVE.amplitude, .01);
   for (const command of [0, 10, 50, 200]) {
     let min = 0, max = 0, sum = 0;
-    for (let i = 0; i < 20000; i++) { const t = i * .01, n = pumpRipple(command, t); near(n, pumpRipple(command, t)); assert.ok(Math.abs(n) <= command * .0325 + 1e-10); min = Math.min(min, n); max = Math.max(max, n); sum += n; }
+    for (let i = 0; i < 20000; i++) { const t = i * .01, n = pumpRipple(command, t); near(n, pumpRipple(command, t)); assert.ok(Math.abs(n) <= command * .01 + 1e-10); min = Math.min(min, n); max = Math.max(max, n); sum += n; }
     if (command) { assert.ok(min < 0 && max > 0); assert.ok(Math.abs(sum / 20000) < command * .0002); }
   }
+});
+test('one-second pump target transitions remain smooth through boundaries and simulation substeps', () => {
+  for (const phase of [0, 2.3]) {
+    for (let second = 1; second <= 100; second++) {
+      const before = pumpRipple(100, second - .0001, phase), at = pumpRipple(100, second, phase), after = pumpRipple(100, second + .0001, phase);
+      near(before, at, 1e-8); near(after, at, 1e-8);
+    }
+    for (let step = 1; step < 2000; step++) {
+      assert.ok(Math.abs(pumpRipple(100, step * .05, phase) - pumpRipple(100, (step - 1) * .05, phase)) < .2);
+    }
+  }
+  assert.notEqual(pumpRipple(100, 2.5), pumpRipple(100, 2.5, 2.3));
 });
 test('LANTR consumes oxygen independently, conserves both tanks and leaves the reactor heat unchanged', () => {
   const e = lantr(), pureCore = e.coreTemperature, pureThrust = e.thrust, pureIsp = e.isp;

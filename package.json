@@ -1,6 +1,6 @@
 {
   "name": "nerva-simulator",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "nerva": { "scoreSchema": 4 },
   "private": true,
   "description": "Retro interactive nuclear thermal propulsion console",
