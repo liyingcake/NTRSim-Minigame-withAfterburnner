@@ -44,20 +44,20 @@ test('endurance scoring applies 1% per 100 seconds and 5% per 10% durability los
 });
 test('precision hydrogen cost and remaining-fuel refund precede all performance penalties', () => {
   const score = calculateScore({ type: 'precision', propellant: 'hydrogen', initialFuel: 2000, deltaV: 327, target: 325, fuel: 1200, elapsed: 100, integrity: 90 });
-  assert.equal(score.basePoints, 100000); assert.equal(score.loadingCost, 10000);
-  assert.equal(score.base, 91200); assert.equal(score.dvPoints, 0); assert.equal(score.fuelPoints, 1200);
+  assert.equal(score.basePoints, 100000); assert.equal(score.loadingCost, 20000);
+  assert.equal(score.base, 81200); assert.equal(score.dvPoints, 0); assert.equal(score.fuelPoints, 1200);
   assert.equal(score.errorPenalty, .02); assert.equal(score.timePenalty, .01);
   assert.equal(score.durabilityPenalty, .05);
-  assert.equal(score.total, Math.floor(91200 * .98 * .99 * .95));
+  assert.equal(score.total, Math.floor(81200 * .98 * .99 * .95));
 });
 test('water costs two points per loaded kilogram and refunds one per remaining kilogram', () => {
   const score = calculateScore({ type: 'precision', propellant: 'water', initialFuel: 3000, deltaV: 325, target: 325, fuel: 1000, elapsed: 0, integrity: 100 });
   assert.equal(score.fuelUnitCost, 2); assert.equal(score.loadingCost, 6000);
   assert.equal(score.fuelPoints, 1000); assert.equal(score.total, 95000);
 });
-test('unused hydrogen returns only one point per kilogram rather than its five-point purchase cost', () => {
+test('unused hydrogen returns only one point per kilogram rather than its ten-point purchase cost', () => {
   const score = calculateScore({ type: 'precision', propellant: 'hydrogen', initialFuel: 1000, deltaV: 325, target: 325, fuel: 1000, elapsed: 0, integrity: 100 });
-  assert.equal(score.total, 96000);
+  assert.equal(score.total, 91000);
 });
 test('custom precision loads update the actual tank, starting mass, and cold-start consumption', () => {
   for (const [propellant, fuelLoad] of [['hydrogen', 777], ['water', 2345]]) {
@@ -76,9 +76,9 @@ test('precision defaults are quick-run loads while endurance keeps its original 
   assert.equal(make({ propellant: 'water' }).initialFuel, 30000);
 });
 test('invalid or out-of-capacity loads cannot start or yield a scoring refund', () => {
-  for (const fuelLoad of [0, 9, -10, 10.5, NaN, Infinity, 10001]) assert.throws(() => make({ type: 'precision', fuelLoad }), TypeError);
-  assert.throws(() => make({ fuelLoad: 500 }), TypeError);
-  assert.throws(() => make({ type: 'precision', propellant: 'water', fuelLoad: 30001 }), TypeError);
+  for (const fuelLoad of [0, 9, -10, 10.5, NaN, Infinity, 10621]) assert.throws(() => make({ type: 'precision', fuelLoad }), TypeError);
+  assert.equal(make({ fuelLoad: 500 }).initialFuel, 500);
+  assert.throws(() => make({ type: 'precision', propellant: 'water', fuelLoad: 150001 }), TypeError);
   const args = { type: 'precision', propellant: 'hydrogen', initialFuel: 1000, fuel: 1001, deltaV: 325, target: 325, elapsed: 0, integrity: 100 };
   assert.throws(() => calculateScore(args), TypeError);
 });

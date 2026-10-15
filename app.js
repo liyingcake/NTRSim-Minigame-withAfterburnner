@@ -11,13 +11,14 @@ let motionTime = 0;
 let mission = null, resultShown = false, displayedResult = null;
 const missionWindow = { floating: false, collapsed: false, x: null, y: null, drag: null };
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
-const selectedFuelLoads = { ...NTR_DEFAULT_LOADS };
+const selectedFuelLoads = { hydrogen: 10000, water: 30000 };
+let selectedOxygenLoad = 0, selectedOxygenEnabled = false, selectedPayload = 0;
 let scoreStorage;
 try { scoreStorage = window.localStorage; } catch { /* Private/file contexts may disallow browser storage. */ }
 const leaderboard = new NTRLeaderboard(scoreStorage);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const MODE = { RUNNING: '稳定运行', STARTING: '启动序列', SHUTDOWN: '停机冷却', STANDBY: '系统待机', SCRAM: '紧急停堆', DAMAGED: '堆芯损坏' };
-const pageNames = { overview: 'SYS / 系统总览', thermal: 'THM / 热力回路', propulsion: 'PRP / 推进性能', trend: 'TEL / 遥测趋势', diagnostics: 'DGN / 故障诊断' };
+const pageNames = { overview: 'SYS / 系统总览', thermal: 'THM / 热力回路', propulsion: 'PRP / 推进性能', trend: 'TEL / 遥测趋势', diagnostics: 'DGN / 故障诊断', lantr: 'LANTR / 补燃与储罐' };
 const num = (v, places = 0) => Number.isFinite(v) ? v.toFixed(places) : '—';
 const points = NTR_FORMAT_POINTS;
 const clock = t => [Math.floor(t / 3600), Math.floor(t / 60) % 60, Math.floor(t) % 60].map(n => String(n).padStart(2, '0')).join(':');
@@ -58,7 +59,7 @@ function updateSliders() {
   $('sizeOutput').innerHTML = `${num(sim.diameter, 2)} <small>m</small>`;
   for (const id of ['powerSlider', 'valveSlider', 'sizeSlider']) { const el = $(id); el.style.setProperty('--range', `${(el.value - el.min) / (el.max - el.min) * 100}%`); }
   $('ratedPower').textContent = num(sim.ratedPower);
-  $('engineMass').textContent = mission ? '干重 10,000' : Math.round(sim.engineMass).toLocaleString('en-US');
+  $('engineMass').textContent = mission ? '干重 ' + points(mission.dryMass) : Math.round(sim.engineMass).toLocaleString('en-US');
   $('hydrogenButton').classList.toggle('active', sim.propellant === 'hydrogen');
   $('waterButton').classList.toggle('active', sim.propellant === 'water');
   $('hydrogenButton').setAttribute('aria-pressed', sim.propellant === 'hydrogen');
@@ -72,9 +73,29 @@ function render() {
   $('runLed').className = 'tiny-light on ' + (isDanger ? 'red' : paused || !sim.isActive ? 'amber' : 'green');
   $('thrustValue').textContent = num(sim.thrust, 1); $('powerValue').textContent = num(sim.power);
   $('temperatureValue').textContent = num(sim.measuredTemperature); $('pressureValue').textContent = num(sim.pressure, 2);
-  $('flowValue').textContent = num(sim.flow, 2); $('velocityValue').textContent = num(sim.exhaustVelocity / 1000, 2);
+  $('flowValue').textContent = num(sim.totalFlow, 2); $('velocityValue').textContent = num(sim.exhaustVelocity / 1000, 2);
+  $('chemicalPowerValue').innerHTML = num(sim.afterburnerPower, 2) + ' <small>MW</small>';
+  $('totalPowerValue').innerHTML = num(sim.totalPower, 2) + ' <small>MW</small>';
+  $('mixtureValue').textContent = num(sim.mixtureRatio, 3) + ' : 1';
+  $('nozzleTemperatureValue').innerHTML = num(sim.nozzleTemperature) + ' <small>K</small>';
+  $('oxygenFlowValue').innerHTML = num(sim.oxygenFlow, 3) + ' <small>kg/s</small>';
+  $('tankVolumeValue').innerHTML = num(sim.tankState.usedVolume, 2) + ' <small>/ 150 m³</small>';
+  $('tankVolumeDetail').textContent = num(sim.tankState.usedVolume, 2) + ' / ' + num(sim.tankState.freeVolume, 2) + ' m³';
+  $('oxygenTankMass').textContent = points(sim.oxygen, 1) + ' kg';
+  $('oxygenValveSlider').value = sim.oxygenValve; $('oxygenValveSlider').style.setProperty('--range', sim.oxygenValve + '%');
+  $('oxygenValveOutput').innerHTML = num(sim.oxygenValve) + ' <small>%</small>';
+  $('oxygenRatedFlow').textContent = num(sim.ratedOxygenFlow, 1) + ' kg/s MAX';
+  $('oxygenStatus').textContent = sim.oxygenInterlock;
+  $('pumpFlowDetail').textContent = '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3);
+  $('oxygenPumpDetail').textContent = '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3);
+  $('exhaustProducts').textContent = '尾流 / kg/s：H₂O 蒸气 ' + num(sim.products.steam, 3) + ' · 未反应 H₂ ' + num(sim.products.hydrogen, 3) + ' · 未反应 O₂ ' + num(sim.products.oxygen, 3) + ' ｜ 总推进功率 = 核热 + 化学放热';
+  const oxygenDisabled = !sim.oxygenTankInstalled || sim.propellant !== 'hydrogen' || Boolean(mission?.complete);
+  $('oxygenPumpToggle').disabled = $('oxygenValveSlider').disabled = oxygenDisabled;
+  $('tankConfigButton').disabled = Boolean(mission);
+  $('tankConfigButton').textContent = mission ? '本局储罐已锁定 / ' + num(mission.initialVolume, 2) + ' m³' : '储罐加注 / 150 m³ ↗';
+  if (page === 'lantr') canvas.setAttribute('aria-label', 'LANTR 补燃与储罐：液氧 ' + num(sim.oxygen, 2) + ' kg，补燃功率 ' + num(sim.afterburnerPower, 2) + ' MW，混合比 ' + num(sim.mixtureRatio, 3) + '，喷管 ' + num(sim.nozzleTemperature) + ' K');
   $('temperatureValue').style.color = sim.measuredTemperature > 3050 ? '#e0a17a' : '';
-  const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / 8, flow: sim.flow / sim.ratedFlow, velocity: sim.exhaustVelocity / 10000 };
+  const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / 8, flow: sim.totalFlow / (sim.ratedFlow + (sim.oxygenTankInstalled ? sim.ratedOxygenFlow : 0)), velocity: sim.exhaustVelocity / 10000 };
   for (const [key, value] of Object.entries(bars)) $(key + 'Bar').style.width = `${Math.min(100, Math.max(0, value * 100))}%`;
   drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, 8, 2);
   $('tankPercent').textContent = num(sim.fuelPercent, 1) + '%'; $('tankLabel').textContent = sim.prop.symbol + ' / ' + sim.prop.label;
@@ -88,7 +109,7 @@ function render() {
   const alarms = sim.lamps.filter(l => l[4] && ['red', 'yellow', 'amber'].includes(l[3]) && l[0] !== 'decay');
   $('healthText').textContent = sim.mode === 'DAMAGED' ? '堆芯受损 · 试验终止' : alarms.length ? `${alarms.length} 项告警 ${sim.acknowledged ? '· 已确认' : '· 待处理'}` : sim.isActive ? '所有子系统正常' : sim.coreTemperature > 500 ? '余热冷却进行中' : '所有子系统就绪';
   $('healthLed').className = 'tiny-light on ' + (alarms.length ? 'red' : 'green');
-  $('footerPropellant').textContent = sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE';
+  $('footerPropellant').textContent = sim.oxygenTankInstalled ? 'LH₂ + LOX / LANTR' : sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE';
   $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
   if (page === 'trend') canvas.setAttribute('aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
@@ -96,7 +117,7 @@ function render() {
   $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
   $('runButton').classList.toggle('start-ready', !sim.isActive);
   $('runButton').disabled = sim.mode === 'DAMAGED' || Boolean(mission?.complete || mission?.autoReason);
-  for (const [id, key] of [['pumpToggle', 'pump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) {
+  for (const [id, key] of [['pumpToggle', 'pump'], ['oxygenPumpToggle', 'oxygenPump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) {
     $(id).classList.toggle('on', sim[key]); $(id).setAttribute('aria-pressed', sim[key]);
   }
   // Keep configuration controls discoverable; activation explains the live interlock.
@@ -185,8 +206,8 @@ function resetUIClock() {
   updatePauseButton(); $('speedButton').textContent = '1×'; lastLogId = -1; resultShown = false;
 }
 
-function beginMission(type, propellant, diameter, fuelLoad) {
-  mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad });
+function beginMission(type, propellant, diameter, fuelLoad, oxygenLoad = 0, payload = type === 'lunar' ? 5000 : 0) {
+  mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad, oxygenLoad, payload });
   resetUIClock(); setPage('overview'); updateSliders(); render();
   $('challengeDialog').close();
   setMissionCollapsed(false);
@@ -194,48 +215,76 @@ function beginMission(type, propellant, diameter, fuelLoad) {
   toast('挑战已装载 · 冷态准备不计时，首次点火后开始计时');
 }
 
+function paintTankBars(prefix, tank) {
+  for (const [suffix, value] of [['FuelVolumeBar', tank.fuelVolume], ['OxygenVolumeBar', tank.oxygenVolume], ['DividerBar', tank.dividerVolume]]) {
+    $(prefix + suffix).style.width = Math.max(0, Math.min(100, value / 150 * 100)) + '%';
+  }
+}
+
 function updateChallengeSetup() {
+  const info = NTR_CHALLENGE_TYPES[selectedChallenge], targeted = selectedChallenge !== 'endurance';
   document.querySelectorAll('[data-challenge]').forEach(button => { const on = button.dataset.challenge === selectedChallenge; button.classList.toggle('selected', on); button.setAttribute('aria-pressed', on); });
   document.querySelectorAll('[data-loadout]').forEach(button => { const on = button.dataset.loadout === selectedPropellant; button.classList.toggle('selected', on); button.setAttribute('aria-pressed', on); });
   const diameter = Number($('challengeSizeSlider').value);
   $('challengeSizeSlider').style.setProperty('--range', `${(diameter - .8) / 1.6 * 100}%`);
   $('challengeSizeOutput').textContent = num(diameter, 2) + ' m';
   $('challengeRatedPower').textContent = num(600 * (diameter / 1.4) ** 2) + ' MW';
-  const precision = selectedChallenge === 'precision';
-  const maximum = NTR_CHALLENGE_CAPACITIES[selectedPropellant], load = precision ? selectedFuelLoads[selectedPropellant] : maximum;
-  $('fuelLoadControl').hidden = !precision;
+  const maximum = NTR_CHALLENGE_CAPACITIES[selectedPropellant], load = selectedFuelLoads[selectedPropellant];
+  const oxygen = selectedOxygenEnabled ? selectedOxygenLoad : 0;
+  const tank = NTR_SYSTEMS.loadout(selectedPropellant, load, oxygen, selectedOxygenEnabled);
+  const payload = targeted ? selectedPayload : 0;
+  const validFuel = Number.isInteger(load) && load >= 10 && load <= maximum;
+  const validOxygen = Number.isInteger(oxygen) && oxygen >= (selectedOxygenEnabled ? 1 : 0);
+  const validPayload = !targeted || (Number.isInteger(payload) && payload >= info.payloadMin && payload <= info.payloadMax);
+  $('fuelLoadControl').hidden = false;
   $('fuelLoadInput').max = $('fuelLoadSlider').max = maximum;
-  $('fuelLoadInput').value = $('fuelLoadSlider').value = load;
-  $('fuelLoadInput').setAttribute('aria-invalid', 'false'); $('fuelLoadInput').setCustomValidity('');
-  $('beginChallengeButton').disabled = false;
-  $('fuelLoadSlider').style.setProperty('--range', `${(load - 10) / (maximum - 10) * 100}%`);
-  $('fuelLoadMax').textContent = points(maximum) + ' kg';
-  $('loadoutCost').textContent = '装载成本 −' + points(load * NTR_FUEL_COSTS[selectedPropellant]) + ' 分';
-  $('loadoutCost').classList.remove('invalid');
-  $('fuelPresets').innerHTML = (selectedPropellant === 'hydrogen' ? [500, 1000, 2000] : [1000, 3000, 5000]).map(value => `<button data-fuel-preset="${value}" class="${value === load ? 'selected' : ''}">${points(value)} kg</button>`).join('');
-  $('hydrogenLoadLabel').textContent = precision ? '装载 −5 分 / kg' : '10,000 kg';
-  $('waterLoadLabel').textContent = precision ? '装载 −2 分 / kg' : '30,000 kg';
-  $('loadoutMass').textContent = num((10000 + load) / 1000, 2) + ' t';
-  $('challengeBrief').textContent = selectedChallenge === 'endurance'
-    ? '每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。每 100 秒扣 1%；每损失 10% 耐久扣 5%。'
-    : '固定目标 325.00 m/s。原始分 = 100,000 − 装载成本 + 剩余推进剂返分。液氢每 kg 扣 5 分，水扣 2 分，每剩 1 kg 均返 1 分。误差、时间和耐久修正继续适用，低于 800 K 才可结算。';
+  $('fuelLoadInput').value = Number.isFinite(load) ? load : '';
+  $('fuelLoadSlider').value = Number.isFinite(load) ? load : 10;
+  $('fuelLoadInput').setAttribute('aria-invalid', !validFuel);
+  $('fuelLoadInput').setCustomValidity(validFuel ? '' : '加注量必须为容积范围内的整数公斤');
+  $('fuelLoadSlider').style.setProperty('--range', `${Math.max(0, Math.min(100, (load - 10) / (maximum - 10) * 100))}%`);
+  $('fuelLoadMax').textContent = points(maximum) + ' kg / 单舱上限';
+  $('fuelPresets').innerHTML = (selectedPropellant === 'hydrogen' ? [500, 1000, 5000, 9000, 10620] : [3000, 30000, 60000, 150000]).map(value => `<button data-fuel-preset="${value}" class="${value === load ? 'selected' : ''}">${points(value)} kg</button>`).join('');
+  $('hydrogenLoadLabel').textContent = '装载 −10 分 / kg'; $('waterLoadLabel').textContent = '装载 −2 分 / kg';
+  $('oxygenLoadToggle').disabled = selectedPropellant !== 'hydrogen'; $('oxygenLoadToggle').checked = selectedOxygenEnabled;
+  $('oxygenLoadInput').disabled = !selectedOxygenEnabled; $('oxygenLoadInput').value = Number.isFinite(oxygen) ? oxygen : '';
+  $('oxygenLoadInput').max = Math.floor(140 * NTR_SYSTEMS.TANK.oxygen);
+  $('oxygenLoadInput').setAttribute('aria-invalid', !validOxygen);
+  $('lantrLoadPreset').disabled = selectedPropellant !== 'hydrogen';
+  $('oxygenLoadHelp').textContent = selectedPropellant === 'water' ? '水模式无可燃氢流，液氧补燃不可用。' : '液氧最大可装 ' + points(tank.maxOxygen) + ' kg；开启双舱后主推进剂最多 ' + points(tank.maxFuel) + ' kg。';
+  $('payloadControl').hidden = !targeted;
+  $('payloadInput').min = info.payloadMin ?? 0; $('payloadInput').max = info.payloadMax ?? 0;
+  $('payloadInput').value = Number.isFinite(payload) ? payload : ''; $('payloadInput').setAttribute('aria-invalid', !validPayload);
+  $('payloadRewardLabel').textContent = targeted ? points(info.payloadMin) + '–' + points(info.payloadMax) + ' kg · 每 kg +' + info.reward + ' 分' : '';
+  $('payloadBonusPreview').textContent = '+' + points(payload * (info.reward || 0)) + ' 分';
+  const cost = load * NTR_FUEL_COSTS[selectedPropellant] + oxygen * NTR_FUEL_COSTS.oxygen;
+  $('loadoutCost').textContent = (targeted ? '装载成本 −' : '参考成本 / 不计入任务 1：') + points(cost) + ' 分';
+  $('loadoutMass').textContent = num((10000 + payload + load + oxygen) / 1000, 2) + ' t';
+  paintTankBars('loadout', tank);
+  $('loadoutVolumeDetail').textContent = '主剂 ' + num(tank.fuelVolume, 2) + ' + 液氧 ' + num(tank.oxygenVolume, 2) + ' + 隔断 ' + num(tank.dividerVolume, 2) + ' = ' + num(tank.usedVolume, 2) + ' / 150.00 m³ · 余 ' + num(tank.freeVolume, 2) + ' m³';
+  const error = !validFuel || !validOxygen ? '加注量请输入有效整数；主剂至少 10 kg，启用的液氧舱至少 1 kg。' : !validPayload ? '载荷必须在本任务范围内，使用整数公斤。' : tank.message;
+  $('loadoutError').textContent = error; $('beginChallengeButton').disabled = Boolean(error) || !tank.valid;
+  $('challengeBrief').textContent = targeted
+    ? '目标 ' + num(info.target, 2) + ' m/s。100,000 基础分 + 载荷奖励 − 主剂与液氧成本 + 剩余推进剂返分；误差、时间、耐久修正相乘。低于 800 K 结算。'
+    : '每 1 m/s Δv = 10 分。按 150 m³ 自选装载；主推进剂耗尽后自动冷却结算。时间与耐久继续扣分。';
 }
 
-function changeFuelLoad(value) {
-  const maximum = NTR_CHALLENGE_CAPACITIES[selectedPropellant];
-  if (!Number.isInteger(value) || value < 10 || value > maximum) {
-    const message = '请输入 10–' + points(maximum) + ' kg 之间的整数';
-    $('fuelLoadInput').setAttribute('aria-invalid', 'true'); $('fuelLoadInput').setCustomValidity(message);
-    $('beginChallengeButton').disabled = true; $('loadoutCost').textContent = message; $('loadoutCost').classList.add('invalid');
-    return;
-  }
-  selectedFuelLoads[selectedPropellant] = value; updateChallengeSetup();
+function changeFuelLoad(value) { selectedFuelLoads[selectedPropellant] = value; updateChallengeSetup(); }
+
+function updateSandboxTank() {
+  const fuel = $('sandboxFuelLoad').valueAsNumber, oxygen = $('sandboxOxygenLoad').valueAsNumber;
+  const tank = NTR_SYSTEMS.loadout(sim.propellant, fuel, oxygen);
+  const integral = Number.isInteger(fuel) && Number.isInteger(oxygen);
+  paintTankBars('sandbox', tank);
+  $('sandboxTankSummary').textContent = '主剂 ' + num(tank.fuelVolume, 2) + ' + 液氧 ' + num(tank.oxygenVolume, 2) + ' + 隔断 ' + num(tank.dividerVolume, 2) + ' = ' + num(tank.usedVolume, 2) + ' / 150.00 m³';
+  $('sandboxTankError').textContent = integral ? tank.message : '请使用整数公斤。';
+  $('applyTankButton').disabled = !tank.valid || !integral;
 }
 
 function openChallengeSetup() {
   selectedChallenge = mission?.type || selectedChallenge;
   selectedPropellant = mission?.propellant || sim.propellant;
-  if (mission?.type === 'precision') selectedFuelLoads[mission.propellant] = mission.initialFuel;
+  if (mission) { selectedFuelLoads[mission.propellant] = mission.initialFuel; selectedOxygenLoad = mission.initialOxygen; selectedOxygenEnabled = mission.initialOxygen > 0; selectedPayload = mission.payload; }
   $('challengeSizeSlider').value = sim.diameter;
   updateChallengeSetup(); $('challengeDialog').showModal();
 }
@@ -248,18 +297,18 @@ function renderMission() {
   $('modeDescription').textContent = mission ? '推进剂锁定 · 一次航行，一份成绩' : '自由试车 · 自定义参数与故障';
   if (!mission) return;
   const info = NTR_CHALLENGE_TYPES[mission.type], score = mission.result || mission.liveScore;
-  $('missionCode').textContent = info.code + ' / ' + sim.prop.symbol;
+  $('missionCode').textContent = info.code + ' / ' + sim.prop.symbol + (mission.initialOxygen ? ' + LOX' : '');
   $('missionName').textContent = info.title;
   $('missionStage').textContent = mission.complete ? '挑战完成' : paused ? '模拟暂停' : !mission.started ? '冷态准备' : mission.autoReason ? '自动冷却结算' : sim.isActive ? '推进加速' : '滑行 / 冷却';
   $('missionPanel').classList.toggle('finished', mission.complete);
   $('missionPanel').classList.toggle('is-burning', sim.thrust > .1 && !mission.complete && !paused);
   $('flightDv').textContent = num(mission.deltaV, 2);
-  $('flightAcceleration').textContent = num(mission.acceleration, mission.type === 'precision' ? 2 : 3);
+  $('flightAcceleration').textContent = num(mission.acceleration, mission.type !== 'endurance' ? 2 : 3);
   $('flightDistance').textContent = num(mission.distance / 1000, 2);
   $('flightMass').textContent = num(mission.mass / 1000, 2);
   $('flightScore').textContent = points(score.total);
   $('flightScoreLabel').textContent = mission.complete ? '最终得分' : '当前预计得分';
-  $('flightTargetLabel').textContent = mission.type === 'precision' ? '目标速度增量' : '挑战目标';
+  $('flightTargetLabel').textContent = mission.type !== 'endurance' ? '目标速度增量' : '挑战目标';
   $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target, 2);
   $('flightTargetUnit').textContent = mission.target === null ? 'MAX Δv' : 'm/s';
   const progress = Math.min(1, Math.max(0, mission.target ? mission.deltaV / mission.target : 1 - sim.fuel / mission.initialFuel));
@@ -272,13 +321,13 @@ function renderMission() {
   $('missionCompactDv').textContent = num(mission.deltaV, 2) + ' m/s';
   $('missionCompactTarget').textContent = $('flightError').textContent;
   $('missionCompactTarget').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
-  $('flightMassNote').textContent = '干重＋载荷 10.00 t · ' + sim.prop.symbol + ' 初装 ' + points(mission.initialFuel) + ' / 剩余 ' + points(sim.fuel, 1) + ' kg';
+  $('flightMassNote').textContent = '干重 ' + num(mission.dryMass / 1000, 2) + ' t（货物 ' + points(mission.payload) + ' kg）· ' + sim.prop.symbol + ' ' + points(sim.fuel, 1) + ' / LOX ' + points(sim.oxygen, 1) + ' kg';
   $('flightHint').textContent = mission.complete ? '已结算 · 可以查看报告、复盘遥测或开始新挑战'
     : !mission.started ? '冷启动：开启泵与冷却 → 主阀约 70% → 功率约 60% → 启动试车'
     : mission.autoReason ? mission.autoReason + ' · 保持冷却开启，低于 800 K 自动结算（当前 ' + num(sim.coreTemperature) + ' K）'
-    : !sim.isActive ? '余热仍可能产生 Δv · 关闭主阀可减少推进剂消耗，保持冷却回路开启'
+    : !sim.isActive ? '液氧已切断；余热仍可能产生 Δv · 关闭主阀减耗，保持冷却'
     : mission.target && mission.remainingError < 0 ? '已超调！停止推进并保持冷却，低于 800 K 后结算'
-    : mission.target && mission.remainingError < Math.min(300, mission.target * .15) ? '接近目标！提前降功率，预留停机后余热产生的额外 Δv'
+    : mission.target && mission.remainingError < Math.min(300, mission.target * .15) ? '接近目标！先关液氧泵，再降功率或停机，预留余热 Δv'
     : '持续监控温压和耐久 · 停机后冷却至低于 800 K，才能结算';
   const settle = $('settleButton'); settle.classList.toggle('locked', !mission.canSettle && !mission.complete); settle.classList.toggle('complete', mission.complete);
   settle.querySelector('span').textContent = mission.complete ? '查看结算报告' : '结算本次变轨';
@@ -289,21 +338,21 @@ function renderMission() {
 function showResult(result = mission?.result) {
   if (!result) return;
   const r = result; displayedResult = r;
-  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + NTR_PROPELLANTS[r.propellant].symbol + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
-  $('resultTitle').textContent = r.type === 'precision' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
+  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + NTR_PROPELLANTS[r.propellant].symbol + (r.initialOxygen ? ' + LOX' : '') + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
+  $('resultTitle').textContent = r.type !== 'endurance' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
   $('resultTotal').textContent = points(r.total);
   const entry = ([label, value]) => `<div><span>${safe(label)}</span><strong>${safe(value)}</strong></div>`;
-  const configuration = [['引擎型号', r.engineModel], ['堆芯直径 / 引擎尺寸', num(r.diameter, 2) + ' m'], ['额定热功率', points(r.ratedPower, 2) + ' MW'], ['推进剂类型', NTR_PROPELLANTS[r.propellant].label + ' / ' + NTR_PROPELLANTS[r.propellant].symbol], ['起始加注量', points(r.initialFuel, 2) + ' kg'], ['起始飞船总质量', points(r.initialMass, 2) + ' kg']];
+  const configuration = [['引擎型号', r.engineModel], ['堆芯直径 / 引擎尺寸', num(r.diameter, 2) + ' m'], ['额定热功率', points(r.ratedPower, 2) + ' MW'], ['推进剂类型', NTR_PROPELLANTS[r.propellant].label + ' / ' + NTR_PROPELLANTS[r.propellant].symbol], ['起始加注量', points(r.initialFuel, 2) + ' kg'], ['起始飞船总质量', points(r.initialMass, 2) + ' kg'], ['液氧起始加注', points(r.initialOxygen, 2) + ' kg'], ['货运载荷', points(r.payload, 2) + ' kg'], ['初装罐容 / 隔断', num(r.initialVolume, 2) + ' / ' + num(r.dividerVolume, 2) + ' m³']];
   $('resultConfiguration').innerHTML = configuration.map(entry).join('');
   const settledTemperature = r.temperature < 800 && Math.round(r.temperature * 100) / 100 >= 800 ? '＜800' : num(r.temperature, 2);
-  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target, 2) + ' / ' + num(r.error, 2) + ' m/s'], ['剩余推进剂', points(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 2) + ' s'], ['剩余耐久', num(r.integrity, 2) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
+  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target, 2) + ' / ' + num(r.error, 2) + ' m/s'], ['主剂 / 液氧剩余', points(r.fuel, 2) + ' / ' + points(r.oxygen, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 2) + ' s'], ['剩余耐久', num(r.integrity, 2) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
   $('resultMetrics').innerHTML = metrics.map(entry).join('');
-  const stats = [['干重＋载荷', points(r.dryMass, 2) + ' kg'], ['结算总质量', points(r.finalMass, 2) + ' kg'], ['实际消耗推进剂', points(r.consumedFuel, 2) + ' kg'], ['飞行距离', points(r.distance / 1000, 2) + ' km'], ['峰值加速度', num(r.peakAcceleration, 2) + ' m/s²'], ['峰值推力', num(r.peakThrust, 2) + ' kN'], ['峰值热功率', points(r.peakPower, 2) + ' MW'], ['峰值比冲', points(r.peakIsp, 2) + ' s'], ['峰值堆芯温度', points(r.peakTemperature, 2) + ' K'], ['峰值腔室压力', num(r.peakPressure, 2) + ' MPa'], ['峰值推进剂流量', num(r.peakFlow, 2) + ' kg/s'], ['首次点火功率 / 主阀', num(r.launchDemand, 2) + '% / ' + num(r.launchValve, 2) + '%']];
+  const stats = [['干重＋载荷', points(r.dryMass, 2) + ' kg'], ['结算总质量', points(r.finalMass, 2) + ' kg'], ['实际消耗推进剂', points(r.consumedFuel, 2) + ' kg'], ['飞行距离', points(r.distance / 1000, 2) + ' km'], ['峰值加速度', num(r.peakAcceleration, 2) + ' m/s²'], ['峰值推力', num(r.peakThrust, 2) + ' kN'], ['峰值热功率', points(r.peakPower, 2) + ' MW'], ['峰值比冲', points(r.peakIsp, 2) + ' s'], ['峰值堆芯温度', points(r.peakTemperature, 2) + ' K'], ['峰值腔室压力', num(r.peakPressure, 2) + ' MPa'], ['峰值推进剂流量', num(r.peakFlow, 2) + ' kg/s'], ['首次点火功率 / 主阀', num(r.launchDemand, 2) + '% / ' + num(r.launchValve, 2) + '%'], ['消耗液氧', points(r.consumedOxygen, 2) + ' kg'], ['峰值补燃功率', points(r.peakAfterburnerPower, 2) + ' MW'], ['峰值总推进功率', points(r.peakTotalPower, 2) + ' MW'], ['峰值液氧流量', num(r.peakOxygenFlow, 3) + ' kg/s'], ['峰值喷管温度', points(r.peakNozzleTemperature, 2) + ' K'], ['初始液氧阀', num(r.launchOxygenValve, 2) + '%']];
   $('resultFlightStats').innerHTML = stats.map(entry).join(''); $('resultFlightDetails').open = false;
   const row = (label, detail, value, penalty = false) => `<div class="score-row ${penalty ? 'penalty' : ''}"><span>${label}<small>${detail}</small></span><b>${value}</b></div>`;
   let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + points(r.dvPoints, 2))
-    : row('基础分', 'PRECISION', '+' + points(r.basePoints)) + row('推进剂装载成本', points(r.initialFuel) + ' kg × ' + r.fuelUnitCost + ' 分/kg', '−' + points(r.loadingCost, 2), true) + row('剩余推进剂返分', '1 分 / kg', '+' + points(r.fuelPoints, 2)) + row('修正前原始分', 'BASE SUBTOTAL', points(r.base, 2));
-  if (r.type === 'precision') rows += row('速度误差扣分', num(r.error, 2) + ' m/s · ' + num(r.errorPenalty * 100, 2) + '%', '−' + points(r.errorDeduction, 2), true);
+    : row('基础分', NTR_CHALLENGE_TYPES[r.type].code, '+' + points(r.basePoints)) + row('货运载荷奖励', points(r.payload) + ' kg × ' + r.payloadUnitReward + ' 分/kg', '+' + points(r.payloadPoints, 2)) + row('主剂装载成本', points(r.initialFuel) + ' kg × ' + r.fuelUnitCost + ' 分/kg', '−' + points(r.primaryLoadingCost, 2), true) + row('液氧装载成本', points(r.initialOxygen) + ' kg × 3 分/kg', '−' + points(r.oxygenLoadingCost, 2), true) + row('剩余推进剂返分', '1 分 / kg', '+' + points(r.fuelPoints, 2)) + row('修正前原始分', 'BASE SUBTOTAL', points(r.base, 2));
+  if (r.type !== 'endurance') rows += row('速度误差扣分', num(r.error, 2) + ' m/s · ' + num(r.errorPenalty * 100, 2) + '%', '−' + points(r.errorDeduction, 2), true);
   rows += row('耗时扣分', num(r.elapsed, 1) + ' s · ' + num(r.timePenalty * 100, 2) + '%', '−' + points(r.timeDeduction, 2), true);
   rows += row('耐久扣分', '每损失 10% 扣 5% · ' + num(r.durabilityPenalty * 100, 2) + '%', '−' + points(r.durabilityDeduction, 2), true);
   rows += `<div class="score-row total"><span>最终得分<small>向下取整</small></span><b>${points(r.total)}</b></div>`;
@@ -316,8 +365,8 @@ function showResult(result = mission?.result) {
 
 function rankingTable(records, compact = false, highlightId = mission?.result?.id) {
   if (!records.length) return '<div class="ranking-empty">当前版本尚无已结算的飞行记录。完成挑战后自动入榜。</div>';
-  const rows = records.map((r, index) => `<tr class="${r.id === highlightId ? 'current-flight' : ''}"><td>${index + 1}</td><td class="rank-model">${safe(r.engineModel)}${compact ? `<small>Ø ${num(r.diameter, 2)} m · ${NTR_PROPELLANTS[r.propellant].symbol} · ${points(r.initialFuel)} kg</small>` : ''}</td>${compact ? '' : `<td>${num(r.diameter, 2)} m</td><td>${NTR_PROPELLANTS[r.propellant].symbol}</td><td>${points(r.initialFuel)} kg</td><td>${r.target === null ? '—' : num(r.target, 2)}</td><td>${num(r.deltaV, 2)}</td><td>${r.target === null ? '—' : num(r.error, 2)}</td><td>${num(r.elapsed, 2)} s</td>`}<td class="rank-score">${points(r.total)}</td><td><button data-record-id="${safe(r.id)}" aria-label="查看第 ${index + 1} 名的试飞详情">详情 ↗</button></td></tr>`).join('');
-  return `<table class="ranking-table"><thead><tr><th>#</th><th>引擎型号${compact ? ' / 配置' : ''}</th>${compact ? '' : '<th>堆芯直径</th><th>推进剂</th><th>起始加注</th><th>目标 m/s</th><th>Δv m/s</th><th>误差 m/s</th><th>耗时</th>'}<th>得分</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  const rows = records.map((r, index) => `<tr class="${r.id === highlightId ? 'current-flight' : ''}"><td>${index + 1}</td><td class="rank-model">${safe(r.engineModel)}${compact ? `<small>Ø ${num(r.diameter, 2)} m · ${NTR_PROPELLANTS[r.propellant].symbol} · ${points(r.initialFuel)} kg${r.initialOxygen ? ' + LOX ' + points(r.initialOxygen) + ' kg' : ''} · 货物 ${points(r.payload)} kg</small>` : ''}</td>${compact ? '' : `<td>${num(r.diameter, 2)} m</td><td>${NTR_PROPELLANTS[r.propellant].symbol}</td><td>${points(r.initialFuel)} kg<small class="rank-load-extra">LOX ${points(r.initialOxygen)} kg · 货物 ${points(r.payload)} kg</small></td><td>${r.target === null ? '—' : num(r.target, 2)}</td><td>${num(r.deltaV, 2)}</td><td>${r.target === null ? '—' : num(r.error, 2)}</td><td>${num(r.elapsed, 2)} s</td>`}<td class="rank-score">${points(r.total)}</td><td><button data-record-id="${safe(r.id)}" aria-label="查看第 ${index + 1} 名的试飞详情">详情 ↗</button></td></tr>`).join('');
+  return `<table class="ranking-table"><thead><tr><th>#</th><th>引擎型号${compact ? ' / 配置' : ''}</th>${compact ? '' : '<th>堆芯直径</th><th>推进剂</th><th>主剂 / LOX / 载荷</th><th>目标 m/s</th><th>Δv m/s</th><th>误差 m/s</th><th>耗时</th>'}<th>得分</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderLeaderboard() {
@@ -333,7 +382,7 @@ function openLeaderboard() {
 function setPage(value) {
   page = value; $('mfdTitle').textContent = pageNames[page];
   document.querySelectorAll('[data-page]').forEach(button => { const selected = button.dataset.page === value; button.classList.toggle('selected', selected); button.setAttribute('aria-selected', selected); });
-  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · ISP AXIS 0–1,000 s', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.' }[page];
+  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · ISP AXIS 0–1,000 s', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.', lantr: '150 m³ · LOX INJECTION DOWNSTREAM OF THROAT' }[page];
   if (page !== 'trend') canvas.setAttribute('aria-label', '发动机结构、热力状态及趋势可视化');
 }
 
@@ -432,7 +481,7 @@ function drawOverview() {
   line([[32, 325], [648, 325]], C.faint);
   miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 40, 347);
   miniMetric('CORE INTEGRITY', num(sim.integrity, 1), '%', 260, 347, sim.integrity < 90 ? C.amber : C.bright);
-  miniMetric('EXHAUST TEMPERATURE', num(Math.max(sim.prop.inlet, sim.coreTemperature - 180)), 'K', 464, 347, C.amber);
+  miniMetric('EXHAUST TEMPERATURE', num(sim.nozzleTemperature), 'K', 464, 347, C.amber);
 }
 
 function drawThermal() {
@@ -474,7 +523,7 @@ function drawPropulsion() {
   text('● LH₂', 450, 184, 8, C.green); text('● H₂O', 540, 184, 8, C.blue);
   line([[33, 333], [647, 333]], C.faint);
   if (mission) {
-    miniMetric('ACCELERATION', num(mission.acceleration, mission.type === 'precision' ? 2 : 3), 'm/s²', 42, 351, C.blue);
+    miniMetric('ACCELERATION', num(mission.acceleration, mission.type !== 'endurance' ? 2 : 3), 'm/s²', 42, 351, C.blue);
     miniMetric('DELTA-V', num(mission.deltaV, 2), 'm/s', 252, 351);
     miniMetric('SPACECRAFT MASS', num(mission.mass / 1000, 2), 't', 462, 351);
   } else {
@@ -482,6 +531,34 @@ function drawPropulsion() {
     miniMetric('CONSUMED', num(sim.consumed, 1), 'kg', 252, 351);
     miniMetric('THRUST / WEIGHT', num(sim.thrust * 1000 / (sim.engineMass * 9.80665), 2), '', 462, 351);
   }
+}
+
+function drawLantr() {
+  text('HOT HYDROGEN + DOWNSTREAM OXYGEN INJECTION', 34, 72, 9, C.dim);
+  const tank = sim.tankState;
+  const tanks = [[45, sim.prop.symbol, sim.fuel, tank.fuelVolume, C.blue], [218, 'LOX', sim.oxygen, tank.oxygenVolume, C.amber]];
+  for (const [x, label, mass, volume, color] of tanks) {
+    rect(x, 105, 142, 83, color, '#1b2c21', 8);
+    text(label, x + 12, 125, 11, color); text(points(mass, 1) + ' kg', x + 12, 149, 16, C.bright);
+    text(num(volume, 2) + ' m³', x + 12, 173, 10, color);
+  }
+  rect(402, 105, 228, 83, C.dim, '#18281d', 4);
+  text('TANK / 150.00 m³', 414, 124, 9, C.green);
+  text('PARTITION ' + num(tank.dividerVolume, 2) + ' m³', 414, 149, 10, C.amber);
+  text('FREE ' + num(tank.freeVolume, 2) + ' m³', 414, 173, 13, C.bright);
+  flowLine([[116, 190], [116, 225], [252, 225]], C.blue);
+  rect(252, 207, 100, 38, C.green, C.bg, 3); text('REACTOR', 302, 230, 11, C.green, 'center');
+  flowLine([[352, 225], [470, 225], [603, 225]], C.amber); arrow(593, 225, 'right', C.amber);
+  flowLine([[289, 190], [289, 199], [458, 199], [458, 225]], sim.oxygenFlow > 0 ? C.amber : C.dim);
+  circle(458, 225, 7, C.amber); text('O₂ INJECT', 499, 205, 8, C.amber);
+  text('CORE ' + num(sim.coreTemperature) + ' K', 302, 265, 9, C.green, 'center');
+  text('NOZZLE ' + num(sim.nozzleTemperature) + ' K', 523, 265, 9, C.amber, 'center');
+  line([[34, 281], [646, 281]], C.faint);
+  miniMetric('NUCLEAR + CHEM', num(sim.totalPower, 1), 'MW', 43, 300);
+  miniMetric('AFTERBURNER', num(sim.afterburnerPower, 1), 'MW', 252, 300, C.amber);
+  miniMetric('O₂ / H₂ MASS RATIO', num(sim.mixtureRatio, 3), '', 462, 300, C.blue);
+  text('H₂O ' + num(sim.products.steam, 2) + '  /  H₂ ' + num(sim.products.hydrogen, 2) + '  /  O₂ ' + num(sim.products.oxygen, 2) + ' kg/s', 43, 371, 10, C.bright);
+  text('2H₂ + O₂ → 2H₂O · HOT STEAM / RESIDUAL HYDROGEN', 43, 390, 8, C.dim);
 }
 
 function drawTrend() {
@@ -538,7 +615,7 @@ function drawMFD() {
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   ctx.setTransform(canvas.width / 680, 0, 0, canvas.height / 420, 0, 0);
   ctx.clearRect(0, 0, 680, 420);
-  ({ overview: drawOverview, thermal: drawThermal, propulsion: drawPropulsion, trend: drawTrend, diagnostics: drawDiagnostics })[page]();
+  ({ overview: drawOverview, thermal: drawThermal, propulsion: drawPropulsion, trend: drawTrend, diagnostics: drawDiagnostics, lantr: drawLantr })[page]();
 }
 
 function faultOptions() {
@@ -560,14 +637,25 @@ $('faultOptions').addEventListener('click', event => {
 $('repairButton').addEventListener('click', () => { toast(sim.repairAll() ? '全部故障已修复' : '当前没有需要修复的故障'); faultOptions(); render(); });
 $('runButton').addEventListener('click', () => { const result = sim.isActive ? sim.shutdown() : mission ? mission.startEngine() : sim.start(); toast(result.message); if (result.ok && paused) togglePause(); updateSliders(); render(); });
 $('scramButton').addEventListener('click', () => { const result = sim.scram(); toast(result.message); if (paused) togglePause(); render(); });
-$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter, mission.initialFuel); return; } sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
+$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter, mission.initialFuel, mission.initialOxygen, mission.payload); return; } sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
 $('ackButton').addEventListener('click', () => { sim.acknowledge(); toast('告警已确认；故障修复后指示灯将熄灭'); render(); });
 $('lampTestButton').addEventListener('click', () => { lampTest = true; $('lampTestButton').classList.add('testing'); render(); clearTimeout(lampTimeout); lampTimeout = setTimeout(() => { lampTest = false; $('lampTestButton').classList.remove('testing'); render(); }, 2200); });
 function updatePauseButton() { $('pauseButton').textContent = paused ? '▶' : 'Ⅱ'; $('pauseButton').setAttribute('aria-label', paused ? '继续模拟' : '暂停模拟'); }
 function togglePause() { paused = !paused; updatePauseButton(); render(); }
 $('pauseButton').addEventListener('click', togglePause);
 $('speedButton').addEventListener('click', () => { const speeds = mission ? [1, 2, 5, 10, 25] : [1, 2, 5]; speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length]; $('speedButton').textContent = speed + '×'; toast('模拟速度：' + speed + '×'); });
-for (const [id, key] of [['pumpToggle', 'pump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) $(id).addEventListener('click', () => { sim.setSwitch(key, !sim[key]); render(); });
+for (const [id, key] of [['pumpToggle', 'pump'], ['oxygenPumpToggle', 'oxygenPump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) $(id).addEventListener('click', () => { sim.setSwitch(key, !sim[key]); render(); });
+$('oxygenValveSlider').addEventListener('input', event => { sim.oxygenValve = Number(event.target.value); render(); });
+$('tankConfigButton').addEventListener('click', () => {
+  if (!sim.canConfigure) { toast('加注联锁：先停机，等待核热功率低于 5 MW'); return; }
+  $('sandboxFuelType').textContent = sim.prop.symbol; $('sandboxFuelLoad').value = Math.floor(sim.fuel);
+  $('sandboxOxygenLoad').value = Math.floor(sim.oxygen); $('sandboxOxygenLoad').disabled = sim.propellant !== 'hydrogen';
+  $('sandboxLantrPreset').disabled = sim.propellant !== 'hydrogen'; updateSandboxTank(); $('tankDialog').showModal();
+});
+for (const id of ['sandboxFuelLoad', 'sandboxOxygenLoad']) $(id).addEventListener('input', updateSandboxTank);
+$('sandboxFullTank').addEventListener('click', () => { $('sandboxOxygenLoad').value = 0; $('sandboxFuelLoad').value = NTR_CHALLENGE_CAPACITIES[sim.propellant]; updateSandboxTank(); });
+$('sandboxLantrPreset').addEventListener('click', () => { $('sandboxFuelLoad').value = 5000; $('sandboxOxygenLoad').value = 20000; updateSandboxTank(); });
+$('applyTankButton').addEventListener('click', () => { const result = sim.setLoadout($('sandboxFuelLoad').valueAsNumber, $('sandboxOxygenLoad').valueAsNumber); toast(result.message); if (result.ok) $('tankDialog').close(); updateSliders(); render(); });
 $('powerSlider').addEventListener('input', event => { sim.demand = Number(event.target.value); updateSliders(); });
 $('valveSlider').addEventListener('input', event => { sim.valve = Number(event.target.value); updateSliders(); });
 $('sizeSlider').addEventListener('input', event => { const result = sim.configure(sim.propellant, Number(event.target.value)); if (!result.ok) toast(result.message); updateSliders(); render(); });
@@ -576,19 +664,23 @@ $('sandboxModeButton').addEventListener('click', () => { if (!mission) return; s
 $('challengeModeButton').addEventListener('click', openChallengeSetup);
 $('newChallengeButton').addEventListener('click', openChallengeSetup);
 $('challengeRulesButton').addEventListener('click', () => $('rulesDialog').showModal());
-document.querySelectorAll('[data-challenge]').forEach(button => button.addEventListener('click', () => { selectedChallenge = button.dataset.challenge; updateChallengeSetup(); }));
-document.querySelectorAll('[data-loadout]').forEach(button => button.addEventListener('click', () => { selectedPropellant = button.dataset.loadout; updateChallengeSetup(); }));
+document.querySelectorAll('[data-challenge]').forEach(button => button.addEventListener('click', () => { selectedChallenge = button.dataset.challenge; selectedPayload = selectedChallenge === 'lunar' ? Math.max(5000, Number.isFinite(selectedPayload) ? selectedPayload : 5000) : 0; selectedFuelLoads.hydrogen = selectedChallenge === 'lunar' ? 9000 : selectedChallenge === 'precision' ? 1000 : 10000; selectedFuelLoads.water = selectedChallenge === 'lunar' ? 60000 : selectedChallenge === 'precision' ? 3000 : 30000; updateChallengeSetup(); }));
+document.querySelectorAll('[data-loadout]').forEach(button => button.addEventListener('click', () => { selectedPropellant = button.dataset.loadout; if (selectedPropellant === 'water') { selectedOxygenEnabled = false; selectedOxygenLoad = 0; } updateChallengeSetup(); }));
 $('challengeSizeSlider').addEventListener('input', updateChallengeSetup);
 $('fuelLoadInput').addEventListener('input', event => changeFuelLoad(event.target.valueAsNumber));
 $('fuelLoadSlider').addEventListener('input', event => changeFuelLoad(Number(event.target.value)));
+$('oxygenLoadToggle').addEventListener('change', event => { selectedOxygenEnabled = event.target.checked; if (selectedOxygenEnabled && !(selectedOxygenLoad > 0)) selectedOxygenLoad = 2000; updateChallengeSetup(); });
+$('oxygenLoadInput').addEventListener('input', event => { selectedOxygenLoad = event.target.valueAsNumber; updateChallengeSetup(); });
+$('payloadInput').addEventListener('input', event => { selectedPayload = event.target.valueAsNumber; updateChallengeSetup(); });
+$('lantrLoadPreset').addEventListener('click', () => { selectedFuelLoads.hydrogen = 5000; selectedOxygenEnabled = true; selectedOxygenLoad = 20000; updateChallengeSetup(); });
 $('fuelPresets').addEventListener('click', event => { const button = event.target.closest('[data-fuel-preset]'); if (button) changeFuelLoad(Number(button.dataset.fuelPreset)); });
-$('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value), selectedChallenge === 'precision' ? selectedFuelLoads[selectedPropellant] : undefined));
+$('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value), selectedFuelLoads[selectedPropellant], selectedOxygenEnabled ? selectedOxygenLoad : 0, selectedChallenge === 'endurance' ? 0 : selectedPayload));
 $('settleButton').addEventListener('click', () => { if (mission?.complete) { showResult(); return; } if (!mission) return; const result = mission.settle(); if (!result.ok) toast(result.message); render(); });
 $('retryChallengeButton').addEventListener('click', () => {
   const r = displayedResult; $('resultDialog').close();
   if (!r) { openChallengeSetup(); return; }
   selectedChallenge = r.type; selectedPropellant = r.propellant;
-  if (r.type === 'precision') selectedFuelLoads[r.propellant] = r.initialFuel;
+  selectedFuelLoads[r.propellant] = r.initialFuel; selectedOxygenLoad = r.initialOxygen; selectedOxygenEnabled = r.initialOxygen > 0; selectedPayload = r.payload;
   $('challengeSizeSlider').value = r.diameter; updateChallengeSetup(); $('challengeDialog').showModal();
 });
 $('reviewFlightButton').addEventListener('click', () => $('resultDialog').close());
@@ -605,8 +697,8 @@ document.addEventListener('keydown', event => {
   if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
   if (event.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { event.preventDefault(); togglePause(); }
   const index = Number(event.key) - 1;
-  if (index >= 0 && index < 5) setPage(Object.keys(pageNames)[index]);
-  if (/^F[1-5]$/.test(event.key)) { event.preventDefault(); setPage(Object.keys(pageNames)[Number(event.key.slice(1)) - 1]); }
+  if (index >= 0 && index < 6) setPage(Object.keys(pageNames)[index]);
+  if (/^F[1-6]$/.test(event.key)) { event.preventDefault(); setPage(Object.keys(pageNames)[Number(event.key.slice(1)) - 1]); }
   if (event.key === '?') $('manualDialog').showModal();
 });
 function frame(now) {

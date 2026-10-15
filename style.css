@@ -61,3 +61,58 @@
 .mission-window-compact>strong{font-size:9px;font-weight:400;color:#c6cba5}
 .mission-window-compact>strong.overshot{color:#de9e7c}
 @media(max-width:680px){.mission-window-bar{gap:6px;margin-bottom:12px}.mission-drag-handle{font-size:9px;gap:5px}.mission-drag-handle small{display:none}.mission-window-actions button{padding:6px 8px;font-size:8px}.is-floating .mission-window-bar{margin:0}.is-floating .mission-window-body{padding:12px}.is-floating .flight-metric strong{font-size:17px}.is-floating .flight-metric.primary strong{font-size:21px}.is-floating .flight-metric.score strong{font-size:18px}.is-floating .flight-metric>span{font-size:7px}.is-floating .flight-metric p>small{font-size:6px}.mission-window-compact{gap:6px;padding:12px}.mission-window-compact b{font-size:14px}.mission-window-compact>strong{font-size:8px}}
+
+/* v0.5: propellant allocation and LANTR controls. */
+.lantr-telemetry{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;padding:12px 14px;background:#293429;border:1px solid #72805b66;margin-bottom:0}
+.lantr-telemetry>div{min-width:0;display:flex;flex-direction:column;gap:9px}
+.lantr-telemetry span{font:8px var(--mono);color:#94aa80;line-height:1.6}
+.lantr-telemetry strong{font:20px var(--mono);color:#d1d4ac;white-space:nowrap}
+.lantr-telemetry strong small{font-size:8px;color:#8ea57b}
+.lantr-telemetry>div:first-child strong{color:#d5ba85}
+.exhaust-products{font:8px/1.9 var(--mono);color:#9eb289;padding:7px 12px 14px;overflow-wrap:anywhere}
+.mfd-softkeys{grid-template-columns:repeat(6,minmax(0,1fr))}
+.tank-display .tank-meta{font-size:8px;margin-top:9px}
+.tank-config-button{border:1px solid #8b9568;background:#414f34;padding:9px 12px;font-size:9px;color:#d0d1a4;letter-spacing:.5px}
+.size-control .tank-config-button{width:100%;margin-top:7px}
+.tank-config-button:disabled{opacity:.6;cursor:not-allowed}
+.lantr-control-panel{margin-top:13px}
+.lantr-controls{display:grid;grid-template-columns:minmax(180px,1fr) 70px minmax(240px,1.2fr);gap:28px;align-items:center;padding:20px}
+.lantr-controls .toggle-control{align-self:center;justify-self:center}
+.lantr-feed-readout{min-width:0;border-left:1px solid #73805b66;padding-left:18px}
+.lantr-feed-readout>b{font-size:11px;font-weight:400;color:#c7cba0}
+.lantr-feed-readout p{font:9px/1.7 var(--mono);color:#9fb68a;margin:8px 0}
+.lantr-feed-readout>small{display:block;font-size:8px;color:#8e9f7d;line-height:1.8}
+.challenge-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+.challenge-card{padding:15px}
+.challenge-card>strong{font-size:29px;white-space:nowrap}
+.challenge-card>strong>small{font-size:8px;display:block;margin-top:6px;letter-spacing:0}
+.oxygen-load-control,.payload-control{margin-top:17px;border:1px solid #71835a66;padding:14px;background:#2b3a25}
+.oxygen-choice{display:flex;align-items:center;gap:9px;font-size:11px;color:#c2cba6}
+.oxygen-choice input{accent-color:#b6aa72;width:15px;height:15px;margin:0}
+.oxygen-choice span{font:8px var(--mono);color:#a4b88b}
+.tank-inputs{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:17px 0}
+.tank-inputs label{display:flex;flex-direction:column;gap:9px;font-size:10px;color:#aebd99}
+.tank-inputs input,.payload-control input{width:100%;box-sizing:border-box;min-width:0;background:#1d2c1e;color:#d1dfb7;border:1px solid #7c8e5d;padding:9px;font:17px var(--mono);border-radius:0}
+.tank-inputs input:focus-visible,.payload-control input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.tank-inputs input:disabled{opacity:.4}
+.tank-inputs p{font-size:8px;line-height:1.8;color:#91a57d;margin:9px 0 0}
+.tank-inputs .tank-config-button{font-size:9px;width:100%}
+.payload-control>label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:#c1cba4}
+.payload-control>label small{font:8px var(--mono);color:#99b17e}
+.payload-control>div{display:flex;align-items:center;gap:10px;margin-top:13px;color:#9db085;font:11px var(--mono)}
+.payload-control input{width:160px;max-width:50%}
+.payload-control strong{margin-left:auto;font:16px var(--mono);color:#d3c38c}
+.tank-volume-bar{display:flex;height:15px;overflow:hidden;background:#18271d;border:1px solid #697e50;margin-top:20px}
+.tank-volume-bar i{display:block;flex-shrink:0;height:100%;background:#7cafa9;transition:width .15s}
+.tank-volume-bar i:nth-child(2){background:#c8ae72}
+.tank-volume-bar i:nth-child(3){background:repeating-linear-gradient(135deg,#6b7756 0 3px,#263823 3px 6px)}
+.tank-volume-legend{display:flex;gap:18px;font-size:8px;color:#9eaf88;margin-top:8px}
+.tank-volume-legend span:first-child{color:#8ebbb2}.tank-volume-legend span:nth-child(2){color:#d0b77e}
+.loadout-volume-detail{font:9px/1.9 var(--mono);color:#a4b98b;margin:12px 0 0}
+.tank-error{font-size:10px;color:#e1a07a;line-height:1.8;margin:10px 0}
+.tank-error:empty{display:none}
+.rank-load-extra{display:block;white-space:nowrap;font:7px/1.7 var(--mono);color:#91a77b;margin-top:5px}
+.leaderboard-table-wrap>.ranking-table{min-width:1020px}
+.mission-bottom>span:last-child{overflow-wrap:anywhere}
+@media(max-width:980px){.lantr-telemetry{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.lantr-controls{gap:16px;grid-template-columns:minmax(160px,1fr) 60px minmax(200px,1fr)}.mfd-softkeys button{font-size:9px}}
+@media(max-width:680px){.lantr-telemetry{gap:13px 10px;padding:12px}.lantr-telemetry span{font-size:6px}.lantr-telemetry strong{font-size:15px}.lantr-telemetry strong small{font-size:6px}.exhaust-products{font-size:7px}.mfd-softkeys button{font-size:7px;padding:9px 2px}.lantr-controls{grid-template-columns:1fr 55px;padding:15px;gap:16px}.lantr-feed-readout{grid-column:1/-1;padding-left:0;border-left:0;border-top:1px solid #73805b66;padding-top:13px}.challenge-cards{grid-template-columns:1fr}.challenge-card{padding:13px 15px}.challenge-card>b{margin:8px 0}.challenge-card>strong{font-size:27px}.challenge-card>p{margin:9px 0}.oxygen-choice{flex-wrap:wrap;font-size:10px}.oxygen-choice span{font-size:7px;flex-basis:100%;margin-left:24px}.tank-inputs{gap:12px;grid-template-columns:1fr}.tank-inputs label{font-size:9px}.payload-control>label{align-items:flex-start;flex-direction:column;font-size:10px}.payload-control>label small{font-size:7px}.payload-control strong{font-size:13px}.result-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.result-metrics strong{white-space:normal;overflow-wrap:anywhere}.loadout-volume-detail{font-size:8px}.lantr-feed-readout p{font-size:8px}}

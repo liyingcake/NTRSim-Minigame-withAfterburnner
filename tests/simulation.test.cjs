@@ -85,7 +85,7 @@ test('empty tank trips protection and all exposed performance values remain fini
 test('telemetry history stays bounded and ignores invalid delta times', () => {
   const sim = new NTRSimulation(); sim.tick(NaN); sim.tick(-1); assert.equal(sim.time, 0);
   advance(sim, 140); assert.ok(sim.history.length <= 240); assert.ok(sim.history.length > 200);
-  assert.equal(sim.lamps.length, 16);
+  assert.equal(sim.lamps.length, 20);
 });
 test('a cold unpowered core does not generate heat when coolant is switched off', () => {
   const sim = new NTRSimulation(); sim.reset(true); sim.cooling = false;

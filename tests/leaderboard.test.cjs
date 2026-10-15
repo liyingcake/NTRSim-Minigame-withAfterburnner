@@ -65,7 +65,7 @@ test('complete flight configuration and scoring details survive reload and later
   assert.equal(archived.finalMass, 10000); assert.equal(archived.consumedFuel, 595);
   assert.equal(archived.launchDemand, 60); assert.equal(archived.launchValve, 70);
   assert.ok(archived.peakThrust > 0 && archived.peakIsp > 0);
-  assert.equal(archived.loadingCost, 2975); assert.equal(archived.base, flight.result.base);
+  assert.equal(archived.loadingCost, 5950); assert.equal(archived.base, flight.result.base);
   assert.equal(archived.total, flight.result.total); assert.ok(Object.isFrozen(archived));
   assert.equal(board.add(flight.result), false); assert.equal(board.get('missing'), null);
 });
