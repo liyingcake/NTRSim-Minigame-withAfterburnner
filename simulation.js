@@ -2,7 +2,7 @@
    Units inside the model: s, K, MPa, MW, kg/s, m/s, kN. No neutronics model. */
 (function (root) {
   'use strict';
-  const { TANK, loadout, pumpRipple, mixExhaust } = typeof module !== 'undefined' && module.exports ? require('./systems.js') : root.NTR_SYSTEMS;
+  const { TANK, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust } = typeof module !== 'undefined' && module.exports ? require('./systems.js') : root.NTR_SYSTEMS;
   const PROPELLANTS = {
     hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, cp: 12000, latent: 0, gasConstant: 4124, gamma: 1.4, ratedFlow: 16, capacity: 6000 },
     water: { label: '水', symbol: 'H₂O', inlet: 293, cp: 4600, latent: 2300000, gasConstant: 461.5, gamma: 1.27, ratedFlow: 45, capacity: 14000 }
@@ -28,6 +28,15 @@
     get engineModel() { return (this.oxygenTankInstalled ? 'LANTR-' : 'NTR-II-') + String(Math.round(this.diameter * 100)).padStart(3, '0') + (this.propellant === 'hydrogen' ? 'H' : 'W'); }
     get fuelCapacity() { return this.tankCapacity || this.prop.capacity; }
     get fuelPercent() { return this.fuel / this.fuelCapacity * 100; }
+    get oxygenPercent() { return this.initialOxygen > 0 ? this.oxygen / this.initialOxygen * 100 : 0; }
+    get fuelReserve() { return this.fuelCapacity * RESIDUAL.cutoff; }
+    get oxygenReserve() { return this.initialOxygen * RESIDUAL.cutoff; }
+    get usableFuel() { return Math.max(0, this.fuel - this.fuelReserve); }
+    get usableOxygen() { return Math.max(0, this.oxygen - this.oxygenReserve); }
+    get fuelExhausted() { return this.usableFuel <= 1e-9; }
+    get fuelSupplyFactor() { return residualSupply(this.fuel, this.fuelCapacity); }
+    get oxygenSupplyFactor() { return residualSupply(this.oxygen, this.initialOxygen); }
+    get fuelPumpEfficiency() { return !this.pump ? 0 : this.fuelSupplyFactor * (this.faults.has('pump') ? .23 : 1); }
     get measuredTemperature() { return this.coreTemperature + (this.faults.has('sensor') ? 280 : 0); }
     get isActive() { return this.mode === 'RUNNING' || this.mode === 'STARTING'; }
     get canConfigure() { return !this.isActive && this.power < 5; }
@@ -45,7 +54,7 @@
       this.commandedFlow = 0; this.commandedOxygenFlow = 0; this.flowRipple = 0; this.oxygenRipple = 0;
       this.afterburnerPower = 0; this.nozzleTemperature = 293; this.mixtureRatio = 0;
       this.products = { steam: 0, hydrogen: 0, oxygen: 0 }; this.oxygenInterlock = '未安装液氧舱';
-      this.faults = new Set(); this.acknowledged = false; this.integrity = 100;
+      this.faults = new Set(); this.acknowledged = false; this.integrity = 100; this.previousAlarms = new Set();
       this.fuel = this.prop.capacity; this.mode = cold ? 'STANDBY' : 'RUNNING';
       this.power = cold ? 0 : 360; this.flow = cold ? 0 : this.ratedFlow * .7;
       this.feedFlow = this.flow; this.feedNominal = this.flow; this.coreTemperature = cold ? 293 : this.equilibriumTemperature();
@@ -80,7 +89,7 @@
       if (this.integrity <= 0) return { ok: false, message: '堆芯受损，请重置试验' };
       if (this.faults.size) return { ok: false, message: '请先修复故障，再重新启动' };
       if (!this.pump || !this.cooling) return { ok: false, message: '启动联锁：请开启推进剂泵和冷却回路' };
-      if (this.fuel < 10) return { ok: false, message: '推进剂不足，请重置试验' };
+      if (this.fuelExhausted) return { ok: false, message: '已达到不可泵送残留量，请重新加注' };
       if (this.valve < 15) return { ok: false, message: '启动联锁：主阀开度至少需要 15%' };
       if (this.demand === 0) this.demand = 30;
       this.mode = 'STARTING'; this.acknowledged = false; this.protectionTimer = 0;
@@ -163,15 +172,29 @@
 
     setSwitch(key, value) {
       if (!['pump', 'oxygenPump', 'cooling', 'autoProtection'].includes(key) || this.controlsLocked) return;
-      if (key === 'oxygenPump' && value && (!this.oxygenTankInstalled || this.propellant !== 'hydrogen' || this.oxygen <= 0)) return;
+      if (key === 'oxygenPump' && value && (!this.oxygenTankInstalled || this.propellant !== 'hydrogen' || this.usableOxygen <= 0)) return;
       this[key] = Boolean(value);
       const labels = { pump: '推进剂泵', oxygenPump: '液氧泵', cooling: '冷却回路', autoProtection: '自动保护' };
       this.log(labels[key] + (value ? ' · 开启' : ' · 关闭'), value ? 'info' : 'warning');
     }
 
     acknowledge() {
+      this.refreshAlarms();
       this.acknowledged = true;
       this.log('操作员确认告警 · 故障状态保留', 'warning');
+    }
+
+    get alarms() {
+      const ids = this.lamps.filter(l => l[4] && ['red', 'yellow', 'amber'].includes(l[3]) && l[0] !== 'decay').map(l => l[0]);
+      if (this.fuelPercent < 2) ids.push('fuelResidual');
+      if (this.oxygenTankInstalled && this.oxygenPercent < 2) ids.push('oxygenResidual');
+      return ids;
+    }
+
+    refreshAlarms() {
+      const active = new Set(this.alarms);
+      if ([...active].some(id => !this.previousAlarms.has(id))) this.acknowledged = false;
+      this.previousAlarms = active;
     }
 
     updatePerformance() {
@@ -206,7 +229,7 @@
       }
       this.decayPower *= Math.exp(-dt / 24);
       const valve = this.faults.has('valve') ? 28 : this.valve;
-      const pumpEfficiency = !this.pump || this.fuel <= 0 ? 0 : this.faults.has('pump') ? .23 : 1;
+      const pumpEfficiency = this.fuelPumpEfficiency;
       const purgeFactor = this.isActive ? 1 : this.coreTemperature > 480 ? .35 : 0;
       const feedTarget = this.ratedFlow * valve / 100 * pumpEfficiency * purgeFactor;
       this.commandedFlow = feedTarget;
@@ -214,7 +237,7 @@
       this.flowRipple = pumpRipple(feedTarget, this.time);
       this.feedFlow = Math.max(0, this.feedNominal + this.flowRipple);
       // No thrust or mass flow may be generated by propellant that does not exist.
-      this.feedFlow = Math.min(this.feedFlow, Math.max(0, this.fuel / dt));
+      this.feedFlow = Math.min(this.feedFlow, this.usableFuel / dt);
       this.flow = this.feedFlow * (this.faults.has('leak') ? .57 : 1);
       const desiredCore = this.equilibriumTemperature();
       this.coreTemperature = approach(this.coreTemperature, desiredCore, dt, this.flow > .1 ? 7.5 : 18);
@@ -223,13 +246,13 @@
       this.fuel = Math.max(0, this.fuel - used); this.consumed += used;
       // Oxygen never passes through the core. Injection is cut immediately on loss of hot H2 or a shutdown.
       const hotHydrogen = this.propellant === 'hydrogen' && this.isActive && this.flow > .1 && this.coreTemperature - 180 >= 700;
-      this.oxygenInterlock = !this.oxygenTankInstalled ? '未安装液氧舱' : this.oxygen <= 0 ? '液氧耗尽 · 纯核热模式' : !this.oxygenPump ? '液氧泵关闭'
+      this.oxygenInterlock = !this.oxygenTankInstalled ? '未安装液氧舱' : this.usableOxygen <= 0 ? '液氧达到残留量 · 纯核热模式' : !this.oxygenPump ? '液氧泵关闭'
         : !hotHydrogen ? '等待运行中的热氢流 ≥ 700 K' : this.oxygenValve <= 0 ? '液氧阀关闭' : '补燃运行';
-      const oxygenTarget = hotHydrogen && this.oxygenPump && this.oxygen > 0 ? this.ratedOxygenFlow * this.oxygenValve / 100 : 0;
+      const oxygenTarget = hotHydrogen && this.oxygenPump && this.usableOxygen > 0 ? this.ratedOxygenFlow * this.oxygenValve / 100 * this.oxygenSupplyFactor : 0;
       this.commandedOxygenFlow = oxygenTarget;
       this.oxygenFeedFlow = oxygenTarget > 0 ? approach(this.oxygenFeedFlow, oxygenTarget, dt, .8) : 0;
       this.oxygenRipple = pumpRipple(oxygenTarget, this.time, 2.3);
-      this.oxygenFlow = oxygenTarget > 0 ? Math.min(Math.max(0, this.oxygenFeedFlow + this.oxygenRipple), this.flow * 8, this.oxygen / dt) : 0;
+      this.oxygenFlow = oxygenTarget > 0 ? Math.min(Math.max(0, this.oxygenFeedFlow + this.oxygenRipple), this.flow * 8, this.usableOxygen / dt) : 0;
       if (oxygenTarget > this.flow * 8 && oxygenTarget > 0) this.oxygenInterlock = '补燃运行 · O/H = 8 供氧限幅';
       const oxygenUsed = Math.min(this.oxygen, this.oxygenFlow * dt);
       this.oxygen = Math.max(0, this.oxygen - oxygenUsed); this.oxygenConsumed += oxygenUsed;
@@ -240,7 +263,7 @@
       if (this.mode === 'SHUTDOWN' && this.power < 1 && this.coreTemperature < 500) {
         this.mode = 'STANDBY'; this.log('停机完成 · 系统待机');
       }
-      const danger = this.coreTemperature > 3200 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuel <= 0 ? '自动保护：推进剂耗尽' : null;
+      const danger = this.coreTemperature > 3200 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuelExhausted ? '自动保护：可用推进剂耗尽，保留残气' : null;
       this.protectionTimer = danger ? this.protectionTimer + dt : 0;
       if (this.autoProtection && this.isActive && this.protectionTimer > .75) this.scram(danger);
       if (this.coreTemperature > 3400) this.integrity = Math.max(0, this.integrity - (this.coreTemperature - 3400) / 75 * dt);
@@ -251,6 +274,7 @@
       }
       this.sampleTimer += dt;
       if (this.sampleTimer >= .5) { this.sampleTimer -= .5; this.recordSample(); }
+      this.refreshAlarms();
     }
 
     recordSample() {
@@ -268,7 +292,7 @@
         ['hydrogen', '液氢模式', 'LH2 CYCLE', 'blue', this.propellant === 'hydrogen'],
         ['water', '水汽模式', 'H2O CYCLE', 'blue', this.propellant === 'water'],
         ['auto', '自动保护', 'AUTO TRIP', 'blue', this.autoProtection],
-        ['ready', '启动就绪', 'SYS READY', 'blue', this.integrity > 0 && !this.faults.size && this.pump && this.cooling && this.fuel > 10],
+        ['ready', '启动就绪', 'SYS READY', 'blue', this.integrity > 0 && !this.faults.size && this.pump && this.cooling && !this.fuelExhausted],
         ['tempHigh', '温度过高', 'TEMP HIGH', 'yellow', hot],
         ['pressureHigh', '压力过高', 'PRES HIGH', 'yellow', this.pressure > 6.5],
         ['fuelLow', '储量不足', 'TANK LOW', 'amber', this.fuelPercent < 20],

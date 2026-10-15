@@ -125,17 +125,17 @@ test('manual settlement is interlocked at 800 K and freezes an immutable final r
   assert.equal(m.engine.fuel, fuel); assert.equal(m.elapsed, time);
   assert.equal(m.engine.start().ok, false); assert.equal(m.engine.configure('water', 2).ok, false);
 });
-test('last fuel can produce only its own impulse; an empty tank cannot produce phantom thrust', () => {
-  const e = new NTRSimulation(); e.fuel = .01; e.tick(.05);
-  assert.ok(e.feedFlow <= .2 + 1e-10); assert.equal(e.fuel, 0);
+test('last usable fuel can produce only its own impulse; reserve cannot produce phantom thrust', () => {
+  const e = new NTRSimulation(); e.fuel = e.fuelReserve + .01; e.tick(.05);
+  assert.ok(e.feedFlow <= .2 + 1e-10); assert.equal(e.fuel, e.fuelReserve);
   e.tick(.05); assert.equal(e.feedFlow, 0); assert.equal(e.flow, 0); assert.equal(e.thrust, 0);
 });
 test('fuel exhaustion shuts down even without auto protection and settles after cooling', () => {
-  const m = make(); ignite(m); advance(m, 25); m.engine.autoProtection = false; m.engine.fuel = .01;
+  const m = make(); ignite(m); advance(m, 25); m.engine.autoProtection = false; m.engine.fuel = m.engine.fuelReserve;
   m.tick(.05); assert.equal(m.state, 'COOLING'); assert.equal(m.engine.mode, 'SCRAM');
   assert.equal(m.complete, false); assert.ok(m.engine.coreTemperature > 800);
   assert.equal(m.startEngine().ok, false); advance(m, 100);
-  assert.equal(m.complete, true); assert.equal(m.result.fuel, 0);
+  assert.equal(m.complete, true); assert.equal(m.result.fuel, m.engine.fuelReserve);
   assert.ok(m.result.temperature < 800); assert.match(m.result.reason, /自动结算/);
   assert.ok(m.result.elapsed > 25); assert.ok(m.result.total > 0);
 });
@@ -143,9 +143,9 @@ test('both full-propellant challenges can reach an automatic end with zero mass 
   for (const propellant of ['hydrogen', 'water']) {
     const m = make({ propellant, diameter: 2.4 }); ignite(m);
     for (let i = 0; i < 700 && !m.complete; i++) m.tick(1);
-    assert.equal(m.complete, true, propellant); assert.equal(m.engine.fuel, 0);
-    assert.equal(m.mass, 10000); assert.ok(m.result.deltaV > 2800);
-    assert.ok(Math.abs(m.engine.consumed - m.initialFuel) < 1e-5);
+    assert.equal(m.complete, true, propellant); assert.equal(m.engine.fuel, m.initialFuel * .005);
+    assert.equal(m.mass, 10000 + m.engine.fuel); assert.ok(m.result.deltaV > 2800);
+    assert.ok(Math.abs(m.engine.consumed + m.engine.fuel - m.initialFuel) < 1e-5);
   }
 });
 test('a new mission resets durable damage, counters, fuel, and all configuration locks', () => {

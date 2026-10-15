@@ -9,10 +9,11 @@ const html = read('index.html')
   .replace('<script src="systems.js" defer></script>', '')
   .replace('<script src="version.js" defer></script>', '')
   .replace('<script src="leaderboard.js" defer></script>', '')
+  .replace('<script src="audio.js" defer></script>', '')
   .replace('<script src="performance.js" defer></script>', '')
   .replace('<script src="challenge.js" defer></script>', '')
   .replace('<script src="app.js" defer></script>', '')
-  .replace('</body>', () => ['version.js', 'systems.js', 'simulation.js', 'challenge.js', 'leaderboard.js', 'performance.js', 'app.js'].map(file => '<script>\n' + read(file) + '\n</script>').join('\n') + '\n</body>')
+  .replace('</body>', () => ['version.js', 'systems.js', 'simulation.js', 'challenge.js', 'leaderboard.js', 'audio.js', 'performance.js', 'app.js'].map(file => '<script>\n' + read(file) + '\n</script>').join('\n') + '\n</body>')
   .replace(/\r\n/g, '\n').replace(/^[\t ]+$/gm, '');
 fs.writeFileSync(path.join(__dirname, 'NERVA.html'), html);
 console.log('Standalone demo written: NERVA.html / ' + release.label);

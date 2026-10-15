@@ -69,7 +69,7 @@ test('cold flow, shutdown, main depletion and empty oxygen tanks cannot burn pha
   const e = lantr(); e.oxygenPump = true; e.oxygenValve = 100; advance(e, 2); assert.ok(e.afterburnerPower > 0);
   e.shutdown(); near(e.oxygenFlow, 0); near(e.afterburnerPower, 0); const remaining = e.oxygen; advance(e, 2); near(e.oxygen, remaining);
   const empty = lantr(); empty.oxygen = .001; empty.oxygenPump = true; empty.oxygenValve = 100;
-  empty.tick(.05); near(empty.oxygen, 0); empty.tick(.05); near(empty.oxygenFlow, 0); assert.ok(empty.thrust > 0); assert.ok(empty.isActive);
+  empty.tick(.05); near(empty.oxygen, .001); empty.tick(.05); near(empty.oxygenFlow, 0); assert.ok(empty.thrust > 0); assert.ok(empty.isActive);
   const noHydrogen = lantr(); noHydrogen.fuel = 0; noHydrogen.oxygenPump = true; noHydrogen.oxygenValve = 100;
   noHydrogen.tick(.05); near(noHydrogen.oxygenFlow, 0);
 });
@@ -101,9 +101,10 @@ test('the depletion trip preserves chemical impulse already delivered in the fin
   const e = new NTRSimulation(), m = new NTRChallenge(e, { type: 'precision', fuelLoad: 2000, oxygenLoad: 2000 });
   Object.assign(e, { pump: true, cooling: true, demand: 60, valve: 70, oxygenPump: true, oxygenValve: 30 });
   m.startEngine(); advance(m, 30); assert.ok(e.afterburnerPower > 0);
-  e.fuel = .4;
+  e.fuel = e.fuelReserve + .4;
   const beforeMass = m.mass, beforeVelocity = m.deltaV, beforeImpulse = e.totalImpulse;
   m.tick(.05);
   assert.equal(e.mode, 'SCRAM'); assert.equal(e.oxygenFlow, 0);
+  assert.ok(e.totalImpulse > beforeImpulse);
   near((m.deltaV - beforeVelocity) * (beforeMass + m.mass) / 2, (e.totalImpulse - beforeImpulse) * 1000, 1e-5);
 });

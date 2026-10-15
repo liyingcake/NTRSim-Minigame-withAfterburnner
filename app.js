@@ -13,6 +13,7 @@ function setUnit(id, value) {
 const canvas = $('mfdCanvas');
 const ctx = canvas.getContext('2d');
 const profiler = NTRPerformance.create();
+const sound = new NTRSound();
 const mono = '"IBM Plex Mono", Consolas, "Microsoft YaHei", monospace';
 const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835', amber: '#d3b372', blue: '#8abcc1', red: '#db8e70', bg: '#111d18' };
 let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = -1;
@@ -86,6 +87,9 @@ function updateSliders() {
 
 function render() {
   mfdDirty = true;
+  sim.refreshAlarms(); sound.update(sim, paused || Boolean(mission?.complete) || document.hidden);
+  setText('soundStatus', sound.status);
+  setText('soundAlarmStatus', sound.enabled && sound.state.alarms.length ? sim.acknowledged ? 'ACK 已确认 · 警音静音' : '警音 / ' + sound.state.alarms.map(id => NTR_AUDIO.ALARMS[id].label).join(' · ') : '警音随告警触发 · ACK 静音');
   setText('missionTime', 'T+ ' + clock(mission ? mission.elapsed : sim.time)); setText('screenTime', clock(sim.time));
   setText('runState', mission?.complete ? '挑战已结算' : paused ? '模拟暂停' : MODE[sim.mode]);
   const isDanger = sim.mode === 'SCRAM' || sim.mode === 'DAMAGED';
@@ -105,8 +109,8 @@ function render() {
   setUnit('oxygenValveOutput', num(sim.oxygenValve));
   setText('oxygenRatedFlow', num(sim.ratedOxygenFlow, 1) + ' kg/s MAX');
   setText('oxygenStatus', sim.oxygenInterlock);
-  setText('pumpFlowDetail', '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3));
-  setText('oxygenPumpDetail', '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3));
+  setText('pumpFlowDetail', '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3) + ' · 供液效率 ' + num(sim.fuelPumpEfficiency * 100, 1) + '%');
+  setText('oxygenPumpDetail', '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3) + ' · 残气系数 ' + num(sim.oxygenSupplyFactor * 100, 1) + '%');
   setText('exhaustProducts', '尾流 / kg/s：H₂O 蒸气 ' + num(sim.products.steam, 3) + ' · 未反应 H₂ ' + num(sim.products.hydrogen, 3) + ' · 未反应 O₂ ' + num(sim.products.oxygen, 3) + ' ｜ 总推进功率 = 核热 + 化学放热');
   const oxygenDisabled = !sim.oxygenTankInstalled || sim.propellant !== 'hydrogen' || Boolean(mission?.complete);
   $('oxygenPumpToggle').disabled = $('oxygenValveSlider').disabled = oxygenDisabled;
@@ -118,6 +122,10 @@ function render() {
   for (const [key, value] of Object.entries(bars)) $(key + 'Bar').style.width = `${Math.min(100, Math.max(0, value * 100))}%`;
   drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, 8, 2);
   setText('tankPercent', num(sim.fuelPercent, 1) + '%'); setText('tankLabel', sim.prop.symbol + ' / ' + sim.prop.label);
+  setText('oxygenTankPercent', sim.oxygenTankInstalled ? num(sim.oxygenPercent, 1) + '%' : '未安装');
+  $('oxygenTankLevel').style.width = Math.min(100, Math.max(0, sim.oxygenPercent)) + '%';
+  setText('residualStatus', (sim.fuelPercent < 2 || sim.oxygenTankInstalled && sim.oxygenPercent < 2) ? '残气供液 · 主剂 ' + num(sim.fuelSupplyFactor * 100, 1) + '% / 氧 ' + (sim.oxygenTankInstalled ? num(sim.oxygenSupplyFactor * 100, 1) + '%' : '—') : '2% 开始供液衰减 · 0.5% 保留残气');
+  $('residualStatus').classList.toggle('low', sim.fuelPercent < 2 || sim.oxygenTankInstalled && sim.oxygenPercent < 2);
   setText('tankMass', Math.round(sim.fuel).toLocaleString('en-US') + ' kg');
   [...$('tankSegments').children].forEach((segment, i) => segment.classList.toggle('empty', i >= Math.ceil(sim.fuelPercent / 5)));
   for (const [id, label, , color, active] of sim.lamps) {
@@ -125,7 +133,7 @@ function render() {
     el.classList.toggle('on', on); el.classList.toggle('flashing', active && (color === 'red' || color === 'yellow') && !sim.acknowledged && !lampTest);
     setAttr(el, 'aria-label', label + (on ? '：亮' : '：灭'));
   }
-  const alarms = sim.lamps.filter(l => l[4] && ['red', 'yellow', 'amber'].includes(l[3]) && l[0] !== 'decay');
+  const alarms = sim.alarms;
   setText('healthText', sim.mode === 'DAMAGED' ? '堆芯受损 · 试验终止' : alarms.length ? `${alarms.length} 项告警 ${sim.acknowledged ? '· 已确认' : '· 待处理'}` : sim.isActive ? '所有子系统正常' : sim.coreTemperature > 500 ? '余热冷却进行中' : '所有子系统就绪');
   $('healthLed').className = 'tiny-light on ' + (alarms.length ? 'red' : 'green');
   setText('footerPropellant', sim.oxygenTankInstalled ? 'LH₂ + LOX / LANTR' : sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE');
@@ -133,8 +141,8 @@ function render() {
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
   if (page === 'trend') setAttr(canvas, 'aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
   if (page === 'overview') setAttr(canvas, 'aria-label', sim.oxygenTankInstalled
-    ? '系统总览：液氢储罐、主泵、反应堆及下游液氧补燃系统。液氧 ' + points(sim.oxygen, 1) + ' kg，氧泵' + (sim.oxygenPump ? '开启' : '关闭') + '，氧阀 ' + num(sim.oxygenValve) + '%，注氧 ' + num(sim.oxygenFlow, 2) + ' kg/s'
-    : '系统总览：主推进剂储罐、供液泵、反应堆和再生冷却喷管');
+    ? '系统总览：液氢 ' + points(sim.fuel, 1) + ' kg / ' + num(sim.fuelPercent, 1) + '%，液氧 ' + points(sim.oxygen, 1) + ' kg / ' + num(sim.oxygenPercent, 1) + '%，氧泵' + (sim.oxygenPump ? '开启' : '关闭') + '，氧阀 ' + num(sim.oxygenValve) + '%，注氧 ' + num(sim.oxygenFlow, 2) + ' kg/s'
+    : '系统总览：' + sim.prop.label + ' ' + points(sim.fuel, 1) + ' kg / ' + num(sim.fuelPercent, 1) + '%，供液泵、反应堆和再生冷却喷管');
   if (page === 'overview') setText('screenHint', sim.engineModel + ' · CLOSED EXPANDER CYCLE');
   setHtml('runButton', sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>');
   $('runButton').classList.toggle('start-ready', !sim.isActive);
@@ -457,7 +465,8 @@ function drawOverview() {
   ctx.save(); ctx.beginPath(); ctx.roundRect(65, 116, 56, 94, 18); ctx.clip();
   ctx.fillStyle = '#587e493b'; ctx.fillRect(65, 210 - 94 * sim.fuelPercent / 100, 56, 100); ctx.restore();
   line([[67, 134], [119, 134]], C.dim); line([[67, 192], [119, 192]], C.dim);
-  text(sim.prop.symbol, 93, 161, 18, C.bright, 'center'); text('TANK', 93, 179, 8, C.dim, 'center');
+  text(sim.prop.symbol, 93, 150, 17, C.bright, 'center'); text(points(sim.fuel) + ' kg', 93, 173, 10, C.bright, 'center');
+  text(num(sim.fuelPercent, 1) + '%', 93, 191, 10, sim.fuelPercent < 2 ? C.amber : C.green, 'center');
   text(num(sim.prop.inlet) + ' K', 93, 240, 9, C.blue, 'center'); text('PROPELLANT', 93, 254, 7, C.dim, 'center');
   flowLine([[125, 162], [164, 162]], C.blue); arrow(150, 162, 'right', C.blue);
 
@@ -468,6 +477,7 @@ function drawOverview() {
   for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); line([[0, -7], [10, -11], [5, -15]], pumpColor); } ctx.restore();
   text('TURBOPUMP', 183, 204, 7, C.dim, 'center');
   text(num(sim.flow, 1) + ' kg/s', 183, 219, 9, pumpColor, 'center');
+  if (sim.fuelPercent < 2) text('EFF ' + num(sim.fuelPumpEfficiency * 100, 1) + '%', 183, 234, 8, C.amber, 'center');
   flowLine([[202, 162], [241, 162], [241, 134], [308, 134], [308, 155]], C.blue);
   arrow(242, 146, 'up', C.blue); arrow(293, 134, 'right', C.blue);
   // Main valve symbol.
@@ -525,6 +535,7 @@ function drawOverviewOxygen() {
   ctx.fillStyle = '#9e864638'; ctx.fillRect(462, 128 - fraction * 36, 78, 36); ctx.restore();
   text('LOX / O₂', 501, 104, 9, C.amber, 'center');
   text(points(sim.oxygen, 0) + ' kg', 501, 121, 9, C.bright, 'center');
+  text(num(sim.oxygenPercent, 1) + '%', 501, 144, 9, sim.oxygenPercent < 2 ? C.amber : C.green, 'center');
   const feed = points => injecting ? flowLine(points, C.amber) : line(points, C.dim, 1, [3, 4]);
   feed([[544, 108], [562, 108]]);
   circle(576, 108, 14, pumpColor, C.bg); circle(576, 108, 4, pumpColor);
@@ -556,7 +567,7 @@ function drawThermal() {
   text(num(sim.flow, 2) + ' kg/s', 205, 155, 9, C.blue, 'center'); text(num(sim.pressure, 2) + ' MPa', 456, 155, 9, C.amber, 'center');
   rect(265, 255, 125, 43, coolingColor, C.bg, 4); text('COOLANT LOOP', 327, 272, 8, coolingColor, 'center'); text(num(sim.coolantTemperature) + ' K', 327, 289, 12, coolingColor, 'center');
   line([[33, 326], [647, 326]], C.faint);
-  miniMetric('FEED PUMP', sim.pump ? num(sim.faults.has('pump') ? 23 : 100) : '0', '%', 40, 347, C.blue);
+  miniMetric('FEED PUMP', num(sim.fuelPumpEfficiency * 100, 1), '%', 40, 347, C.blue);
   miniMetric('HEAT EXCHANGE', sim.cooling && !sim.faults.has('cooling') ? 'NOMINAL' : 'DEGRADED', '', 255, 347, coolingColor);
   miniMetric('DECAY HEAT', num(sim.decayPower, 2), 'MW', 482, 347, C.amber);
 }
@@ -595,11 +606,11 @@ function drawPropulsion() {
 function drawLantr() {
   text('HOT HYDROGEN + DOWNSTREAM OXYGEN INJECTION', 34, 72, 9, C.dim);
   const tank = sim.tankState;
-  const tanks = [[45, sim.prop.symbol, sim.fuel, tank.fuelVolume, C.blue], [218, 'LOX', sim.oxygen, tank.oxygenVolume, C.amber]];
-  for (const [x, label, mass, volume, color] of tanks) {
+  const tanks = [[45, sim.prop.symbol, sim.fuel, tank.fuelVolume, C.blue, sim.fuelPercent], [218, 'LOX', sim.oxygen, tank.oxygenVolume, C.amber, sim.oxygenPercent]];
+  for (const [x, label, mass, volume, color, percent] of tanks) {
     rect(x, 105, 142, 83, color, '#1b2c21', 8);
     text(label, x + 12, 125, 11, color); text(points(mass, 1) + ' kg', x + 12, 149, 16, C.bright);
-    text(num(volume, 2) + ' m³', x + 12, 173, 10, color);
+    text(num(volume, 2) + ' m³ / ' + num(percent, 1) + '%', x + 12, 173, 9, color);
   }
   rect(402, 105, 228, 83, C.dim, '#18281d', 4);
   text('TANK / 150.00 m³', 414, 124, 9, C.green);
@@ -704,6 +715,16 @@ $('runButton').addEventListener('click', () => { const result = sim.isActive ? s
 $('scramButton').addEventListener('click', () => { const result = sim.scram(); toast(result.message); if (paused) togglePause(); render(); });
 $('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter, mission.initialFuel, mission.initialOxygen, mission.payload); return; } sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
 $('ackButton').addEventListener('click', () => { sim.acknowledge(); toast('告警已确认；故障修复后指示灯将熄灭'); render(); });
+document.addEventListener('click', event => { if (event.target.closest('button')) sound.click(Boolean(event.target.closest('#ackButton'))); });
+$('soundToggle').addEventListener('click', async () => {
+  const button = $('soundToggle'); button.disabled = true;
+  try { if (sound.enabled) sound.disable(); else await sound.enable(); }
+  catch (error) { toast('音效未能启用：' + error.message); }
+  button.disabled = false; button.setAttribute('aria-pressed', String(sound.enabled));
+  button.textContent = sound.enabled ? '关闭音效 ♫' : '开启音效 ♪'; render();
+});
+$('soundVolume').addEventListener('input', event => { sound.setVolume(Number(event.target.value) / 100); setText('soundVolumeOutput', event.target.value + '%'); });
+document.addEventListener('visibilitychange', () => render());
 $('lampTestButton').addEventListener('click', () => { lampTest = true; $('lampTestButton').classList.add('testing'); render(); clearTimeout(lampTimeout); lampTimeout = setTimeout(() => { lampTest = false; $('lampTestButton').classList.remove('testing'); render(); }, 2200); });
 function updatePauseButton() { $('pauseButton').textContent = paused ? '▶' : 'Ⅱ'; $('pauseButton').setAttribute('aria-label', paused ? '继续模拟' : '暂停模拟'); }
 function togglePause() { paused = !paused; updatePauseButton(); render(); }

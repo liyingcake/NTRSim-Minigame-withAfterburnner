@@ -6,6 +6,14 @@
   const PRICES = Object.freeze({ hydrogen: 10, oxygen: 3, water: 2 });
   const OXIDIZER_RATIO = 8; // Approximate O2:H2 stoichiometric mass ratio.
   const PUMP_WAVE = Object.freeze({ interval: 1, amplitude: .01 });
+  const RESIDUAL = Object.freeze({ fadeStart: .02, cutoff: .005 });
+  // Game approximation of loss of liquid pickup near an empty tank. The square
+  // root reaches the reserve in finite time; existing pump inertia smooths flow.
+  function residualSupply(mass, initialMass) {
+    if (!(initialMass > 0)) return 0;
+    const fraction = (mass / initialMass - RESIDUAL.cutoff) / (RESIDUAL.fadeStart - RESIDUAL.cutoff);
+    return Math.sqrt(Math.max(0, Math.min(1, fraction)));
+  }
   function loadout(propellant, fuel, oxygen = 0, installed = oxygen > 0) {
     const known = ['hydrogen', 'water'].includes(propellant);
     const fuelVolume = known ? fuel / TANK[propellant] : Infinity;
@@ -42,6 +50,6 @@
     return { flow, chemicalPower, kineticPower, velocity, temperature, steam, hydrogen: unburnedHydrogen, oxygen: unburnedOxygen,
       mixtureRatio: hydrogen > 0 ? oxygen / hydrogen : 0 };
   }
-  const api = { TANK, PRICES, OXIDIZER_RATIO, PUMP_WAVE, loadout, pumpRipple, mixExhaust };
+  const api = { TANK, PRICES, OXIDIZER_RATIO, PUMP_WAVE, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NTR_SYSTEMS = api;
 })(typeof window !== 'undefined' ? window : globalThis);

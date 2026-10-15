@@ -1,8 +1,8 @@
 {
   "name": "nerva-simulator",
-  "version": "0.5.2",
-  "nerva": { "scoreSchema": 4 },
+  "version": "0.6.0",
+  "nerva": { "scoreSchema": 5 },
   "private": true,
   "description": "Retro interactive nuclear thermal propulsion console",
-  "scripts": { "start": "node server.cjs", "standalone": "node build-standalone.cjs", "version:sync": "node build-version.cjs", "test": "node --test tests/*.test.cjs", "benchmark": "node benchmarks/physics.cjs", "check": "node --check version.js && node --check systems.js && node --check simulation.js && node --check challenge.js && node --check leaderboard.js && node --check performance.js && node --check app.js && node --check server.cjs && node --check build-version.cjs && node --check build-standalone.cjs && node --check build-texture.cjs" }
+  "scripts": { "start": "node server.cjs", "standalone": "node build-standalone.cjs", "version:sync": "node build-version.cjs", "test": "node --test tests/*.test.cjs", "benchmark": "node benchmarks/physics.cjs", "check": "node --check version.js && node --check systems.js && node --check simulation.js && node --check challenge.js && node --check leaderboard.js && node --check audio.js && node --check performance.js && node --check app.js && node --check server.cjs && node --check build-version.cjs && node --check build-standalone.cjs && node --check build-texture.cjs" }
 }

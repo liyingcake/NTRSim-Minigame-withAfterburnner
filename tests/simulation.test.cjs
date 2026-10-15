@@ -79,7 +79,7 @@ test('scram removes power rapidly while preserving decay heat', () => {
 });
 test('empty tank trips protection and all exposed performance values remain finite', () => {
   const sim = new NTRSimulation(); sim.fuel = .01; advance(sim, 5);
-  assert.equal(sim.fuel, 0); assert.equal(sim.mode, 'SCRAM');
+  assert.equal(sim.fuel, .01); assert.equal(sim.flow, 0); assert.equal(sim.mode, 'SCRAM');
   for (const key of ['power', 'pressure', 'flow', 'coreTemperature', 'thrust', 'isp', 'exhaustVelocity']) assert.ok(Number.isFinite(sim[key]), key);
 });
 test('telemetry history stays bounded and ignores invalid delta times', () => {

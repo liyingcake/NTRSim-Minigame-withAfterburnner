@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><title>NERVA audio QA</title>
+<button id="run">运行声学检查</button><pre id="result">等待测试</pre>
+<script src="../systems.js"></script><script src="../simulation.js"></script><script src="../audio.js"></script>
+<script>
+const stats = (buffer, from=.8, to=1.8) => {
+  const data=buffer.getChannelData(0), start=Math.floor(from*buffer.sampleRate), end=Math.min(data.length,Math.floor(to*buffer.sampleRate));
+  let sum=0, peak=0, crossings=0, stereo=0;
+  for(let i=start;i<end;i++){sum+=data[i]**2;peak=Math.max(peak,Math.abs(data[i]));if(i>start&&data[i]*data[i-1]<0)crossings++;stereo+=(data[i]-buffer.getChannelData(1)[i])**2;}
+  return {rms:Math.sqrt(sum/(end-start)),peak,crossings,stereo:Math.sqrt(stereo/(end-start))};
+};
+document.getElementById('run').onclick=async()=>{
+  const output=document.getElementById('result');output.textContent='运行中';
+  try {
+    const results=[];
+    for(const mode of ['hydrogen','lantr','water','standby','mute']){
+      const context=new OfflineAudioContext(2,96000,48000), sound=new NTRSound({context,offline:true}), sim=new NTRSimulation();
+      if(mode==='lantr'){sim.oxygenTankInstalled=true;sim.oxygen=sim.initialOxygen=20000;sim.oxygenFlow=48;}
+      if(mode==='water'){sim.propellant='water';sim.flow=31.5;}
+      if(mode==='standby'){sim.flow=sim.power=0;sim.pump=false;}
+      await sound.enable(); sound.setVolume(mode==='mute'?0:.5); sound.update(sim);
+      const buffer=await context.startRendering();results.push({mode,...stats(buffer)});
+    }
+    const context=new OfflineAudioContext(2,96000,48000), sound=new NTRSound({context,offline:true}), sim=new NTRSimulation();
+    sim.flow=sim.power=0;sim.injectFault('pump');await sound.enable();sound.setVolume(.5);sound.update(sim);
+    const change=context.suspend(.4).then(()=>{sim.acknowledge();sound.update(sim);return context.resume();});
+    const buffer=await context.startRendering();await change;
+    results.push({mode:'ACK',before:stats(buffer,.08,.36),after:stats(buffer,.8,1.6),acknowledged:sim.acknowledged,voices:sound.voices.size});
+    const passed=results.slice(0,4).every(x=>x.rms>0&&x.peak<1)&&results[4].rms===0&&results[5].after.rms<results[5].before.rms*.2&&results[5].voices===0;
+    output.textContent=JSON.stringify({passed,results},null,2);
+  }catch(error){output.textContent=JSON.stringify({passed:false,error:error.stack});}
+};
+</script>

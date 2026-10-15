@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "mode": "hydrogen",
+      "rms": 0.017518509815993635,
+      "peak": 0.057251859456300735,
+      "crossings": 2230,
+      "stereo": 0.00119913164067748
+    },
+    {
+      "mode": "lantr",
+      "rms": 0.03751865097363883,
+      "peak": 0.10640134662389755,
+      "crossings": 932,
+      "stereo": 0.00401828871555599
+    },
+    {
+      "mode": "water",
+      "rms": 0.025007998506678418,
+      "peak": 0.07451602816581726,
+      "crossings": 639,
+      "stereo": 0.0007048949918639368
+    },
+    {
+      "mode": "standby",
+      "rms": 0.0029351377992951205,
+      "peak": 0.0047613028436899185,
+      "crossings": 120,
+      "stereo": 0
+    },
+    {
+      "mode": "mute",
+      "rms": 0,
+      "peak": 0,
+      "crossings": 0,
+      "stereo": 0
+    },
+    {
+      "mode": "ACK",
+      "before": {
+        "rms": 0.028679665905545673,
+        "peak": 0.05626912787556648,
+        "crossings": 138,
+        "stereo": 0
+      },
+      "after": {
+        "rms": 0.002935137798481159,
+        "peak": 0.004761300049722195,
+        "crossings": 96,
+        "stereo": 0
+      },
+      "acknowledged": true,
+      "voices": 0
+    }
+  ]
+}

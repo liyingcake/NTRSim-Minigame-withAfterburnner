@@ -109,10 +109,10 @@
         this.elapsed += dt;
         this.acceleration = this.engine.fuel > 0 ? this.engine.thrust * 1000 / this.mass : 0;
         this.peakAcceleration = Math.max(this.peakAcceleration, accelerationDuringStep);
-        if (!this.autoReason && (this.engine.fuel <= 0 || this.engine.mode === 'DAMAGED')) {
-          this.autoReason = this.engine.fuel <= 0 ? '推进剂耗尽' : '反应堆损毁';
+        if (!this.autoReason && (this.engine.fuelExhausted || this.engine.mode === 'DAMAGED')) {
+          this.autoReason = this.engine.fuelExhausted ? '可用推进剂耗尽（保留 0.5% 残气）' : '反应堆损毁';
           this.state = 'COOLING';
-          if (this.engine.mode !== 'DAMAGED') this.engine.scram('推进剂耗尽 · 自动停堆');
+          if (this.engine.mode !== 'DAMAGED') this.engine.scram('可用推进剂耗尽 · 自动停堆');
           this.engine.log(this.autoReason + ' · 冷却至低于 800 K 后自动结算', 'warning');
         }
         if (this.autoReason && this.canSettle) this.settle(this.autoReason + ' / 自动结算');
