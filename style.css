@@ -24,3 +24,40 @@
 
 .result-dialog{width:780px;max-width:min(780px,calc(100vw - 30px))}.result-section-label{display:flex;align-items:center;gap:12px;font-size:10px;letter-spacing:1px;color:#c5cdaa;margin:0 0 10px}.result-section-label>span{font:7px var(--mono);letter-spacing:1px;color:#8b9e76}.result-configuration,.flight-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 18px}.result-configuration{padding:16px;margin-bottom:20px;border:1px solid #71895366;background:#2a3b23}.result-configuration>div,.flight-stats>div{display:flex;flex-direction:column;gap:7px;min-width:0}.result-configuration span,.flight-stats span{font-size:9px;color:#91a87b;letter-spacing:.4px}.result-configuration strong,.flight-stats strong{font:12px var(--mono);font-weight:400;color:#d0dab9;overflow-wrap:anywhere}.result-configuration>div:first-child strong{color:#e0d29d}.flight-details{border:1px solid #71895366;margin:0 0 18px;background:#2a3a23}.flight-details>summary{cursor:pointer;padding:12px 14px;font-size:10px;letter-spacing:1px;color:#c1cba7}.flight-details>summary>span{font:7px var(--mono);color:#8da577;margin-left:10px;letter-spacing:.7px}.flight-details>summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px}.flight-details[open]>summary{border-bottom:1px solid #71895344}.flight-stats{padding:16px}.flight-stats strong{font-size:11px}.leaderboard-dialog{width:1040px;max-width:min(1040px,calc(100vw - 30px))}.leaderboard-table-wrap>.ranking-table{min-width:870px}.ranking-table .rank-score,.ranking-table th:nth-last-child(2){text-align:right}.ranking-table .rank-model{font-size:10px;color:#cbd5b3}.rank-model>small{display:block;font:7px/1.7 var(--mono);color:#92aa7b;margin-top:6px}.ranking-table button[data-record-id]{font-size:8px;color:#c8cc9d;border:1px solid #718653;background:#34472a;padding:5px 6px;white-space:nowrap}.result-ranking .ranking-table{table-layout:fixed}.result-ranking .ranking-table th:first-child{width:28px}.result-ranking .ranking-table th:nth-last-child(2){width:95px}.result-ranking .ranking-table th:last-child{width:65px}.result-ranking .rank-model{white-space:normal;overflow-wrap:anywhere}.result-ranking .rank-model>small{white-space:normal}
 @media(max-width:680px){.result-configuration,.flight-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px;padding:12px}.result-configuration span,.flight-stats span{font-size:8px}.result-configuration strong,.flight-stats strong{font-size:10px}.result-section-label{font-size:9px}.result-section-label>span{font-size:6px}.result-configuration{margin-bottom:17px}.flight-details>summary{font-size:9px;padding:11px}.flight-details>summary>span{font-size:6px;margin-left:6px}.result-ranking .ranking-table th:first-child{width:24px}.result-ranking .ranking-table th:nth-last-child(2){width:74px}.result-ranking .ranking-table th:last-child{width:45px}.result-ranking .rank-model{font-size:8px}.rank-model>small{font-size:6px}.result-ranking .ranking-table th,.result-ranking .ranking-table td{padding:9px 4px}.ranking-table button[data-record-id]{font-size:7px;padding:4px}}
+
+/* Detachable mission instrument. The title bar stays reachable above its scrollable body. */
+.mission-window-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #71835a55}
+.mission-drag-handle{display:flex;align-items:center;gap:8px;min-width:0;flex:1;color:#c5caa5;font-size:10px;letter-spacing:1px}
+.mission-drag-handle>i{font:18px var(--mono);font-style:normal;color:#9aa981;line-height:1}
+.mission-drag-handle small{font:7px var(--mono);letter-spacing:1px;color:#8c9f7b;margin-left:9px}
+.mission-window-actions{display:flex;gap:6px;flex-shrink:0}
+.mission-window-actions button{border:1px solid #829067;background:#394630;color:#c7d0ab;padding:6px 10px;font-size:9px;letter-spacing:.5px}
+.mission-window-actions button:last-child{border-color:#b3a275;color:#e1c894;background:#514f34}
+.mission-window-actions button:focus-visible,.mission-drag-handle:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.mission-panel.is-floating{position:fixed;width:480px;max-width:calc(100% - 24px);max-height:calc(100dvh - 24px);margin:0;padding:0;z-index:20;display:flex;flex-direction:column;border-color:#a3a27b;box-shadow:0 12px 40px #0009,0 2px 6px #0009,inset 0 0 0 2px #77846133}
+.mission-panel.is-floating:before{display:none}
+.is-floating .mission-window-bar{margin:0;padding:10px 12px;background:linear-gradient(#4d5743,#3c4835);flex-shrink:0}
+.is-floating .mission-drag-handle{cursor:grab;touch-action:none;user-select:none;align-self:stretch}
+.is-floating.is-dragging .mission-drag-handle{cursor:grabbing}
+.is-floating .mission-window-body{padding:15px;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#7b8d62 #2c3828}
+.is-floating .mission-heading{align-items:flex-start;gap:10px}
+.is-floating .mission-heading>div:first-child{flex-wrap:wrap;gap:7px;max-width:none;min-width:0}
+.is-floating .mission-heading>div>span{flex-basis:100%;font-size:7px}
+.is-floating .mission-heading h2{font-size:14px;letter-spacing:1px}
+.is-floating .mission-heading>div:last-child{flex-direction:column;gap:5px;flex-shrink:0}
+.is-floating .mission-heading button{padding:5px 8px;font-size:8px}
+.is-floating .flight-instruments{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 10px;margin:19px 0}
+.is-floating .flight-metric:nth-child(3){border-right:0}
+.is-floating .flight-metric>span{font-size:8px;letter-spacing:.3px}
+.is-floating .flight-metric>span>small{display:none}
+.is-floating .flight-metric strong{font-size:21px}
+.is-floating .flight-metric.primary strong{font-size:25px}
+.is-floating .flight-metric.score strong{font-size:22px}
+.is-floating .flight-metric p{gap:4px}
+.is-floating .flight-metric p>small{font-size:7px}
+.is-floating .mission-bottom{flex-direction:column;gap:5px;font-size:8px}
+.mission-window-compact{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;padding:12px 14px;font:9px var(--mono);color:#9eb38c}
+.mission-window-compact b{font-size:16px;font-weight:400;color:#dadcba;margin-left:6px}
+.mission-window-compact>strong{font-size:9px;font-weight:400;color:#c6cba5}
+.mission-window-compact>strong.overshot{color:#de9e7c}
+@media(max-width:680px){.mission-window-bar{gap:6px;margin-bottom:12px}.mission-drag-handle{font-size:9px;gap:5px}.mission-drag-handle small{display:none}.mission-window-actions button{padding:6px 8px;font-size:8px}.is-floating .mission-window-bar{margin:0}.is-floating .mission-window-body{padding:12px}.is-floating .flight-metric strong{font-size:17px}.is-floating .flight-metric.primary strong{font-size:21px}.is-floating .flight-metric.score strong{font-size:18px}.is-floating .flight-metric>span{font-size:7px}.is-floating .flight-metric p>small{font-size:6px}.mission-window-compact{gap:6px;padding:12px}.mission-window-compact b{font-size:14px}.mission-window-compact>strong{font-size:8px}}

@@ -35,6 +35,43 @@
 .result-dialog{width:780px;max-width:min(780px,calc(100vw - 30px))}.result-section-label{display:flex;align-items:center;gap:12px;font-size:10px;letter-spacing:1px;color:#c5cdaa;margin:0 0 10px}.result-section-label>span{font:7px var(--mono);letter-spacing:1px;color:#8b9e76}.result-configuration,.flight-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 18px}.result-configuration{padding:16px;margin-bottom:20px;border:1px solid #71895366;background:#2a3b23}.result-configuration>div,.flight-stats>div{display:flex;flex-direction:column;gap:7px;min-width:0}.result-configuration span,.flight-stats span{font-size:9px;color:#91a87b;letter-spacing:.4px}.result-configuration strong,.flight-stats strong{font:12px var(--mono);font-weight:400;color:#d0dab9;overflow-wrap:anywhere}.result-configuration>div:first-child strong{color:#e0d29d}.flight-details{border:1px solid #71895366;margin:0 0 18px;background:#2a3a23}.flight-details>summary{cursor:pointer;padding:12px 14px;font-size:10px;letter-spacing:1px;color:#c1cba7}.flight-details>summary>span{font:7px var(--mono);color:#8da577;margin-left:10px;letter-spacing:.7px}.flight-details>summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px}.flight-details[open]>summary{border-bottom:1px solid #71895344}.flight-stats{padding:16px}.flight-stats strong{font-size:11px}.leaderboard-dialog{width:1040px;max-width:min(1040px,calc(100vw - 30px))}.leaderboard-table-wrap>.ranking-table{min-width:870px}.ranking-table .rank-score,.ranking-table th:nth-last-child(2){text-align:right}.ranking-table .rank-model{font-size:10px;color:#cbd5b3}.rank-model>small{display:block;font:7px/1.7 var(--mono);color:#92aa7b;margin-top:6px}.ranking-table button[data-record-id]{font-size:8px;color:#c8cc9d;border:1px solid #718653;background:#34472a;padding:5px 6px;white-space:nowrap}.result-ranking .ranking-table{table-layout:fixed}.result-ranking .ranking-table th:first-child{width:28px}.result-ranking .ranking-table th:nth-last-child(2){width:95px}.result-ranking .ranking-table th:last-child{width:65px}.result-ranking .rank-model{white-space:normal;overflow-wrap:anywhere}.result-ranking .rank-model>small{white-space:normal}
 @media(max-width:680px){.result-configuration,.flight-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px;padding:12px}.result-configuration span,.flight-stats span{font-size:8px}.result-configuration strong,.flight-stats strong{font-size:10px}.result-section-label{font-size:9px}.result-section-label>span{font-size:6px}.result-configuration{margin-bottom:17px}.flight-details>summary{font-size:9px;padding:11px}.flight-details>summary>span{font-size:6px;margin-left:6px}.result-ranking .ranking-table th:first-child{width:24px}.result-ranking .ranking-table th:nth-last-child(2){width:74px}.result-ranking .ranking-table th:last-child{width:45px}.result-ranking .rank-model{font-size:8px}.rank-model>small{font-size:6px}.result-ranking .ranking-table th,.result-ranking .ranking-table td{padding:9px 4px}.ranking-table button[data-record-id]{font-size:7px;padding:4px}}
 
+/* Detachable mission instrument. The title bar stays reachable above its scrollable body. */
+.mission-window-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #71835a55}
+.mission-drag-handle{display:flex;align-items:center;gap:8px;min-width:0;flex:1;color:#c5caa5;font-size:10px;letter-spacing:1px}
+.mission-drag-handle>i{font:18px var(--mono);font-style:normal;color:#9aa981;line-height:1}
+.mission-drag-handle small{font:7px var(--mono);letter-spacing:1px;color:#8c9f7b;margin-left:9px}
+.mission-window-actions{display:flex;gap:6px;flex-shrink:0}
+.mission-window-actions button{border:1px solid #829067;background:#394630;color:#c7d0ab;padding:6px 10px;font-size:9px;letter-spacing:.5px}
+.mission-window-actions button:last-child{border-color:#b3a275;color:#e1c894;background:#514f34}
+.mission-window-actions button:focus-visible,.mission-drag-handle:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.mission-panel.is-floating{position:fixed;width:480px;max-width:calc(100% - 24px);max-height:calc(100dvh - 24px);margin:0;padding:0;z-index:20;display:flex;flex-direction:column;border-color:#a3a27b;box-shadow:0 12px 40px #0009,0 2px 6px #0009,inset 0 0 0 2px #77846133}
+.mission-panel.is-floating:before{display:none}
+.is-floating .mission-window-bar{margin:0;padding:10px 12px;background:linear-gradient(#4d5743,#3c4835);flex-shrink:0}
+.is-floating .mission-drag-handle{cursor:grab;touch-action:none;user-select:none;align-self:stretch}
+.is-floating.is-dragging .mission-drag-handle{cursor:grabbing}
+.is-floating .mission-window-body{padding:15px;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#7b8d62 #2c3828}
+.is-floating .mission-heading{align-items:flex-start;gap:10px}
+.is-floating .mission-heading>div:first-child{flex-wrap:wrap;gap:7px;max-width:none;min-width:0}
+.is-floating .mission-heading>div>span{flex-basis:100%;font-size:7px}
+.is-floating .mission-heading h2{font-size:14px;letter-spacing:1px}
+.is-floating .mission-heading>div:last-child{flex-direction:column;gap:5px;flex-shrink:0}
+.is-floating .mission-heading button{padding:5px 8px;font-size:8px}
+.is-floating .flight-instruments{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 10px;margin:19px 0}
+.is-floating .flight-metric:nth-child(3){border-right:0}
+.is-floating .flight-metric>span{font-size:8px;letter-spacing:.3px}
+.is-floating .flight-metric>span>small{display:none}
+.is-floating .flight-metric strong{font-size:21px}
+.is-floating .flight-metric.primary strong{font-size:25px}
+.is-floating .flight-metric.score strong{font-size:22px}
+.is-floating .flight-metric p{gap:4px}
+.is-floating .flight-metric p>small{font-size:7px}
+.is-floating .mission-bottom{flex-direction:column;gap:5px;font-size:8px}
+.mission-window-compact{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;padding:12px 14px;font:9px var(--mono);color:#9eb38c}
+.mission-window-compact b{font-size:16px;font-weight:400;color:#dadcba;margin-left:6px}
+.mission-window-compact>strong{font-size:9px;font-weight:400;color:#c6cba5}
+.mission-window-compact>strong.overshot{color:#de9e7c}
+@media(max-width:680px){.mission-window-bar{gap:6px;margin-bottom:12px}.mission-drag-handle{font-size:9px;gap:5px}.mission-drag-handle small{display:none}.mission-window-actions button{padding:6px 8px;font-size:8px}.is-floating .mission-window-bar{margin:0}.is-floating .mission-window-body{padding:12px}.is-floating .flight-metric strong{font-size:17px}.is-floating .flight-metric.primary strong{font-size:21px}.is-floating .flight-metric.score strong{font-size:18px}.is-floating .flight-metric>span{font-size:7px}.is-floating .flight-metric p>small{font-size:6px}.mission-window-compact{gap:6px;padding:12px}.mission-window-compact b{font-size:14px}.mission-window-compact>strong{font-size:8px}}
+
 </style>
 
 
@@ -53,6 +90,12 @@
     <nav class="mode-bar" aria-label="游戏模式"><div class="mode-switch"><button id="sandboxModeButton" class="active" aria-pressed="true"><span>01</span> 沙盒模式 <small>SANDBOX</small></button><button id="challengeModeButton" aria-pressed="false"><span>02</span> 挑战模式 <small>CHALLENGE</small></button></div><div class="mode-tools"><span id="modeDescription">自由试车 · 自定义参数与故障</span><button id="leaderboardButton">本地排行 ↗</button></div></nav>
 
     <section class="mission-panel" id="missionPanel" aria-label="飞船变轨进度" hidden>
+      <div class="mission-window-bar">
+        <div id="missionDragHandle" class="mission-drag-handle" tabindex="-1" role="group" aria-label="任务目标窗口标题栏"><i aria-hidden="true">⠿</i><span>任务目标 <small>FLIGHT OBJECTIVE</small></span></div>
+        <div class="mission-window-actions"><button id="missionMinimizeButton" aria-controls="missionWindowBody" aria-expanded="true" hidden>收起 −</button><button id="missionFloatButton" aria-pressed="false">浮动 ↗</button></div>
+      </div>
+      <div id="missionWindowCompact" class="mission-window-compact" hidden><span>Δv <b id="missionCompactDv">0.00 m/s</b></span><strong id="missionCompactTarget">距目标 325.00 m/s</strong></div>
+      <div id="missionWindowBody" class="mission-window-body">
       <div class="mission-heading"><div><span id="missionCode">01 / ENDURANCE</span><h2 id="missionName">无限加速</h2><b id="missionStage">冷态准备</b></div><div><button id="challengeRulesButton">计分规则</button><button id="newChallengeButton">新挑战 ↗</button></div></div>
       <div class="flight-instruments">
         <div class="flight-metric primary"><span>已获得速度增量 <small>DELTA-V</small></span><p><strong id="flightDv">0.00</strong><small>m/s</small></p></div>
@@ -64,6 +107,7 @@
       </div>
       <div class="flight-progress"><div class="flight-rail"><div class="flight-rail-fill" id="flightProgressFill"></div><span class="flight-start">✦</span><div class="flight-ship" id="flightShip" aria-label="模拟飞船"><svg viewBox="0 0 76 28" aria-hidden="true"><path class="ship-plume" d="M19 9 0 14 19 19" fill="#b9d290" opacity=".6"/><path d="M18 6h12v16H18l5-8z" fill="#687b5c" stroke="#c8d3ac"/><path d="M30 8h24l10 6-10 6H30z" fill="#c4c5a2" stroke="#e2dfbb"/><path d="m42 8-5-6H27l5 6m10 12-5 6H27l5-6" fill="#64785a" stroke="#b4c4a0"/><path d="M48 9v10M34 9v10" stroke="#64785a"/><circle cx="55" cy="14" r="2" fill="#293e2a"/></svg></div><span class="flight-end" id="flightEndMarker">∞</span></div><div class="flight-progress-labels"><span id="flightProgressLabel">推进剂使用进度 0.0%</span><b id="flightError">尽可能获得更高 Δv</b></div></div>
       <div class="mission-bottom"><span id="flightHint">冷启动：开启泵与冷却 → 设置主阀和功率 → 启动试车</span><span id="flightMassNote">干重＋载荷 10.00 t · 推进剂 10.00 t · 一维真空变轨</span></div>
+      </div>
     </section>
 
     <section class="instrument-rack" aria-label="核热推进控制台">
@@ -595,6 +639,7 @@ let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = 
 let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
 let motionTime = 0;
 let mission = null, resultShown = false, displayedResult = null;
+const missionWindow = { floating: false, collapsed: false, x: null, y: null, drag: null };
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
 const selectedFuelLoads = { ...NTR_DEFAULT_LOADS };
 let scoreStorage;
@@ -699,6 +744,72 @@ function render() {
   renderMission();
 }
 
+// The mission panel stays in the same DOM node, so docking never interrupts telemetry.
+function positionMissionWindow(x = missionWindow.x, y = missionWindow.y) {
+  if (!missionWindow.floating || $('missionPanel').hidden) return;
+  const panel = $('missionPanel'), bounds = panel.getBoundingClientRect();
+  const width = document.documentElement.clientWidth, height = document.documentElement.clientHeight;
+  missionWindow.x = Math.max(12, Math.min(x ?? width - bounds.width - 20, width - bounds.width - 12));
+  missionWindow.y = Math.max(12, Math.min(y ?? 80, height - bounds.height - 12));
+  panel.style.left = missionWindow.x + 'px'; panel.style.top = missionWindow.y + 'px';
+}
+
+function setMissionCollapsed(collapsed) {
+  missionWindow.collapsed = missionWindow.floating && collapsed;
+  $('missionWindowBody').hidden = missionWindow.collapsed;
+  $('missionWindowCompact').hidden = !missionWindow.collapsed;
+  $('missionMinimizeButton').textContent = missionWindow.collapsed ? '展开 +' : '收起 −';
+  $('missionMinimizeButton').setAttribute('aria-expanded', !missionWindow.collapsed);
+  positionMissionWindow();
+}
+
+function setMissionFloating(floating, reveal = true) {
+  missionWindow.floating = floating;
+  const panel = $('missionPanel'), handle = $('missionDragHandle');
+  panel.classList.toggle('is-floating', floating);
+  $('missionFloatButton').textContent = floating ? '归位 ↙' : '浮动 ↗';
+  $('missionFloatButton').setAttribute('aria-pressed', floating);
+  $('missionFloatButton').title = floating ? '将任务目标放回控制台顶部' : '将任务目标作为浮动窗口显示';
+  $('missionMinimizeButton').hidden = !floating;
+  handle.tabIndex = floating ? 0 : -1;
+  handle.setAttribute('aria-label', floating ? '拖动任务目标窗口；也可用方向键移动，Shift 加速' : '任务目标窗口标题栏');
+  handle.title = floating ? '拖动标题栏移动 · 方向键微调 · Shift 加速' : '';
+  setMissionCollapsed(false);
+  if (!floating) {
+    panel.style.removeProperty('left'); panel.style.removeProperty('top');
+    if (reveal && !panel.hidden) panel.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+  }
+}
+
+const missionHandle = $('missionDragHandle');
+$('missionFloatButton').addEventListener('click', () => setMissionFloating(!missionWindow.floating));
+$('missionMinimizeButton').addEventListener('click', () => setMissionCollapsed(!missionWindow.collapsed));
+missionHandle.addEventListener('pointerdown', event => {
+  if (!missionWindow.floating || event.button !== 0 || !event.isPrimary) return;
+  const bounds = $('missionPanel').getBoundingClientRect();
+  missionWindow.drag = { id: event.pointerId, offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top };
+  missionHandle.setPointerCapture(event.pointerId); missionHandle.focus({ preventScroll: true });
+  $('missionPanel').classList.add('is-dragging'); event.preventDefault();
+});
+missionHandle.addEventListener('pointermove', event => {
+  const drag = missionWindow.drag;
+  if (drag?.id === event.pointerId) positionMissionWindow(event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+});
+function stopMissionDrag(event) {
+  if (missionWindow.drag?.id !== event.pointerId) return;
+  missionWindow.drag = null; $('missionPanel').classList.remove('is-dragging');
+  if (missionHandle.hasPointerCapture(event.pointerId)) missionHandle.releasePointerCapture(event.pointerId);
+}
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) missionHandle.addEventListener(name, stopMissionDrag);
+missionHandle.addEventListener('keydown', event => {
+  const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+  if (!missionWindow.floating || !direction) return;
+  event.preventDefault(); const step = event.shiftKey ? 40 : 10;
+  positionMissionWindow(missionWindow.x + direction[0] * step, missionWindow.y + direction[1] * step);
+});
+window.addEventListener('resize', () => positionMissionWindow());
+new ResizeObserver(() => positionMissionWindow()).observe($('missionPanel'));
+
 function resetUIClock() {
   paused = false; speed = 1; lastFrame = performance.now(); motionTime = 0;
   updatePauseButton(); $('speedButton').textContent = '1×'; lastLogId = -1; resultShown = false;
@@ -708,7 +819,8 @@ function beginMission(type, propellant, diameter, fuelLoad) {
   mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad });
   resetUIClock(); setPage('overview'); updateSliders(); render();
   $('challengeDialog').close();
-  $('missionPanel').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+  setMissionCollapsed(false);
+  if (!missionWindow.floating) $('missionPanel').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
   toast('挑战已装载 · 冷态准备不计时，首次点火后开始计时');
 }
 
@@ -787,6 +899,9 @@ function renderMission() {
   $('flightProgressLabel').textContent = mission.target === null ? '推进剂使用进度 ' + num(progress * 100, 1) + '%' : '变轨完成度 ' + num(mission.deltaV / mission.target * 100, 2) + '%';
   $('flightError').textContent = mission.target === null ? '尽可能获得更高 Δv' : mission.remainingError >= 0 ? '距目标 ' + num(mission.remainingError, 2) + ' m/s' : '超调 ' + num(-mission.remainingError, 2) + ' m/s';
   $('flightError').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
+  $('missionCompactDv').textContent = num(mission.deltaV, 2) + ' m/s';
+  $('missionCompactTarget').textContent = $('flightError').textContent;
+  $('missionCompactTarget').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
   $('flightMassNote').textContent = '干重＋载荷 10.00 t · ' + sim.prop.symbol + ' 初装 ' + points(mission.initialFuel) + ' / 剩余 ' + points(sim.fuel, 1) + ' kg';
   $('flightHint').textContent = mission.complete ? '已结算 · 可以查看报告、复盘遥测或开始新挑战'
     : !mission.started ? '冷启动：开启泵与冷却 → 主阀约 70% → 功率约 60% → 启动试车'
@@ -1087,7 +1202,7 @@ $('powerSlider').addEventListener('input', event => { sim.demand = Number(event.
 $('valveSlider').addEventListener('input', event => { sim.valve = Number(event.target.value); updateSliders(); });
 $('sizeSlider').addEventListener('input', event => { const result = sim.configure(sim.propellant, Number(event.target.value)); if (!result.ok) toast(result.message); updateSliders(); render(); });
 for (const [id, type] of [['hydrogenButton', 'hydrogen'], ['waterButton', 'water']]) $(id).addEventListener('click', () => { if (sim.propellant === type) return; const result = sim.configure(type, sim.diameter); toast(result.message); updateSliders(); render(); });
-$('sandboxModeButton').addEventListener('click', () => { if (!mission) return; mission = null; sim.reset(false); resetUIClock(); updateSliders(); render(); toast('已回到沙盒 · 60% 功率稳定试车'); });
+$('sandboxModeButton').addEventListener('click', () => { if (!mission) return; setMissionFloating(false, false); mission = null; sim.reset(false); resetUIClock(); updateSliders(); render(); toast('已回到沙盒 · 60% 功率稳定试车'); });
 $('challengeModeButton').addEventListener('click', openChallengeSetup);
 $('newChallengeButton').addEventListener('click', openChallengeSetup);
 $('challengeRulesButton').addEventListener('click', () => $('rulesDialog').showModal());

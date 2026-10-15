@@ -25,6 +25,12 @@
     <nav class="mode-bar" aria-label="游戏模式"><div class="mode-switch"><button id="sandboxModeButton" class="active" aria-pressed="true"><span>01</span> 沙盒模式 <small>SANDBOX</small></button><button id="challengeModeButton" aria-pressed="false"><span>02</span> 挑战模式 <small>CHALLENGE</small></button></div><div class="mode-tools"><span id="modeDescription">自由试车 · 自定义参数与故障</span><button id="leaderboardButton">本地排行 ↗</button></div></nav>
 
     <section class="mission-panel" id="missionPanel" aria-label="飞船变轨进度" hidden>
+      <div class="mission-window-bar">
+        <div id="missionDragHandle" class="mission-drag-handle" tabindex="-1" role="group" aria-label="任务目标窗口标题栏"><i aria-hidden="true">⠿</i><span>任务目标 <small>FLIGHT OBJECTIVE</small></span></div>
+        <div class="mission-window-actions"><button id="missionMinimizeButton" aria-controls="missionWindowBody" aria-expanded="true" hidden>收起 −</button><button id="missionFloatButton" aria-pressed="false">浮动 ↗</button></div>
+      </div>
+      <div id="missionWindowCompact" class="mission-window-compact" hidden><span>Δv <b id="missionCompactDv">0.00 m/s</b></span><strong id="missionCompactTarget">距目标 325.00 m/s</strong></div>
+      <div id="missionWindowBody" class="mission-window-body">
       <div class="mission-heading"><div><span id="missionCode">01 / ENDURANCE</span><h2 id="missionName">无限加速</h2><b id="missionStage">冷态准备</b></div><div><button id="challengeRulesButton">计分规则</button><button id="newChallengeButton">新挑战 ↗</button></div></div>
       <div class="flight-instruments">
         <div class="flight-metric primary"><span>已获得速度增量 <small>DELTA-V</small></span><p><strong id="flightDv">0.00</strong><small>m/s</small></p></div>
@@ -36,6 +42,7 @@
       </div>
       <div class="flight-progress"><div class="flight-rail"><div class="flight-rail-fill" id="flightProgressFill"></div><span class="flight-start">✦</span><div class="flight-ship" id="flightShip" aria-label="模拟飞船"><svg viewBox="0 0 76 28" aria-hidden="true"><path class="ship-plume" d="M19 9 0 14 19 19" fill="#b9d290" opacity=".6"/><path d="M18 6h12v16H18l5-8z" fill="#687b5c" stroke="#c8d3ac"/><path d="M30 8h24l10 6-10 6H30z" fill="#c4c5a2" stroke="#e2dfbb"/><path d="m42 8-5-6H27l5 6m10 12-5 6H27l5-6" fill="#64785a" stroke="#b4c4a0"/><path d="M48 9v10M34 9v10" stroke="#64785a"/><circle cx="55" cy="14" r="2" fill="#293e2a"/></svg></div><span class="flight-end" id="flightEndMarker">∞</span></div><div class="flight-progress-labels"><span id="flightProgressLabel">推进剂使用进度 0.0%</span><b id="flightError">尽可能获得更高 Δv</b></div></div>
       <div class="mission-bottom"><span id="flightHint">冷启动：开启泵与冷却 → 设置主阀和功率 → 启动试车</span><span id="flightMassNote">干重＋载荷 10.00 t · 推进剂 10.00 t · 一维真空变轨</span></div>
+      </div>
     </section>
 
     <section class="instrument-rack" aria-label="核热推进控制台">

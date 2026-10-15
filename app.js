@@ -9,6 +9,7 @@ let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = 
 let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
 let motionTime = 0;
 let mission = null, resultShown = false, displayedResult = null;
+const missionWindow = { floating: false, collapsed: false, x: null, y: null, drag: null };
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
 const selectedFuelLoads = { ...NTR_DEFAULT_LOADS };
 let scoreStorage;
@@ -113,6 +114,72 @@ function render() {
   renderMission();
 }
 
+// The mission panel stays in the same DOM node, so docking never interrupts telemetry.
+function positionMissionWindow(x = missionWindow.x, y = missionWindow.y) {
+  if (!missionWindow.floating || $('missionPanel').hidden) return;
+  const panel = $('missionPanel'), bounds = panel.getBoundingClientRect();
+  const width = document.documentElement.clientWidth, height = document.documentElement.clientHeight;
+  missionWindow.x = Math.max(12, Math.min(x ?? width - bounds.width - 20, width - bounds.width - 12));
+  missionWindow.y = Math.max(12, Math.min(y ?? 80, height - bounds.height - 12));
+  panel.style.left = missionWindow.x + 'px'; panel.style.top = missionWindow.y + 'px';
+}
+
+function setMissionCollapsed(collapsed) {
+  missionWindow.collapsed = missionWindow.floating && collapsed;
+  $('missionWindowBody').hidden = missionWindow.collapsed;
+  $('missionWindowCompact').hidden = !missionWindow.collapsed;
+  $('missionMinimizeButton').textContent = missionWindow.collapsed ? '展开 +' : '收起 −';
+  $('missionMinimizeButton').setAttribute('aria-expanded', !missionWindow.collapsed);
+  positionMissionWindow();
+}
+
+function setMissionFloating(floating, reveal = true) {
+  missionWindow.floating = floating;
+  const panel = $('missionPanel'), handle = $('missionDragHandle');
+  panel.classList.toggle('is-floating', floating);
+  $('missionFloatButton').textContent = floating ? '归位 ↙' : '浮动 ↗';
+  $('missionFloatButton').setAttribute('aria-pressed', floating);
+  $('missionFloatButton').title = floating ? '将任务目标放回控制台顶部' : '将任务目标作为浮动窗口显示';
+  $('missionMinimizeButton').hidden = !floating;
+  handle.tabIndex = floating ? 0 : -1;
+  handle.setAttribute('aria-label', floating ? '拖动任务目标窗口；也可用方向键移动，Shift 加速' : '任务目标窗口标题栏');
+  handle.title = floating ? '拖动标题栏移动 · 方向键微调 · Shift 加速' : '';
+  setMissionCollapsed(false);
+  if (!floating) {
+    panel.style.removeProperty('left'); panel.style.removeProperty('top');
+    if (reveal && !panel.hidden) panel.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+  }
+}
+
+const missionHandle = $('missionDragHandle');
+$('missionFloatButton').addEventListener('click', () => setMissionFloating(!missionWindow.floating));
+$('missionMinimizeButton').addEventListener('click', () => setMissionCollapsed(!missionWindow.collapsed));
+missionHandle.addEventListener('pointerdown', event => {
+  if (!missionWindow.floating || event.button !== 0 || !event.isPrimary) return;
+  const bounds = $('missionPanel').getBoundingClientRect();
+  missionWindow.drag = { id: event.pointerId, offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top };
+  missionHandle.setPointerCapture(event.pointerId); missionHandle.focus({ preventScroll: true });
+  $('missionPanel').classList.add('is-dragging'); event.preventDefault();
+});
+missionHandle.addEventListener('pointermove', event => {
+  const drag = missionWindow.drag;
+  if (drag?.id === event.pointerId) positionMissionWindow(event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+});
+function stopMissionDrag(event) {
+  if (missionWindow.drag?.id !== event.pointerId) return;
+  missionWindow.drag = null; $('missionPanel').classList.remove('is-dragging');
+  if (missionHandle.hasPointerCapture(event.pointerId)) missionHandle.releasePointerCapture(event.pointerId);
+}
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) missionHandle.addEventListener(name, stopMissionDrag);
+missionHandle.addEventListener('keydown', event => {
+  const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+  if (!missionWindow.floating || !direction) return;
+  event.preventDefault(); const step = event.shiftKey ? 40 : 10;
+  positionMissionWindow(missionWindow.x + direction[0] * step, missionWindow.y + direction[1] * step);
+});
+window.addEventListener('resize', () => positionMissionWindow());
+new ResizeObserver(() => positionMissionWindow()).observe($('missionPanel'));
+
 function resetUIClock() {
   paused = false; speed = 1; lastFrame = performance.now(); motionTime = 0;
   updatePauseButton(); $('speedButton').textContent = '1×'; lastLogId = -1; resultShown = false;
@@ -122,7 +189,8 @@ function beginMission(type, propellant, diameter, fuelLoad) {
   mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad });
   resetUIClock(); setPage('overview'); updateSliders(); render();
   $('challengeDialog').close();
-  $('missionPanel').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+  setMissionCollapsed(false);
+  if (!missionWindow.floating) $('missionPanel').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
   toast('挑战已装载 · 冷态准备不计时，首次点火后开始计时');
 }
 
@@ -201,6 +269,9 @@ function renderMission() {
   $('flightProgressLabel').textContent = mission.target === null ? '推进剂使用进度 ' + num(progress * 100, 1) + '%' : '变轨完成度 ' + num(mission.deltaV / mission.target * 100, 2) + '%';
   $('flightError').textContent = mission.target === null ? '尽可能获得更高 Δv' : mission.remainingError >= 0 ? '距目标 ' + num(mission.remainingError, 2) + ' m/s' : '超调 ' + num(-mission.remainingError, 2) + ' m/s';
   $('flightError').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
+  $('missionCompactDv').textContent = num(mission.deltaV, 2) + ' m/s';
+  $('missionCompactTarget').textContent = $('flightError').textContent;
+  $('missionCompactTarget').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
   $('flightMassNote').textContent = '干重＋载荷 10.00 t · ' + sim.prop.symbol + ' 初装 ' + points(mission.initialFuel) + ' / 剩余 ' + points(sim.fuel, 1) + ' kg';
   $('flightHint').textContent = mission.complete ? '已结算 · 可以查看报告、复盘遥测或开始新挑战'
     : !mission.started ? '冷启动：开启泵与冷却 → 主阀约 70% → 功率约 60% → 启动试车'
@@ -501,7 +572,7 @@ $('powerSlider').addEventListener('input', event => { sim.demand = Number(event.
 $('valveSlider').addEventListener('input', event => { sim.valve = Number(event.target.value); updateSliders(); });
 $('sizeSlider').addEventListener('input', event => { const result = sim.configure(sim.propellant, Number(event.target.value)); if (!result.ok) toast(result.message); updateSliders(); render(); });
 for (const [id, type] of [['hydrogenButton', 'hydrogen'], ['waterButton', 'water']]) $(id).addEventListener('click', () => { if (sim.propellant === type) return; const result = sim.configure(type, sim.diameter); toast(result.message); updateSliders(); render(); });
-$('sandboxModeButton').addEventListener('click', () => { if (!mission) return; mission = null; sim.reset(false); resetUIClock(); updateSliders(); render(); toast('已回到沙盒 · 60% 功率稳定试车'); });
+$('sandboxModeButton').addEventListener('click', () => { if (!mission) return; setMissionFloating(false, false); mission = null; sim.reset(false); resetUIClock(); updateSliders(); render(); toast('已回到沙盒 · 60% 功率稳定试车'); });
 $('challengeModeButton').addEventListener('click', openChallengeSetup);
 $('newChallengeButton').addEventListener('click', openChallengeSetup);
 $('challengeRulesButton').addEventListener('click', () => $('rulesDialog').showModal());
