@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { NTRSimulation } = require('../simulation.js');
+const { NTRSimulation, TELEMETRY_LIMITS } = require('../simulation.js');
 function advance(sim, seconds) { for (let t = 0; t < seconds; t += .1) sim.tick(.1); }
 
 test('nominal operation conserves propellant and computes thrust from flow', () => {
@@ -90,4 +90,19 @@ test('telemetry history stays bounded and ignores invalid delta times', () => {
 test('a cold unpowered core does not generate heat when coolant is switched off', () => {
   const sim = new NTRSimulation(); sim.reset(true); sim.cooling = false;
   advance(sim, 30); assert.equal(sim.power, 0); assert.equal(sim.coreTemperature, 293);
+});
+test('telemetry records real specific impulse with a separate 1000-second chart limit', () => {
+  const sim = new NTRSimulation();
+  assert.equal(TELEMETRY_LIMITS.isp, 1000);
+  assert.equal(sim.history[0].isp, sim.isp);
+  advance(sim, 1); assert.ok(sim.history.every(sample => Number.isFinite(sample.isp)));
+  sim.coreTemperature = 4900; sim.updatePerformance(); sim.recordSample();
+  assert.ok(sim.isp > TELEMETRY_LIMITS.isp);
+  assert.equal(sim.history.at(-1).isp, sim.isp);
+  assert.ok(Math.abs(sim.history.at(-1).isp - sim.exhaustVelocity / 9.80665) < 1e-9);
+  sim.reset(true); assert.equal(sim.history[0].isp, 0);
+});
+test('engine model identifiers describe configured size and propellant', () => {
+  const sim = new NTRSimulation(); assert.equal(sim.engineModel, 'NTR-II-140H');
+  sim.reset(true); sim.configure('water', 1.85); assert.equal(sim.engineModel, 'NTR-II-185W');
 });

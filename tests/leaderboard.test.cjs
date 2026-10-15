@@ -1,9 +1,19 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { NTRLeaderboard, LEADERBOARD_KEY } = require('../leaderboard.js');
+const { NTRSimulation } = require('../simulation.js');
+const { NTRChallenge } = require('../challenge.js');
 const release = require('../version.js');
 const manifest = require('../package.json');
-const record = (id, overrides = {}) => ({ id, version: release.version, scoreSchema: release.scoreSchema, type: 'precision', propellant: 'hydrogen', total: 90000, deltaV: 325, elapsed: 70, initialFuel: 1000, fuel: 300, ...overrides });
+const fixtureEngine = new NTRSimulation();
+const fixtureFlight = new NTRChallenge(fixtureEngine, { type: 'precision' });
+Object.assign(fixtureEngine, { pump: true, cooling: true, demand: 60, valve: 70 });
+fixtureFlight.startEngine();
+const fixture = fixtureFlight.settle().result;
+const record = (id, overrides = {}) => {
+  const r = { ...fixture, id, total: 90000, deltaV: 325, elapsed: 70, initialFuel: 1000, fuel: 300, ...overrides };
+  return { ...r, engineModel: overrides.engineModel ?? ('NTR-II-' + Math.round(r.diameter * 100) + (r.propellant === 'water' ? 'W' : 'H')), finalMass: r.dryMass + r.fuel, consumedFuel: r.initialFuel - r.fuel };
+};
 const storage = () => { const values = new Map(); return { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) }; };
 
 test('release watermark, scoring schema and runtime version have one package source', () => {
@@ -40,4 +50,28 @@ test('corrupt, invalid or unavailable browser storage cannot break game completi
   assert.equal(board.add(record('bad', { total: Infinity })), false);
   assert.equal(board.add(record('bad2', { fuel: 5000 })), false);
   assert.equal(new NTRLeaderboard().add(record('memory')), true);
+});
+test('complete flight configuration and scoring details survive reload and later engine changes', () => {
+  const engine = new NTRSimulation();
+  const flight = new NTRChallenge(engine, { type: 'precision', diameter: 2.4, fuelLoad: 595 });
+  Object.assign(engine, { pump: true, cooling: true, demand: 60, valve: 70 }); flight.startEngine();
+  for (let i = 0; i < 100 && !flight.complete; i++) flight.tick(1);
+  assert.equal(flight.complete, true);
+  const db = storage(), board = new NTRLeaderboard(db); assert.equal(board.add(flight.result), true);
+  new NTRChallenge(engine, { propellant: 'water', diameter: .8 });
+  const archived = new NTRLeaderboard(db).get(flight.result.id);
+  assert.equal(archived.engineModel, 'NTR-II-240H'); assert.equal(archived.diameter, 2.4);
+  assert.equal(archived.initialFuel, 595); assert.equal(archived.initialMass, 10595);
+  assert.equal(archived.finalMass, 10000); assert.equal(archived.consumedFuel, 595);
+  assert.equal(archived.launchDemand, 60); assert.equal(archived.launchValve, 70);
+  assert.ok(archived.peakThrust > 0 && archived.peakIsp > 0);
+  assert.equal(archived.loadingCost, 2975); assert.equal(archived.base, flight.result.base);
+  assert.equal(archived.total, flight.result.total); assert.ok(Object.isFrozen(archived));
+  assert.equal(board.add(flight.result), false); assert.equal(board.get('missing'), null);
+});
+test('incomplete configuration records are rejected rather than showing invented details', () => {
+  const board = new NTRLeaderboard(storage()), missing = record('missing'); delete missing.engineModel;
+  assert.equal(board.add(missing), false);
+  assert.equal(board.add(record('bad-diameter', { diameter: 9 })), false);
+  assert.equal(board.add(record('bad-model', { engineModel: '<img>' })), false);
 });

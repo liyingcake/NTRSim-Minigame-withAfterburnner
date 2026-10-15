@@ -44,6 +44,8 @@
       this.initialFuel = initialFuel; this.target = type === 'precision' ? PRECISION_TARGET : null;
       this.state = 'PREPARING'; this.started = false; this.elapsed = 0; this.deltaV = 0;
       this.distance = 0; this.acceleration = 0; this.peakAcceleration = 0; this.result = null; this.autoReason = null;
+      this.peaks = { thrust: 0, power: 0, isp: 0, temperature: 293, pressure: 0, flow: 0 };
+      this.launchDemand = 0; this.launchValve = 0;
       engine.reset(true); engine.configure(propellant, diameter);
       engine.tankCapacity = this.initialFuel; engine.fuel = this.initialFuel;
       engine.propellantLocked = true; engine.demand = 0; engine.valve = 0;
@@ -65,6 +67,7 @@
       if (this.engine.demand <= 0) return { ok: false, message: '冷启动：请先设定大于 0% 的反应堆功率' };
       const result = this.engine.start();
       if (result.ok && !this.started) {
+        this.launchDemand = this.engine.demand; this.launchValve = this.engine.valve;
         this.started = true; this.state = 'ACTIVE'; this.engine.diameterLocked = true;
         this.engine.time = 0; this.engine.history = []; this.engine.sampleTimer = 0; this.engine.recordSample();
         this.engine.log('首次点火 · 航行计时开始 / 发动机尺寸锁定');
@@ -78,6 +81,8 @@
       while (remaining > 1e-8 && !this.complete) {
         const dt = Math.min(.05, remaining), beforeMass = this.mass, previousVelocity = this.deltaV;
         this.engine.tick(dt);
+        for (const key of ['thrust', 'power', 'isp', 'pressure', 'flow']) this.peaks[key] = Math.max(this.peaks[key], this.engine[key]);
+        this.peaks.temperature = Math.max(this.peaks.temperature, this.engine.coreTemperature);
         const accelerationDuringStep = this.engine.thrust * 1000 / ((beforeMass + this.mass) / 2);
         this.deltaV += accelerationDuringStep * dt;
         this.distance += (previousVelocity + this.deltaV) * .5 * dt;
@@ -103,7 +108,12 @@
       this.result = Object.freeze({ ...score, id: Date.now().toString(36) + '-' + (++resultSequence), version: release.version, scoreSchema: release.scoreSchema, type: this.type, propellant: this.propellant, diameter: this.engine.diameter, reason,
         target: this.target, deltaV: this.deltaV, distance: this.distance, elapsed: this.elapsed,
         fuel: this.engine.fuel, initialFuel: this.initialFuel, integrity: this.engine.integrity,
-        temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration });
+        temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration,
+        engineModel: this.engine.engineModel, ratedPower: this.engine.ratedPower,
+        dryMass: this.dryMass, initialMass: this.dryMass + this.initialFuel, finalMass: this.mass,
+        consumedFuel: this.initialFuel - this.engine.fuel, launchDemand: this.launchDemand, launchValve: this.launchValve,
+        peakThrust: this.peaks.thrust, peakPower: this.peaks.power, peakIsp: this.peaks.isp,
+        peakTemperature: this.peaks.temperature, peakPressure: this.peaks.pressure, peakFlow: this.peaks.flow });
       if (this.engine.isActive) this.engine.shutdown();
       this.engine.controlsLocked = true; this.state = 'COMPLETE'; this.acceleration = 0;
       this.engine.log('挑战完成 · 最终得分 ' + score.total.toLocaleString('en-US'));

@@ -8,7 +8,7 @@ const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835
 let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = -1;
 let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
 let motionTime = 0;
-let mission = null, resultShown = false;
+let mission = null, resultShown = false, displayedResult = null;
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
 const selectedFuelLoads = { ...NTR_DEFAULT_LOADS };
 let scoreStorage;
@@ -90,6 +90,8 @@ function render() {
   $('footerPropellant').textContent = sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE';
   $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
+  if (page === 'trend') canvas.setAttribute('aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
+  if (page === 'overview') $('screenHint').textContent = sim.engineModel + ' · CLOSED EXPANDER CYCLE';
   $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
   $('runButton').classList.toggle('start-ready', !sim.isActive);
   $('runButton').disabled = sim.mode === 'DAMAGED' || Boolean(mission?.complete || mission?.autoReason);
@@ -148,7 +150,7 @@ function updateChallengeSetup() {
   $('loadoutMass').textContent = num((10000 + load) / 1000, 2) + ' t';
   $('challengeBrief').textContent = selectedChallenge === 'endurance'
     ? '每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。每 100 秒扣 1%；每损失 10% 耐久扣 5%。'
-    : '固定目标 325 m/s。原始分 = 100,000 − 装载成本 + 剩余推进剂返分。液氢每 kg 扣 5 分，水扣 2 分，每剩 1 kg 均返 1 分。误差、时间和耐久修正继续适用，低于 800 K 才可结算。';
+    : '固定目标 325.00 m/s。原始分 = 100,000 − 装载成本 + 剩余推进剂返分。液氢每 kg 扣 5 分，水扣 2 分，每剩 1 kg 均返 1 分。误差、时间和耐久修正继续适用，低于 800 K 才可结算。';
 }
 
 function changeFuelLoad(value) {
@@ -184,13 +186,13 @@ function renderMission() {
   $('missionPanel').classList.toggle('finished', mission.complete);
   $('missionPanel').classList.toggle('is-burning', sim.thrust > .1 && !mission.complete && !paused);
   $('flightDv').textContent = num(mission.deltaV, 2);
-  $('flightAcceleration').textContent = num(mission.acceleration, 3);
+  $('flightAcceleration').textContent = num(mission.acceleration, mission.type === 'precision' ? 2 : 3);
   $('flightDistance').textContent = num(mission.distance / 1000, 2);
   $('flightMass').textContent = num(mission.mass / 1000, 2);
   $('flightScore').textContent = points(score.total);
   $('flightScoreLabel').textContent = mission.complete ? '最终得分' : '当前预计得分';
   $('flightTargetLabel').textContent = mission.type === 'precision' ? '目标速度增量' : '挑战目标';
-  $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target);
+  $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target, 2);
   $('flightTargetUnit').textContent = mission.target === null ? 'MAX Δv' : 'm/s';
   const progress = Math.min(1, Math.max(0, mission.target ? mission.deltaV / mission.target : 1 - sim.fuel / mission.initialFuel));
   $('flightProgressFill').style.width = progress * 100 + '%';
@@ -213,15 +215,20 @@ function renderMission() {
   if (mission.complete && !resultShown) { leaderboard.add(mission.result); resultShown = true; showResult(); }
 }
 
-function showResult() {
-  if (!mission?.result) return;
-  const r = mission.result;
-  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + sim.prop.symbol + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
+function showResult(result = mission?.result) {
+  if (!result) return;
+  const r = result; displayedResult = r;
+  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + NTR_PROPELLANTS[r.propellant].symbol + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
   $('resultTitle').textContent = r.type === 'precision' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
   $('resultTotal').textContent = points(r.total);
+  const entry = ([label, value]) => `<div><span>${safe(label)}</span><strong>${safe(value)}</strong></div>`;
+  const configuration = [['引擎型号', r.engineModel], ['堆芯直径 / 引擎尺寸', num(r.diameter, 2) + ' m'], ['额定热功率', points(r.ratedPower, 2) + ' MW'], ['推进剂类型', NTR_PROPELLANTS[r.propellant].label + ' / ' + NTR_PROPELLANTS[r.propellant].symbol], ['起始加注量', points(r.initialFuel, 2) + ' kg'], ['起始飞船总质量', points(r.initialMass, 2) + ' kg']];
+  $('resultConfiguration').innerHTML = configuration.map(entry).join('');
   const settledTemperature = r.temperature < 800 && Math.round(r.temperature * 100) / 100 >= 800 ? '＜800' : num(r.temperature, 2);
-  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target) + ' / ' + num(r.error, 2) + ' m/s'], ['初装 / 剩余推进剂', points(r.initialFuel) + ' / ' + points(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 1) + ' s'], ['剩余耐久', num(r.integrity, 1) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
-  $('resultMetrics').innerHTML = metrics.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
+  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target, 2) + ' / ' + num(r.error, 2) + ' m/s'], ['剩余推进剂', points(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 2) + ' s'], ['剩余耐久', num(r.integrity, 2) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
+  $('resultMetrics').innerHTML = metrics.map(entry).join('');
+  const stats = [['干重＋载荷', points(r.dryMass, 2) + ' kg'], ['结算总质量', points(r.finalMass, 2) + ' kg'], ['实际消耗推进剂', points(r.consumedFuel, 2) + ' kg'], ['飞行距离', points(r.distance / 1000, 2) + ' km'], ['峰值加速度', num(r.peakAcceleration, 2) + ' m/s²'], ['峰值推力', num(r.peakThrust, 2) + ' kN'], ['峰值热功率', points(r.peakPower, 2) + ' MW'], ['峰值比冲', points(r.peakIsp, 2) + ' s'], ['峰值堆芯温度', points(r.peakTemperature, 2) + ' K'], ['峰值腔室压力', num(r.peakPressure, 2) + ' MPa'], ['峰值推进剂流量', num(r.peakFlow, 2) + ' kg/s'], ['首次点火功率 / 主阀', num(r.launchDemand, 2) + '% / ' + num(r.launchValve, 2) + '%']];
+  $('resultFlightStats').innerHTML = stats.map(entry).join(''); $('resultFlightDetails').open = false;
   const row = (label, detail, value, penalty = false) => `<div class="score-row ${penalty ? 'penalty' : ''}"><span>${label}<small>${detail}</small></span><b>${value}</b></div>`;
   let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + points(r.dvPoints, 2))
     : row('基础分', 'PRECISION', '+' + points(r.basePoints)) + row('推进剂装载成本', points(r.initialFuel) + ' kg × ' + r.fuelUnitCost + ' 分/kg', '−' + points(r.loadingCost, 2), true) + row('剩余推进剂返分', '1 分 / kg', '+' + points(r.fuelPoints, 2)) + row('修正前原始分', 'BASE SUBTOTAL', points(r.base, 2));
@@ -231,15 +238,15 @@ function showResult() {
   rows += `<div class="score-row total"><span>最终得分<small>向下取整</small></span><b>${points(r.total)}</b></div>`;
   $('scoreBreakdown').innerHTML = rows;
   $('resultFormula').textContent = `${points(r.base, 2)} × ${num(1 - r.errorPenalty, 4)}（精度）× ${num(1 - r.timePenalty, 4)}（时间）× ${num(1 - r.durabilityPenalty, 4)}（耐久）`;
-  $('resultLeaderboard').innerHTML = rankingTable(leaderboard.top(r.type, 'all', 3), true);
+  $('resultLeaderboard').innerHTML = rankingTable(leaderboard.top(r.type, 'all', 3), true, r.id);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   $('resultDialog').showModal();
 }
 
-function rankingTable(records, compact = false) {
+function rankingTable(records, compact = false, highlightId = mission?.result?.id) {
   if (!records.length) return '<div class="ranking-empty">当前版本尚无已结算的飞行记录。完成挑战后自动入榜。</div>';
-  const rows = records.map((record, index) => `<tr class="${record.id === mission?.result?.id ? 'current-flight' : ''}"><td>${index + 1}</td><td>${NTR_PROPELLANTS[record.propellant].symbol}</td>${compact ? '' : `<td>${points(record.initialFuel)} kg</td><td>${num(record.deltaV, 2)}</td><td>${num(record.elapsed, 1)} s</td>`}<td class="rank-score">${points(record.total)}</td></tr>`).join('');
-  return `<table class="ranking-table"><thead><tr><th>#</th><th>推进剂</th>${compact ? '' : '<th>加注量</th><th>Δv / m/s</th><th>耗时</th>'}<th>得分</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const rows = records.map((r, index) => `<tr class="${r.id === highlightId ? 'current-flight' : ''}"><td>${index + 1}</td><td class="rank-model">${safe(r.engineModel)}${compact ? `<small>Ø ${num(r.diameter, 2)} m · ${NTR_PROPELLANTS[r.propellant].symbol} · ${points(r.initialFuel)} kg</small>` : ''}</td>${compact ? '' : `<td>${num(r.diameter, 2)} m</td><td>${NTR_PROPELLANTS[r.propellant].symbol}</td><td>${points(r.initialFuel)} kg</td><td>${r.target === null ? '—' : num(r.target, 2)}</td><td>${num(r.deltaV, 2)}</td><td>${r.target === null ? '—' : num(r.error, 2)}</td><td>${num(r.elapsed, 2)} s</td>`}<td class="rank-score">${points(r.total)}</td><td><button data-record-id="${safe(r.id)}" aria-label="查看第 ${index + 1} 名的试飞详情">详情 ↗</button></td></tr>`).join('');
+  return `<table class="ranking-table"><thead><tr><th>#</th><th>引擎型号${compact ? ' / 配置' : ''}</th>${compact ? '' : '<th>堆芯直径</th><th>推进剂</th><th>起始加注</th><th>目标 m/s</th><th>Δv m/s</th><th>误差 m/s</th><th>耗时</th>'}<th>得分</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderLeaderboard() {
@@ -248,14 +255,15 @@ function renderLeaderboard() {
 }
 
 function openLeaderboard() {
-  $('leaderboardMode').value = mission?.type || 'precision'; renderLeaderboard();
+  $('leaderboardMode').value = ($('resultDialog').open ? displayedResult?.type : null) || mission?.type || 'precision'; renderLeaderboard();
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close()); $('leaderboardDialog').showModal();
 }
 
 function setPage(value) {
   page = value; $('mfdTitle').textContent = pageNames[page];
   document.querySelectorAll('[data-page]').forEach(button => { const selected = button.dataset.page === value; button.classList.toggle('selected', selected); button.setAttribute('aria-selected', selected); });
-  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · INDEPENDENT SCALES', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.' }[page];
+  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · ISP AXIS 0–1,000 s', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.' }[page];
+  if (page !== 'trend') canvas.setAttribute('aria-label', '发动机结构、热力状态及趋势可视化');
 }
 
 // CRT drawing uses a fixed logical coordinate system for clear, stable layout.
@@ -395,8 +403,8 @@ function drawPropulsion() {
   text('● LH₂', 450, 184, 8, C.green); text('● H₂O', 540, 184, 8, C.blue);
   line([[33, 333], [647, 333]], C.faint);
   if (mission) {
-    miniMetric('ACCELERATION', num(mission.acceleration, 3), 'm/s²', 42, 351, C.blue);
-    miniMetric('DELTA-V', num(mission.deltaV, 1), 'm/s', 252, 351);
+    miniMetric('ACCELERATION', num(mission.acceleration, mission.type === 'precision' ? 2 : 3), 'm/s²', 42, 351, C.blue);
+    miniMetric('DELTA-V', num(mission.deltaV, 2), 'm/s', 252, 351);
     miniMetric('SPACECRAFT MASS', num(mission.mass / 1000, 2), 't', 462, 351);
   } else {
     miniMetric('MASS FLOW', num(sim.flow, 2), 'kg/s', 42, 351, C.blue);
@@ -406,19 +414,25 @@ function drawPropulsion() {
 }
 
 function drawTrend() {
-  text('TELEMETRY RECORDER / LAST 120 SECONDS', 34, 73, 9, C.dim);
-  const chart = { x: 52, y: 109, w: 568, h: 205 };
-  for (let i = 0; i <= 4; i++) { const y = chart.y + i * chart.h / 4; line([[chart.x, y], [chart.x + chart.w, y]], C.faint, .7); text(String(100 - i * 25), 41, y + 3, 8, C.dim, 'right'); }
-  for (let i = 0; i <= 6; i++) { const x = chart.x + i * chart.w / 6; line([[x, chart.y], [x, chart.y + chart.h]], C.faint, .7, [2, 4]); text('-' + (120 - i * 20) + 's', x, 330, 7, C.dim, 'center'); }
-  text('%', 26, 95, 8, C.dim);
-  const lines = [['temperature', 4000, C.amber, 'TEMP / 4000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + num(sim.ratedPower) + 'MW'], ['pressure', 8, C.blue, 'PRESS / 8MPa']];
-  for (const [key, max, color] of lines) {
-    const points = sim.history.map(p => [chart.x + (120 - (sim.time - p.time)) / 120 * chart.w, chart.y + chart.h - Math.min(1, p[key] / max) * chart.h]);
-    if (points.length === 1) points.unshift([points[0][0] - 2, points[0][1]]);
-    line(points, color, 1.5);
-    const last = points.at(-1); if (last) circle(last[0], last[1], 2.5, color, color);
+  text('TELEMETRY / LAST 120 SECONDS', 34, 73, 9, C.dim);
+  text('ISP ' + num(sim.isp, 2) + ' s' + (sim.isp > NTR_TELEMETRY_LIMITS.isp ? ' ↑' : ''), 648, 73, 9, C.bright, 'right');
+  const chart = { x: 52, y: 109, w: 548, h: 205 };
+  for (let i = 0; i <= 4; i++) {
+    const y = chart.y + i * chart.h / 4;
+    line([[chart.x, y], [chart.x + chart.w, y]], C.faint, .7);
+    text(String(100 - i * 25), 41, y + 3, 8, C.dim, 'right');
+    text(String(NTR_TELEMETRY_LIMITS.isp * (1 - i / 4)), 650, y + 3, 8, C.bright, 'right');
   }
-  lines.forEach(([, , color, label], i) => { line([[45 + i * 207, 365], [60 + i * 207, 365]], color, 2); text(label, 66 + i * 207, 368, 8, color); });
+  for (let i = 0; i <= 6; i++) { const x = chart.x + i * chart.w / 6; line([[x, chart.y], [x, chart.y + chart.h]], C.faint, .7, [2, 4]); text('-' + (120 - i * 20) + 's', x, 330, 7, C.dim, 'center'); }
+  text('%', 26, 95, 8, C.dim); text('ISP / s', 650, 95, 8, C.bright, 'right');
+  const lines = [['temperature', NTR_TELEMETRY_LIMITS.temperature, C.amber, 'TEMP / 4,000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + points(sim.ratedPower) + 'MW'], ['pressure', NTR_TELEMETRY_LIMITS.pressure, C.blue, 'PRESS / 8MPa'], ['isp', NTR_TELEMETRY_LIMITS.isp, C.bright, 'ISP / 0–1,000s']];
+  for (const [key, max, color] of lines) {
+    const samples = sim.history.map(p => [chart.x + (120 - (sim.time - p.time)) / 120 * chart.w, chart.y + chart.h - Math.min(1, Math.max(0, p[key] / max)) * chart.h]);
+    if (samples.length === 1) samples.unshift([samples[0][0] - 2, samples[0][1]]);
+    line(samples, color, key === 'isp' ? 1.8 : 1.3, key === 'isp' ? [6, 3] : []);
+    const last = samples.at(-1); if (last) circle(last[0], last[1], 2.5, color, color);
+  }
+  lines.forEach(([key, , color, label], i) => { const x = 45 + (i % 2) * 320, y = 351 + Math.floor(i / 2) * 20; line([[x, y], [x + 15, y]], color, 2, key === 'isp' ? [4, 2] : []); text(label, x + 21, y + 3, 8, color); });
 }
 
 function drawDiagnostics() {
@@ -499,12 +513,22 @@ $('fuelLoadSlider').addEventListener('input', event => changeFuelLoad(Number(eve
 $('fuelPresets').addEventListener('click', event => { const button = event.target.closest('[data-fuel-preset]'); if (button) changeFuelLoad(Number(button.dataset.fuelPreset)); });
 $('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value), selectedChallenge === 'precision' ? selectedFuelLoads[selectedPropellant] : undefined));
 $('settleButton').addEventListener('click', () => { if (mission?.complete) { showResult(); return; } if (!mission) return; const result = mission.settle(); if (!result.ok) toast(result.message); render(); });
-$('retryChallengeButton').addEventListener('click', () => { $('resultDialog').close(); openChallengeSetup(); });
+$('retryChallengeButton').addEventListener('click', () => {
+  const r = displayedResult; $('resultDialog').close();
+  if (!r) { openChallengeSetup(); return; }
+  selectedChallenge = r.type; selectedPropellant = r.propellant;
+  if (r.type === 'precision') selectedFuelLoads[r.propellant] = r.initialFuel;
+  $('challengeSizeSlider').value = r.diameter; updateChallengeSetup(); $('challengeDialog').showModal();
+});
 $('reviewFlightButton').addEventListener('click', () => $('resultDialog').close());
 $('leaderboardButton').addEventListener('click', openLeaderboard);
 $('resultLeaderboardButton').addEventListener('click', openLeaderboard);
 $('leaderboardMode').addEventListener('change', renderLeaderboard);
 $('leaderboardPropellant').addEventListener('change', renderLeaderboard);
+for (const id of ['leaderboardTable', 'resultLeaderboard']) $(id).addEventListener('click', event => {
+  const button = event.target.closest('[data-record-id]'); if (!button) return;
+  const record = leaderboard.get(button.dataset.recordId); if (record) showResult(record);
+});
 document.querySelectorAll('[data-release]').forEach(element => { element.textContent = NTR_RELEASE.label; });
 document.addEventListener('keydown', event => {
   if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;

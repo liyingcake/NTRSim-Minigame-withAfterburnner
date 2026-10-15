@@ -32,6 +32,9 @@
 @media(max-width:980px){.mode-tools>span{display:none}}
 @media(max-width:680px){.mode-tools{gap:0}.mode-tools>button{font-size:7px;padding:5px 6px}.fuel-load-control{padding:12px;margin-top:15px}.fuel-load-heading>label{font-size:9px}.fuel-load-heading small{display:block;margin:5px 0 0;font-size:6px}.fuel-load-heading input{width:94px;font-size:15px;padding:6px}.fuel-load-heading>div{gap:5px;font-size:8px}.fuel-presets>button{font-size:8px;padding:5px 8px}.fuel-cost-preview{font-size:7px;line-height:1.8}.ranking-table th,.ranking-table td{padding:9px 7px;font-size:8px}.ranking-table .rank-score{font-size:12px}.version-watermark{font-size:6px;letter-spacing:1px}.leaderboard-filters{gap:10px}.leaderboard-filters select{font-size:9px;padding:9px 6px}.result-metrics strong{font-size:9px}.ranking-heading{font-size:9px}.dialog-body .leaderboard-note{font-size:8px}.release-badge{margin-right:4px;padding:1px 3px}}
 
+.result-dialog{width:780px;max-width:min(780px,calc(100vw - 30px))}.result-section-label{display:flex;align-items:center;gap:12px;font-size:10px;letter-spacing:1px;color:#c5cdaa;margin:0 0 10px}.result-section-label>span{font:7px var(--mono);letter-spacing:1px;color:#8b9e76}.result-configuration,.flight-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 18px}.result-configuration{padding:16px;margin-bottom:20px;border:1px solid #71895366;background:#2a3b23}.result-configuration>div,.flight-stats>div{display:flex;flex-direction:column;gap:7px;min-width:0}.result-configuration span,.flight-stats span{font-size:9px;color:#91a87b;letter-spacing:.4px}.result-configuration strong,.flight-stats strong{font:12px var(--mono);font-weight:400;color:#d0dab9;overflow-wrap:anywhere}.result-configuration>div:first-child strong{color:#e0d29d}.flight-details{border:1px solid #71895366;margin:0 0 18px;background:#2a3a23}.flight-details>summary{cursor:pointer;padding:12px 14px;font-size:10px;letter-spacing:1px;color:#c1cba7}.flight-details>summary>span{font:7px var(--mono);color:#8da577;margin-left:10px;letter-spacing:.7px}.flight-details>summary:focus-visible{outline:2px solid var(--amber);outline-offset:2px}.flight-details[open]>summary{border-bottom:1px solid #71895344}.flight-stats{padding:16px}.flight-stats strong{font-size:11px}.leaderboard-dialog{width:1040px;max-width:min(1040px,calc(100vw - 30px))}.leaderboard-table-wrap>.ranking-table{min-width:870px}.ranking-table .rank-score,.ranking-table th:nth-last-child(2){text-align:right}.ranking-table .rank-model{font-size:10px;color:#cbd5b3}.rank-model>small{display:block;font:7px/1.7 var(--mono);color:#92aa7b;margin-top:6px}.ranking-table button[data-record-id]{font-size:8px;color:#c8cc9d;border:1px solid #718653;background:#34472a;padding:5px 6px;white-space:nowrap}.result-ranking .ranking-table{table-layout:fixed}.result-ranking .ranking-table th:first-child{width:28px}.result-ranking .ranking-table th:nth-last-child(2){width:95px}.result-ranking .ranking-table th:last-child{width:65px}.result-ranking .rank-model{white-space:normal;overflow-wrap:anywhere}.result-ranking .rank-model>small{white-space:normal}
+@media(max-width:680px){.result-configuration,.flight-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px;padding:12px}.result-configuration span,.flight-stats span{font-size:8px}.result-configuration strong,.flight-stats strong{font-size:10px}.result-section-label{font-size:9px}.result-section-label>span{font-size:6px}.result-configuration{margin-bottom:17px}.flight-details>summary{font-size:9px;padding:11px}.flight-details>summary>span{font-size:6px;margin-left:6px}.result-ranking .ranking-table th:first-child{width:24px}.result-ranking .ranking-table th:nth-last-child(2){width:74px}.result-ranking .ranking-table th:last-child{width:45px}.result-ranking .rank-model{font-size:8px}.rank-model>small{font-size:6px}.result-ranking .ranking-table th,.result-ranking .ranking-table td{padding:9px 4px}.ranking-table button[data-record-id]{font-size:7px;padding:4px}}
+
 </style>
 
 
@@ -119,7 +122,7 @@
       <div class="rack-footer"><span><i class="tiny-light green on" id="healthLed"></i><b id="healthText">所有子系统正常</b><span class="footer-divider">│</span><span id="footerPropellant">LH₂ CYCLE</span></span><span>INTERACTIVE ENGINEERING DEMO <b>·</b> SIMULATION MODEL / 非工程计算</span></div>
       <i class="rack-screw s1"></i><i class="rack-screw s2"></i><i class="rack-screw s3"></i><i class="rack-screw s4"></i>
     </section>
-    <footer class="page-footer"><span><b>☢</b> NUCLEAR THERMAL PROPULSION PROGRAM</span><span><span class="release-badge" data-release>v0.3</span> DESIGNED FOR THE NEXT FRONTIER. <span class="footer-serial">S/N 1963–024</span></span></footer>
+    <footer class="page-footer"><span><b>☢</b> NUCLEAR THERMAL PROPULSION PROGRAM</span><span><span class="release-badge" data-release>v0.4</span> DESIGNED FOR THE NEXT FRONTIER. <span class="footer-serial">S/N 1963–024</span></span></footer>
   </main>
 
   <dialog id="challengeDialog" class="challenge-dialog">
@@ -127,7 +130,7 @@
     <div class="dialog-body"><span class="manual-kicker">10 TONNE SPACECRAFT · TWO WAYS TO FLY</span><h2>把热量，变成你的航程。</h2><p>一艘干重与载荷共 10 吨的飞船。选定推进剂，配置反应堆，从冷态完成一次真空变轨。</p>
       <div class="challenge-cards" role="group" aria-label="挑战类型">
         <button class="challenge-card selected" data-challenge="endurance" aria-pressed="true"><span>01 / ENDURANCE</span><b>无限加速</b><strong>∞ <small>Δv</small></strong><p>给定推进剂，跑出尽可能高的速度增量。</p><em>每 1 m/s = 10 分</em></button>
-        <button class="challenge-card" data-challenge="precision" aria-pressed="false"><span>02 / PRECISION</span><b>精确入轨注入</b><strong>325 <small>m/s · 固定目标</small></strong><p>自选加注量，兼顾精度与装载成本。</p><em>100,000 基础分 − 成本 + 余量返分</em></button>
+        <button class="challenge-card" data-challenge="precision" aria-pressed="false"><span>02 / PRECISION</span><b>精确入轨注入</b><strong>325.00 <small>m/s · 固定目标</small></strong><p>自选加注量，兼顾精度与装载成本。</p><em>100,000 基础分 − 成本 + 余量返分</em></button>
       </div>
       <div class="challenge-loadout"><div><label>任务推进剂 <small>PROPELLANT · 开局后锁定</small></label><div class="loadout-propellants"><button data-loadout="hydrogen" class="selected" aria-pressed="true"><b>LH₂</b>液氢 <span id="hydrogenLoadLabel">10,000 kg</span></button><button data-loadout="water" aria-pressed="false"><b>H₂O</b>水 <span id="waterLoadLabel">30,000 kg</span></button></div></div><div><label for="challengeSizeSlider">堆芯直径 <output id="challengeSizeOutput">1.40 m</output></label><input id="challengeSizeSlider" type="range" min="0.8" max="2.4" step="0.05" value="1.4"><div class="range-labels"><span>0.80 m</span><span id="challengeRatedPower">600 MW</span><span>2.40 m</span></div><p>首次点火前可调整；点火后尺寸锁定。</p></div></div>
       <div class="fuel-load-control" id="fuelLoadControl" hidden><div class="fuel-load-heading"><label for="fuelLoadInput">开局加注量 <small>FUEL LOAD / 仅模式 2</small></label><div><input id="fuelLoadInput" type="number" min="10" max="10000" step="1" value="1000" inputmode="numeric" required><span>kg</span></div></div><input id="fuelLoadSlider" aria-label="加注量滑块" type="range" min="10" max="10000" step="1" value="1000"><div class="range-labels"><span>10 kg</span><span id="fuelLoadMax">10,000 kg</span></div><div class="fuel-presets" id="fuelPresets" aria-label="常用加注量"></div><div class="fuel-cost-preview"><span id="loadoutCost">装载成本 −5,000 分</span><span>每剩 1 kg 返 1 分</span></div></div>
@@ -135,11 +138,19 @@
     </div>
   </dialog>
 
-  <dialog id="rulesDialog"><div class="dialog-top"><span>SCORING PROTOCOL / 挑战计分规则</span><button data-close="rulesDialog" aria-label="关闭计分规则">×</button></div><div class="dialog-body rules-body"><h2>每一次操作，都有代价。</h2><dl><dt>01 / 无限加速</dt><dd>基础分 = 最终 Δv（m/s）× 10。液氢初装 10,000 kg，水初装 30,000 kg。</dd><dt>02 / 精确入轨注入 · 325 m/s</dt><dd>固定目标 325 m/s，开局可选择推进剂与加注量。液氢装载每 kg 扣 5 分，水装载每 kg 扣 2 分；两种推进剂每剩余 1 kg 均返 1 分。<br>原始分 = 100,000 − 初装推进剂（kg）× 单价 + 剩余推进剂（kg）。<br>绝对误差每 1 m/s 扣 1%，误差达到 100 m/s 得分归零。装载成本和返分在误差、时间、耐久修正之前计算。</dd><dt>共用修正</dt><dd>时间系数 = max(0, 1 − 任务秒数 ÷ 10,000)。每运行 100 秒扣 1%。<br>耐久系数 = 1 − (100 − 剩余耐久百分比) × 0.005。每损失 10% 耐久扣 5%。<br>各系数相乘，按连续比例计算，最终分向下取整且不低于 0。</dd><dt>计时与结算</dt><dd>首次点火至结算为任务用时，包含冷却与滑行；暂停不计时，加速按模拟时间计。堆芯必须低于 800 K 方可结算。推进剂耗尽或堆芯损毁后，自动停堆，达到温度条件后自动结算。</dd><dt>飞船与燃料</dt><dd>干重＋载荷固定为 10,000 kg（含发动机）。模式 2 加注量为整数：液氢 10–10,000 kg，水 10–30,000 kg，开局后锁定。由实时推力与变化的总质量积分加速度、Δv 和距离。变轨为一维真空加速，不含引力与轨道几何。</dd></dl><p class="model-note">本地排行榜按版本及模式区分。冷态功率、推力、压力、流量、加速度和 Δv 均为 0；冷机约 293 K（20°C）。手动结算会结束本局；故障注入和保护开关仍可使用。</p></div></dialog>
+  <dialog id="rulesDialog"><div class="dialog-top"><span>SCORING PROTOCOL / 挑战计分规则</span><button data-close="rulesDialog" aria-label="关闭计分规则">×</button></div><div class="dialog-body rules-body"><h2>每一次操作，都有代价。</h2><dl><dt>01 / 无限加速</dt><dd>基础分 = 最终 Δv（m/s）× 10。液氢初装 10,000 kg，水初装 30,000 kg。</dd><dt>02 / 精确入轨注入 · 325.00 m/s</dt><dd>固定目标 325.00 m/s，开局可选择推进剂与加注量。液氢装载每 kg 扣 5 分，水装载每 kg 扣 2 分；两种推进剂每剩余 1 kg 均返 1 分。<br>原始分 = 100,000 − 初装推进剂（kg）× 单价 + 剩余推进剂（kg）。<br>绝对误差每 1 m/s 扣 1%，误差达到 100 m/s 得分归零。装载成本和返分在误差、时间、耐久修正之前计算。</dd><dt>共用修正</dt><dd>时间系数 = max(0, 1 − 任务秒数 ÷ 10,000)。每运行 100 秒扣 1%。<br>耐久系数 = 1 − (100 − 剩余耐久百分比) × 0.005。每损失 10% 耐久扣 5%。<br>各系数相乘，按连续比例计算，最终分向下取整且不低于 0。</dd><dt>计时与结算</dt><dd>首次点火至结算为任务用时，包含冷却与滑行；暂停不计时，加速按模拟时间计。堆芯必须低于 800 K 方可结算。推进剂耗尽或堆芯损毁后，自动停堆，达到温度条件后自动结算。</dd><dt>飞船与燃料</dt><dd>干重＋载荷固定为 10,000 kg（含发动机）。模式 2 加注量为整数：液氢 10–10,000 kg，水 10–30,000 kg，开局后锁定。由实时推力与变化的总质量积分加速度、Δv 和距离。变轨为一维真空加速，不含引力与轨道几何。</dd></dl><p class="model-note">本地排行榜按版本及模式区分。冷态功率、推力、压力、流量、加速度和 Δv 均为 0；冷机约 293 K（20°C）。手动结算会结束本局；故障注入和保护开关仍可使用。</p></div></dialog>
 
-  <dialog id="resultDialog" class="result-dialog"><div class="dialog-top"><span>MISSION DEBRIEF / 变轨结算</span><button data-close="resultDialog" aria-label="关闭结算报告">×</button></div><div class="dialog-body"><span class="manual-kicker" id="resultMission">ENDURANCE / LH₂</span><h2 id="resultTitle">变轨已完成。</h2><div class="result-score"><strong id="resultTotal">0</strong><span>FINAL SCORE</span></div><div id="resultMetrics" class="result-metrics"></div><div class="score-breakdown" id="scoreBreakdown"></div><p id="resultFormula" class="result-formula"></p><section class="result-ranking"><div class="ranking-heading"><span>本模式分数排行榜</span><button id="resultLeaderboardButton">完整排行 ↗</button></div><div id="resultLeaderboard"></div><div class="version-watermark">NERVA / <span data-release>v0.3</span> · LOCAL FLIGHT RECORDS</div></section><div class="result-actions"><button id="retryChallengeButton" class="primary-dialog-button">再挑战一次 ↗</button><button id="reviewFlightButton">返回控制台复盘</button></div></div></dialog>
+  <dialog id="resultDialog" class="result-dialog">
+    <div class="dialog-top"><span>MISSION DEBRIEF / 变轨结算</span><button data-close="resultDialog" aria-label="关闭结算报告">×</button></div>
+    <div class="dialog-body"><span class="manual-kicker" id="resultMission">ENDURANCE / LH₂</span><h2 id="resultTitle">变轨已完成。</h2><div class="result-score"><strong id="resultTotal">0</strong><span>FINAL SCORE</span></div>
+      <div class="result-section-label">试飞配置 <span>FLIGHT CONFIGURATION</span></div><div id="resultConfiguration" class="result-configuration" aria-label="本次试飞的发动机与初始配置"></div>
+      <div id="resultMetrics" class="result-metrics"></div>
+      <details class="flight-details" id="resultFlightDetails"><summary>飞行数据明细 <span>PERFORMANCE LOG</span></summary><div id="resultFlightStats" class="flight-stats"></div></details>
+      <div class="score-breakdown" id="scoreBreakdown"></div><p id="resultFormula" class="result-formula"></p><section class="result-ranking"><div class="ranking-heading"><span>本模式分数排行榜</span><button id="resultLeaderboardButton">完整排行 ↗</button></div><div id="resultLeaderboard"></div><div class="version-watermark">NERVA / <span data-release>v0.4</span> · LOCAL FLIGHT RECORDS</div></section><div class="result-actions"><button id="retryChallengeButton" class="primary-dialog-button">按此配置再挑战 ↗</button><button id="reviewFlightButton">返回控制台</button></div>
+    </div>
+  </dialog>
 
-  <dialog id="leaderboardDialog" class="leaderboard-dialog"><div class="dialog-top"><span>FLIGHT RECORDS / 分数排行榜</span><button data-close="leaderboardDialog" aria-label="关闭排行榜">×</button></div><div class="dialog-body"><span class="manual-kicker">LOCAL RECORDS · TOP 10</span><h2>把每一次飞行，留下来。</h2><div class="leaderboard-filters"><label for="leaderboardMode">挑战模式<select id="leaderboardMode"><option value="precision">02 / 精确入轨 · 325 m/s</option><option value="endurance">01 / 无限加速</option></select></label><label for="leaderboardPropellant">推进剂<select id="leaderboardPropellant"><option value="all">全部推进剂</option><option value="hydrogen">液氢 / LH₂</option><option value="water">水 / H₂O</option></select></label></div><div id="leaderboardTable" class="leaderboard-table-wrap"></div><div class="version-watermark">NERVA / <span data-release>v0.3</span> · LOCAL FLIGHT RECORDS</div><p class="leaderboard-note" id="leaderboardNote">成绩保存在当前浏览器中，不同版本独立排行。</p></div></dialog>
+  <dialog id="leaderboardDialog" class="leaderboard-dialog"><div class="dialog-top"><span>FLIGHT RECORDS / 分数排行榜</span><button data-close="leaderboardDialog" aria-label="关闭排行榜">×</button></div><div class="dialog-body"><span class="manual-kicker">LOCAL RECORDS · TOP 10</span><h2>把每一次飞行，留下来。</h2><div class="leaderboard-filters"><label for="leaderboardMode">挑战模式<select id="leaderboardMode"><option value="precision">02 / 精确入轨 · 325.00 m/s</option><option value="endurance">01 / 无限加速</option></select></label><label for="leaderboardPropellant">推进剂<select id="leaderboardPropellant"><option value="all">全部推进剂</option><option value="hydrogen">液氢 / LH₂</option><option value="water">水 / H₂O</option></select></label></div><div id="leaderboardTable" class="leaderboard-table-wrap"></div><div class="version-watermark">NERVA / <span data-release>v0.4</span> · LOCAL FLIGHT RECORDS</div><p class="leaderboard-note" id="leaderboardNote">成绩保存在当前浏览器中，不同版本独立排行。</p></div></dialog>
 
   <dialog id="faultDialog"><div class="dialog-top"><span>故障注入 / FAULT INJECTION</span><button data-close="faultDialog" aria-label="关闭">×</button></div><div class="dialog-body"><h2>没有完美的试车。</h2><p>向正在运行的系统注入故障，观察温度、压力和推力的连锁变化。自动保护开启时，超限将触发紧急停堆。</p><div id="faultOptions" class="fault-options"></div><div class="dialog-actions"><button id="repairButton" class="primary-dialog-button">修复全部故障</button><span>也可在 MFD「故障诊断」中查看详情</span></div></div></dialog>
   <dialog id="manualDialog"><div class="dialog-top"><span>操作手册 / OPERATOR HANDBOOK</span><button data-close="manualDialog" aria-label="关闭">×</button></div><div class="dialog-body manual-body"><span class="manual-kicker">NERVA · NT–024</span><h2>下一次点火，由你指挥。</h2><p>沙盒保留原有 60% 功率试车。挑战从零功率冷机开始：先打开推进剂泵与冷却回路，再将主阀设为约 70%、功率设为约 60%，执行启动。提前降功率，留意停机后余热仍会贡献 Δv。</p><ol><li><b>沙盒与挑战</b><span>顶部可选择自由沙盒，或「无限加速」「精确入轨注入」。挑战中推进剂锁定，堆芯尺寸在首次点火前可调；点火后锁定。</span></li><li><b>调节与观察</b><span>提高功率会先增加产热，随后堆芯温度和排气速度逐渐升高。增大主阀开度会增加流量，同时降低温度。飞船质量随推进剂消耗下降，相同推力会产生更高加速度。</span></li><li><b>处理故障</b><span>注入泵故障、冷却失效、管路泄漏、阀门卡滞或温度传感器漂移。确认告警可停止闪烁，修复故障后可重新启动。</span></li><li><b>停堆与结算</b><span>停机后保持冷却回路运行，堆芯低于 800 K 才可结算。关闭主阀能减少推进剂消耗，独立闭式冷却回路仍可带走余热。精确挑战尤其需要预留停机过程产生的额外 Δv。</span></li></ol><div class="keyboard-guide"><span><kbd>Space</kbd>暂停</span><span><kbd>1–5</kbd>切换 MFD</span><span><kbd>Esc</kbd>关闭窗口</span><span><kbd>?</kbd>操作手册</span></div><p class="model-note">演示模型使用集总热容、质量流量与理想喷管近似，含简化水汽化能耗。未模拟中子学、真实燃料材料和水的高温化学；水模式为假设性演示。仅用于交互与概念探索。<a href="https://www.nasa.gov/space-technology-mission-directorate/tdm/space-nuclear-propulsion/" target="_blank" rel="noreferrer">参考：NASA 核热推进原理 ↗</a></p></div></dialog>
@@ -147,7 +158,7 @@
 <script>
 // Generated by build-version.cjs from package.json. Do not edit manually.
 (function(root){
-  const release = Object.freeze({"version":"0.3.0","label":"v0.3","scoreSchema":3});
+  const release = Object.freeze({"version":"0.4.0","label":"v0.4","scoreSchema":3});
   if (typeof module !== 'undefined' && module.exports) module.exports = release;
   else root.NTR_RELEASE = release;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -171,6 +182,7 @@
   };
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const approach = (a, b, dt, tau) => a + (b - a) * (1 - Math.exp(-dt / tau));
+  const TELEMETRY_LIMITS = Object.freeze({ temperature: 4000, pressure: 8, isp: 1000 });
 
   class NTRSimulation {
     constructor() { this.events = []; this.eventId = 0; this.reset(false); }
@@ -179,6 +191,7 @@
     get ratedPower() { return 600 * this.scale; }
     get ratedFlow() { return this.prop.ratedFlow * this.scale; }
     get engineMass() { return 3800 * (this.diameter / 1.4) ** 2.6; }
+    get engineModel() { return 'NTR-II-' + String(Math.round(this.diameter * 100)).padStart(3, '0') + (this.propellant === 'hydrogen' ? 'H' : 'W'); }
     get fuelCapacity() { return this.tankCapacity || this.prop.capacity; }
     get fuelPercent() { return this.fuel / this.fuelCapacity * 100; }
     get measuredTemperature() { return this.coreTemperature + (this.faults.has('sensor') ? 280 : 0); }
@@ -355,7 +368,7 @@
     }
 
     recordSample() {
-      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.flow });
+      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.flow, isp: this.isp });
       if (this.history.length > 240) this.history.shift();
     }
 
@@ -381,8 +394,8 @@
       ];
     }
   }
-  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRSimulation, PROPELLANTS, FAULTS };
-  else { root.NTRSimulation = NTRSimulation; root.NTR_PROPELLANTS = PROPELLANTS; root.NTR_FAULTS = FAULTS; }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRSimulation, PROPELLANTS, FAULTS, TELEMETRY_LIMITS };
+  else { root.NTRSimulation = NTRSimulation; root.NTR_PROPELLANTS = PROPELLANTS; root.NTR_FAULTS = FAULTS; root.NTR_TELEMETRY_LIMITS = TELEMETRY_LIMITS; }
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -433,6 +446,8 @@
       this.initialFuel = initialFuel; this.target = type === 'precision' ? PRECISION_TARGET : null;
       this.state = 'PREPARING'; this.started = false; this.elapsed = 0; this.deltaV = 0;
       this.distance = 0; this.acceleration = 0; this.peakAcceleration = 0; this.result = null; this.autoReason = null;
+      this.peaks = { thrust: 0, power: 0, isp: 0, temperature: 293, pressure: 0, flow: 0 };
+      this.launchDemand = 0; this.launchValve = 0;
       engine.reset(true); engine.configure(propellant, diameter);
       engine.tankCapacity = this.initialFuel; engine.fuel = this.initialFuel;
       engine.propellantLocked = true; engine.demand = 0; engine.valve = 0;
@@ -454,6 +469,7 @@
       if (this.engine.demand <= 0) return { ok: false, message: '冷启动：请先设定大于 0% 的反应堆功率' };
       const result = this.engine.start();
       if (result.ok && !this.started) {
+        this.launchDemand = this.engine.demand; this.launchValve = this.engine.valve;
         this.started = true; this.state = 'ACTIVE'; this.engine.diameterLocked = true;
         this.engine.time = 0; this.engine.history = []; this.engine.sampleTimer = 0; this.engine.recordSample();
         this.engine.log('首次点火 · 航行计时开始 / 发动机尺寸锁定');
@@ -467,6 +483,8 @@
       while (remaining > 1e-8 && !this.complete) {
         const dt = Math.min(.05, remaining), beforeMass = this.mass, previousVelocity = this.deltaV;
         this.engine.tick(dt);
+        for (const key of ['thrust', 'power', 'isp', 'pressure', 'flow']) this.peaks[key] = Math.max(this.peaks[key], this.engine[key]);
+        this.peaks.temperature = Math.max(this.peaks.temperature, this.engine.coreTemperature);
         const accelerationDuringStep = this.engine.thrust * 1000 / ((beforeMass + this.mass) / 2);
         this.deltaV += accelerationDuringStep * dt;
         this.distance += (previousVelocity + this.deltaV) * .5 * dt;
@@ -492,7 +510,12 @@
       this.result = Object.freeze({ ...score, id: Date.now().toString(36) + '-' + (++resultSequence), version: release.version, scoreSchema: release.scoreSchema, type: this.type, propellant: this.propellant, diameter: this.engine.diameter, reason,
         target: this.target, deltaV: this.deltaV, distance: this.distance, elapsed: this.elapsed,
         fuel: this.engine.fuel, initialFuel: this.initialFuel, integrity: this.engine.integrity,
-        temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration });
+        temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration,
+        engineModel: this.engine.engineModel, ratedPower: this.engine.ratedPower,
+        dryMass: this.dryMass, initialMass: this.dryMass + this.initialFuel, finalMass: this.mass,
+        consumedFuel: this.initialFuel - this.engine.fuel, launchDemand: this.launchDemand, launchValve: this.launchValve,
+        peakThrust: this.peaks.thrust, peakPower: this.peaks.power, peakIsp: this.peaks.isp,
+        peakTemperature: this.peaks.temperature, peakPressure: this.peaks.pressure, peakFlow: this.peaks.flow });
       if (this.engine.isActive) this.engine.shutdown();
       this.engine.controlsLocked = true; this.state = 'COMPLETE'; this.acceleration = 0;
       this.engine.log('挑战完成 · 最终得分 ' + score.total.toLocaleString('en-US'));
@@ -509,6 +532,12 @@
   'use strict';
   const release = typeof module !== 'undefined' && module.exports ? require('./version.js') : root.NTR_RELEASE;
   const KEY = 'nerva.leaderboard.' + release.version;
+  const FIELDS = ['id', 'version', 'scoreSchema', 'type', 'propellant', 'total', 'deltaV', 'elapsed', 'initialFuel', 'fuel',
+    'diameter', 'engineModel', 'ratedPower', 'dryMass', 'initialMass', 'finalMass', 'consumedFuel', 'launchDemand', 'launchValve',
+    'target', 'distance', 'integrity', 'temperature', 'peakAcceleration', 'peakThrust', 'peakPower', 'peakIsp', 'peakTemperature', 'peakPressure', 'peakFlow', 'reason',
+    'base', 'basePoints', 'dvPoints', 'fuelPoints', 'fuelUnitCost', 'loadingCost', 'error', 'errorPenalty', 'timePenalty', 'durabilityPenalty', 'errorDeduction', 'timeDeduction', 'durabilityDeduction'];
+  const NUMERIC_FIELDS = FIELDS.filter(key => !['id', 'version', 'scoreSchema', 'type', 'propellant', 'engineModel', 'target', 'reason'].includes(key));
+  const snapshot = record => Object.freeze(Object.fromEntries(FIELDS.map(key => [key, record[key]])));
   const compare = (a, b) => b.total - a.total || a.elapsed - b.elapsed || a.id.localeCompare(b.id);
   function retainBest(records) {
     const counts = {};
@@ -521,21 +550,23 @@
   function valid(record) {
     return record && typeof record.id === 'string' && record.id.length < 100 && record.version === release.version && record.scoreSchema === release.scoreSchema
       && ['precision', 'endurance'].includes(record.type) && ['hydrogen', 'water'].includes(record.propellant)
-      && ['total', 'deltaV', 'elapsed', 'initialFuel', 'fuel'].every(key => Number.isFinite(record[key]) && record[key] >= 0)
+      && NUMERIC_FIELDS.every(key => Number.isFinite(record[key]) && record[key] >= 0)
+      && typeof record.engineModel === 'string' && /^NTR-II-\d{3}[HW]$/.test(record.engineModel)
+      && typeof record.reason === 'string' && record.reason.length < 200
+      && (record.target === null || Number.isFinite(record.target)) && record.diameter >= .8 && record.diameter <= 2.4
       && Number.isInteger(record.total) && record.fuel <= record.initialFuel;
   }
   class NTRLeaderboard {
     constructor(storage) {
       this.storage = storage; this.records = []; this.persistent = Boolean(storage);
       if (storage) {
-        try { const saved = JSON.parse(storage.getItem(KEY) || '[]'); if (Array.isArray(saved)) this.records = retainBest(saved.filter(valid)); }
+        try { const saved = JSON.parse(storage.getItem(KEY) || '[]'); if (Array.isArray(saved)) this.records = retainBest(saved.filter(valid).map(snapshot)); }
         catch { this.persistent = false; }
       }
     }
     add(result) {
       if (!valid(result) || this.records.some(record => record.id === result.id)) return false;
-      const { id, version, scoreSchema, type, propellant, total, deltaV, elapsed, initialFuel, fuel } = result;
-      this.records.push({ id, version, scoreSchema, type, propellant, total, deltaV, elapsed, initialFuel, fuel });
+      this.records.push(snapshot(result));
       this.records = retainBest(this.records);
       try { if (this.storage) { this.storage.setItem(KEY, JSON.stringify(this.records)); this.persistent = true; } }
       catch { this.persistent = false; }
@@ -545,6 +576,7 @@
       return this.records.filter(record => record.type === type && (propellant === 'all' || record.propellant === propellant))
         .sort(compare).slice(0, limit);
     }
+    get(id) { return this.records.find(record => record.id === id) || null; }
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = { NTRLeaderboard, LEADERBOARD_KEY: KEY };
   else root.NTRLeaderboard = NTRLeaderboard;
@@ -562,7 +594,7 @@ const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835
 let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = -1;
 let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
 let motionTime = 0;
-let mission = null, resultShown = false;
+let mission = null, resultShown = false, displayedResult = null;
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
 const selectedFuelLoads = { ...NTR_DEFAULT_LOADS };
 let scoreStorage;
@@ -644,6 +676,8 @@ function render() {
   $('footerPropellant').textContent = sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE';
   $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
   $('mfdStatus').style.color = alarms.length ? C.amber : '';
+  if (page === 'trend') canvas.setAttribute('aria-label', '遥测趋势：温度、功率、压力、比冲；比冲右轴范围 0–1,000 s，当前比冲 ' + num(sim.isp, 2) + ' s');
+  if (page === 'overview') $('screenHint').textContent = sim.engineModel + ' · CLOSED EXPANDER CYCLE';
   $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
   $('runButton').classList.toggle('start-ready', !sim.isActive);
   $('runButton').disabled = sim.mode === 'DAMAGED' || Boolean(mission?.complete || mission?.autoReason);
@@ -702,7 +736,7 @@ function updateChallengeSetup() {
   $('loadoutMass').textContent = num((10000 + load) / 1000, 2) + ' t';
   $('challengeBrief').textContent = selectedChallenge === 'endurance'
     ? '每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。每 100 秒扣 1%；每损失 10% 耐久扣 5%。'
-    : '固定目标 325 m/s。原始分 = 100,000 − 装载成本 + 剩余推进剂返分。液氢每 kg 扣 5 分，水扣 2 分，每剩 1 kg 均返 1 分。误差、时间和耐久修正继续适用，低于 800 K 才可结算。';
+    : '固定目标 325.00 m/s。原始分 = 100,000 − 装载成本 + 剩余推进剂返分。液氢每 kg 扣 5 分，水扣 2 分，每剩 1 kg 均返 1 分。误差、时间和耐久修正继续适用，低于 800 K 才可结算。';
 }
 
 function changeFuelLoad(value) {
@@ -738,13 +772,13 @@ function renderMission() {
   $('missionPanel').classList.toggle('finished', mission.complete);
   $('missionPanel').classList.toggle('is-burning', sim.thrust > .1 && !mission.complete && !paused);
   $('flightDv').textContent = num(mission.deltaV, 2);
-  $('flightAcceleration').textContent = num(mission.acceleration, 3);
+  $('flightAcceleration').textContent = num(mission.acceleration, mission.type === 'precision' ? 2 : 3);
   $('flightDistance').textContent = num(mission.distance / 1000, 2);
   $('flightMass').textContent = num(mission.mass / 1000, 2);
   $('flightScore').textContent = points(score.total);
   $('flightScoreLabel').textContent = mission.complete ? '最终得分' : '当前预计得分';
   $('flightTargetLabel').textContent = mission.type === 'precision' ? '目标速度增量' : '挑战目标';
-  $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target);
+  $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target, 2);
   $('flightTargetUnit').textContent = mission.target === null ? 'MAX Δv' : 'm/s';
   const progress = Math.min(1, Math.max(0, mission.target ? mission.deltaV / mission.target : 1 - sim.fuel / mission.initialFuel));
   $('flightProgressFill').style.width = progress * 100 + '%';
@@ -767,15 +801,20 @@ function renderMission() {
   if (mission.complete && !resultShown) { leaderboard.add(mission.result); resultShown = true; showResult(); }
 }
 
-function showResult() {
-  if (!mission?.result) return;
-  const r = mission.result;
-  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + sim.prop.symbol + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
+function showResult(result = mission?.result) {
+  if (!result) return;
+  const r = result; displayedResult = r;
+  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + NTR_PROPELLANTS[r.propellant].symbol + ' / ' + NTR_RELEASE.label + ' / ' + r.reason;
   $('resultTitle').textContent = r.type === 'precision' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
   $('resultTotal').textContent = points(r.total);
+  const entry = ([label, value]) => `<div><span>${safe(label)}</span><strong>${safe(value)}</strong></div>`;
+  const configuration = [['引擎型号', r.engineModel], ['堆芯直径 / 引擎尺寸', num(r.diameter, 2) + ' m'], ['额定热功率', points(r.ratedPower, 2) + ' MW'], ['推进剂类型', NTR_PROPELLANTS[r.propellant].label + ' / ' + NTR_PROPELLANTS[r.propellant].symbol], ['起始加注量', points(r.initialFuel, 2) + ' kg'], ['起始飞船总质量', points(r.initialMass, 2) + ' kg']];
+  $('resultConfiguration').innerHTML = configuration.map(entry).join('');
   const settledTemperature = r.temperature < 800 && Math.round(r.temperature * 100) / 100 >= 800 ? '＜800' : num(r.temperature, 2);
-  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target) + ' / ' + num(r.error, 2) + ' m/s'], ['初装 / 剩余推进剂', points(r.initialFuel) + ' / ' + points(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 1) + ' s'], ['剩余耐久', num(r.integrity, 1) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
-  $('resultMetrics').innerHTML = metrics.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
+  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target, 2) + ' / ' + num(r.error, 2) + ' m/s'], ['剩余推进剂', points(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 2) + ' s'], ['剩余耐久', num(r.integrity, 2) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
+  $('resultMetrics').innerHTML = metrics.map(entry).join('');
+  const stats = [['干重＋载荷', points(r.dryMass, 2) + ' kg'], ['结算总质量', points(r.finalMass, 2) + ' kg'], ['实际消耗推进剂', points(r.consumedFuel, 2) + ' kg'], ['飞行距离', points(r.distance / 1000, 2) + ' km'], ['峰值加速度', num(r.peakAcceleration, 2) + ' m/s²'], ['峰值推力', num(r.peakThrust, 2) + ' kN'], ['峰值热功率', points(r.peakPower, 2) + ' MW'], ['峰值比冲', points(r.peakIsp, 2) + ' s'], ['峰值堆芯温度', points(r.peakTemperature, 2) + ' K'], ['峰值腔室压力', num(r.peakPressure, 2) + ' MPa'], ['峰值推进剂流量', num(r.peakFlow, 2) + ' kg/s'], ['首次点火功率 / 主阀', num(r.launchDemand, 2) + '% / ' + num(r.launchValve, 2) + '%']];
+  $('resultFlightStats').innerHTML = stats.map(entry).join(''); $('resultFlightDetails').open = false;
   const row = (label, detail, value, penalty = false) => `<div class="score-row ${penalty ? 'penalty' : ''}"><span>${label}<small>${detail}</small></span><b>${value}</b></div>`;
   let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + points(r.dvPoints, 2))
     : row('基础分', 'PRECISION', '+' + points(r.basePoints)) + row('推进剂装载成本', points(r.initialFuel) + ' kg × ' + r.fuelUnitCost + ' 分/kg', '−' + points(r.loadingCost, 2), true) + row('剩余推进剂返分', '1 分 / kg', '+' + points(r.fuelPoints, 2)) + row('修正前原始分', 'BASE SUBTOTAL', points(r.base, 2));
@@ -785,15 +824,15 @@ function showResult() {
   rows += `<div class="score-row total"><span>最终得分<small>向下取整</small></span><b>${points(r.total)}</b></div>`;
   $('scoreBreakdown').innerHTML = rows;
   $('resultFormula').textContent = `${points(r.base, 2)} × ${num(1 - r.errorPenalty, 4)}（精度）× ${num(1 - r.timePenalty, 4)}（时间）× ${num(1 - r.durabilityPenalty, 4)}（耐久）`;
-  $('resultLeaderboard').innerHTML = rankingTable(leaderboard.top(r.type, 'all', 3), true);
+  $('resultLeaderboard').innerHTML = rankingTable(leaderboard.top(r.type, 'all', 3), true, r.id);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   $('resultDialog').showModal();
 }
 
-function rankingTable(records, compact = false) {
+function rankingTable(records, compact = false, highlightId = mission?.result?.id) {
   if (!records.length) return '<div class="ranking-empty">当前版本尚无已结算的飞行记录。完成挑战后自动入榜。</div>';
-  const rows = records.map((record, index) => `<tr class="${record.id === mission?.result?.id ? 'current-flight' : ''}"><td>${index + 1}</td><td>${NTR_PROPELLANTS[record.propellant].symbol}</td>${compact ? '' : `<td>${points(record.initialFuel)} kg</td><td>${num(record.deltaV, 2)}</td><td>${num(record.elapsed, 1)} s</td>`}<td class="rank-score">${points(record.total)}</td></tr>`).join('');
-  return `<table class="ranking-table"><thead><tr><th>#</th><th>推进剂</th>${compact ? '' : '<th>加注量</th><th>Δv / m/s</th><th>耗时</th>'}<th>得分</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const rows = records.map((r, index) => `<tr class="${r.id === highlightId ? 'current-flight' : ''}"><td>${index + 1}</td><td class="rank-model">${safe(r.engineModel)}${compact ? `<small>Ø ${num(r.diameter, 2)} m · ${NTR_PROPELLANTS[r.propellant].symbol} · ${points(r.initialFuel)} kg</small>` : ''}</td>${compact ? '' : `<td>${num(r.diameter, 2)} m</td><td>${NTR_PROPELLANTS[r.propellant].symbol}</td><td>${points(r.initialFuel)} kg</td><td>${r.target === null ? '—' : num(r.target, 2)}</td><td>${num(r.deltaV, 2)}</td><td>${r.target === null ? '—' : num(r.error, 2)}</td><td>${num(r.elapsed, 2)} s</td>`}<td class="rank-score">${points(r.total)}</td><td><button data-record-id="${safe(r.id)}" aria-label="查看第 ${index + 1} 名的试飞详情">详情 ↗</button></td></tr>`).join('');
+  return `<table class="ranking-table"><thead><tr><th>#</th><th>引擎型号${compact ? ' / 配置' : ''}</th>${compact ? '' : '<th>堆芯直径</th><th>推进剂</th><th>起始加注</th><th>目标 m/s</th><th>Δv m/s</th><th>误差 m/s</th><th>耗时</th>'}<th>得分</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderLeaderboard() {
@@ -802,14 +841,15 @@ function renderLeaderboard() {
 }
 
 function openLeaderboard() {
-  $('leaderboardMode').value = mission?.type || 'precision'; renderLeaderboard();
+  $('leaderboardMode').value = ($('resultDialog').open ? displayedResult?.type : null) || mission?.type || 'precision'; renderLeaderboard();
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close()); $('leaderboardDialog').showModal();
 }
 
 function setPage(value) {
   page = value; $('mfdTitle').textContent = pageNames[page];
   document.querySelectorAll('[data-page]').forEach(button => { const selected = button.dataset.page === value; button.classList.toggle('selected', selected); button.setAttribute('aria-selected', selected); });
-  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · INDEPENDENT SCALES', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.' }[page];
+  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · ISP AXIS 0–1,000 s', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.' }[page];
+  if (page !== 'trend') canvas.setAttribute('aria-label', '发动机结构、热力状态及趋势可视化');
 }
 
 // CRT drawing uses a fixed logical coordinate system for clear, stable layout.
@@ -949,8 +989,8 @@ function drawPropulsion() {
   text('● LH₂', 450, 184, 8, C.green); text('● H₂O', 540, 184, 8, C.blue);
   line([[33, 333], [647, 333]], C.faint);
   if (mission) {
-    miniMetric('ACCELERATION', num(mission.acceleration, 3), 'm/s²', 42, 351, C.blue);
-    miniMetric('DELTA-V', num(mission.deltaV, 1), 'm/s', 252, 351);
+    miniMetric('ACCELERATION', num(mission.acceleration, mission.type === 'precision' ? 2 : 3), 'm/s²', 42, 351, C.blue);
+    miniMetric('DELTA-V', num(mission.deltaV, 2), 'm/s', 252, 351);
     miniMetric('SPACECRAFT MASS', num(mission.mass / 1000, 2), 't', 462, 351);
   } else {
     miniMetric('MASS FLOW', num(sim.flow, 2), 'kg/s', 42, 351, C.blue);
@@ -960,19 +1000,25 @@ function drawPropulsion() {
 }
 
 function drawTrend() {
-  text('TELEMETRY RECORDER / LAST 120 SECONDS', 34, 73, 9, C.dim);
-  const chart = { x: 52, y: 109, w: 568, h: 205 };
-  for (let i = 0; i <= 4; i++) { const y = chart.y + i * chart.h / 4; line([[chart.x, y], [chart.x + chart.w, y]], C.faint, .7); text(String(100 - i * 25), 41, y + 3, 8, C.dim, 'right'); }
-  for (let i = 0; i <= 6; i++) { const x = chart.x + i * chart.w / 6; line([[x, chart.y], [x, chart.y + chart.h]], C.faint, .7, [2, 4]); text('-' + (120 - i * 20) + 's', x, 330, 7, C.dim, 'center'); }
-  text('%', 26, 95, 8, C.dim);
-  const lines = [['temperature', 4000, C.amber, 'TEMP / 4000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + num(sim.ratedPower) + 'MW'], ['pressure', 8, C.blue, 'PRESS / 8MPa']];
-  for (const [key, max, color] of lines) {
-    const points = sim.history.map(p => [chart.x + (120 - (sim.time - p.time)) / 120 * chart.w, chart.y + chart.h - Math.min(1, p[key] / max) * chart.h]);
-    if (points.length === 1) points.unshift([points[0][0] - 2, points[0][1]]);
-    line(points, color, 1.5);
-    const last = points.at(-1); if (last) circle(last[0], last[1], 2.5, color, color);
+  text('TELEMETRY / LAST 120 SECONDS', 34, 73, 9, C.dim);
+  text('ISP ' + num(sim.isp, 2) + ' s' + (sim.isp > NTR_TELEMETRY_LIMITS.isp ? ' ↑' : ''), 648, 73, 9, C.bright, 'right');
+  const chart = { x: 52, y: 109, w: 548, h: 205 };
+  for (let i = 0; i <= 4; i++) {
+    const y = chart.y + i * chart.h / 4;
+    line([[chart.x, y], [chart.x + chart.w, y]], C.faint, .7);
+    text(String(100 - i * 25), 41, y + 3, 8, C.dim, 'right');
+    text(String(NTR_TELEMETRY_LIMITS.isp * (1 - i / 4)), 650, y + 3, 8, C.bright, 'right');
   }
-  lines.forEach(([, , color, label], i) => { line([[45 + i * 207, 365], [60 + i * 207, 365]], color, 2); text(label, 66 + i * 207, 368, 8, color); });
+  for (let i = 0; i <= 6; i++) { const x = chart.x + i * chart.w / 6; line([[x, chart.y], [x, chart.y + chart.h]], C.faint, .7, [2, 4]); text('-' + (120 - i * 20) + 's', x, 330, 7, C.dim, 'center'); }
+  text('%', 26, 95, 8, C.dim); text('ISP / s', 650, 95, 8, C.bright, 'right');
+  const lines = [['temperature', NTR_TELEMETRY_LIMITS.temperature, C.amber, 'TEMP / 4,000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + points(sim.ratedPower) + 'MW'], ['pressure', NTR_TELEMETRY_LIMITS.pressure, C.blue, 'PRESS / 8MPa'], ['isp', NTR_TELEMETRY_LIMITS.isp, C.bright, 'ISP / 0–1,000s']];
+  for (const [key, max, color] of lines) {
+    const samples = sim.history.map(p => [chart.x + (120 - (sim.time - p.time)) / 120 * chart.w, chart.y + chart.h - Math.min(1, Math.max(0, p[key] / max)) * chart.h]);
+    if (samples.length === 1) samples.unshift([samples[0][0] - 2, samples[0][1]]);
+    line(samples, color, key === 'isp' ? 1.8 : 1.3, key === 'isp' ? [6, 3] : []);
+    const last = samples.at(-1); if (last) circle(last[0], last[1], 2.5, color, color);
+  }
+  lines.forEach(([key, , color, label], i) => { const x = 45 + (i % 2) * 320, y = 351 + Math.floor(i / 2) * 20; line([[x, y], [x + 15, y]], color, 2, key === 'isp' ? [4, 2] : []); text(label, x + 21, y + 3, 8, color); });
 }
 
 function drawDiagnostics() {
@@ -1053,12 +1099,22 @@ $('fuelLoadSlider').addEventListener('input', event => changeFuelLoad(Number(eve
 $('fuelPresets').addEventListener('click', event => { const button = event.target.closest('[data-fuel-preset]'); if (button) changeFuelLoad(Number(button.dataset.fuelPreset)); });
 $('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value), selectedChallenge === 'precision' ? selectedFuelLoads[selectedPropellant] : undefined));
 $('settleButton').addEventListener('click', () => { if (mission?.complete) { showResult(); return; } if (!mission) return; const result = mission.settle(); if (!result.ok) toast(result.message); render(); });
-$('retryChallengeButton').addEventListener('click', () => { $('resultDialog').close(); openChallengeSetup(); });
+$('retryChallengeButton').addEventListener('click', () => {
+  const r = displayedResult; $('resultDialog').close();
+  if (!r) { openChallengeSetup(); return; }
+  selectedChallenge = r.type; selectedPropellant = r.propellant;
+  if (r.type === 'precision') selectedFuelLoads[r.propellant] = r.initialFuel;
+  $('challengeSizeSlider').value = r.diameter; updateChallengeSetup(); $('challengeDialog').showModal();
+});
 $('reviewFlightButton').addEventListener('click', () => $('resultDialog').close());
 $('leaderboardButton').addEventListener('click', openLeaderboard);
 $('resultLeaderboardButton').addEventListener('click', openLeaderboard);
 $('leaderboardMode').addEventListener('change', renderLeaderboard);
 $('leaderboardPropellant').addEventListener('change', renderLeaderboard);
+for (const id of ['leaderboardTable', 'resultLeaderboard']) $(id).addEventListener('click', event => {
+  const button = event.target.closest('[data-record-id]'); if (!button) return;
+  const record = leaderboard.get(button.dataset.recordId); if (record) showResult(record);
+});
 document.querySelectorAll('[data-release]').forEach(element => { element.textContent = NTR_RELEASE.label; });
 document.addEventListener('keydown', event => {
   if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;

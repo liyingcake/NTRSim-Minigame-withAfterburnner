@@ -15,6 +15,7 @@
   };
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const approach = (a, b, dt, tau) => a + (b - a) * (1 - Math.exp(-dt / tau));
+  const TELEMETRY_LIMITS = Object.freeze({ temperature: 4000, pressure: 8, isp: 1000 });
 
   class NTRSimulation {
     constructor() { this.events = []; this.eventId = 0; this.reset(false); }
@@ -23,6 +24,7 @@
     get ratedPower() { return 600 * this.scale; }
     get ratedFlow() { return this.prop.ratedFlow * this.scale; }
     get engineMass() { return 3800 * (this.diameter / 1.4) ** 2.6; }
+    get engineModel() { return 'NTR-II-' + String(Math.round(this.diameter * 100)).padStart(3, '0') + (this.propellant === 'hydrogen' ? 'H' : 'W'); }
     get fuelCapacity() { return this.tankCapacity || this.prop.capacity; }
     get fuelPercent() { return this.fuel / this.fuelCapacity * 100; }
     get measuredTemperature() { return this.coreTemperature + (this.faults.has('sensor') ? 280 : 0); }
@@ -199,7 +201,7 @@
     }
 
     recordSample() {
-      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.flow });
+      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.flow, isp: this.isp });
       if (this.history.length > 240) this.history.shift();
     }
 
@@ -225,6 +227,6 @@
       ];
     }
   }
-  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRSimulation, PROPELLANTS, FAULTS };
-  else { root.NTRSimulation = NTRSimulation; root.NTR_PROPELLANTS = PROPELLANTS; root.NTR_FAULTS = FAULTS; }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRSimulation, PROPELLANTS, FAULTS, TELEMETRY_LIMITS };
+  else { root.NTRSimulation = NTRSimulation; root.NTR_PROPELLANTS = PROPELLANTS; root.NTR_FAULTS = FAULTS; root.NTR_TELEMETRY_LIMITS = TELEMETRY_LIMITS; }
 })(typeof window !== 'undefined' ? window : globalThis);

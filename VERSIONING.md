@@ -4,26 +4,27 @@
 
 ## 当前版本
 
-- 发行版本：`0.3.0`，界面显示 `v0.3`，发布标签为 `v0.3`。
+- 发行版本：`0.4.0`，界面显示 `v0.4`，发布标签为 `v0.4`。
 - 计分规则版本：`package.json` 中的 `nerva.scoreSchema = 3`。
 - 修改前基线：`baseline-pre-v0.3`。
+- 前一发行版本：`v0.3`。v0.4 增加记录字段和显示内容，计分规则版本保持为 3。
 - `package.json` 是版本号唯一来源。`version.js` 由 `build-version.cjs` 生成，请勿手动修改。
 
 ## 后续发布
 
-1. 修改源码，并在 `package.json` 更新语义版本。新增功能更新次版本（如 `0.4.0`）；兼容修复更新修订号（如 `0.3.1`）。改变计分含义时同时递增 `nerva.scoreSchema`。
+1. 修改源码，并在 `package.json` 更新语义版本。新增功能更新次版本（如 `0.5.0`）；兼容修复更新修订号（如 `0.4.1`）。改变计分含义时同时递增 `nerva.scoreSchema`。
 2. 在 `CHANGELOG.md` 添加该版本变化与日期。
 3. 执行 `npm run version:sync`、`npm test` 和 `npm run check`。
 4. 执行 `npm run standalone`，生成与版本一致的 `version.js` 和 `NERVA.html`，再验证浏览器操作与水印。
-5. 用 `git diff` 检查修改，提交源码、说明、测试及生成的 HTML。确认检查通过后，为提交创建对应版本标签，例如 `git tag -a v0.4 -m "NERVA v0.4"`。
+5. 用 `git diff` 检查修改，提交源码、说明、测试及生成的 HTML。确认检查通过后，为提交创建对应版本标签，例如 `git tag -a v0.5 -m "NERVA v0.5"`。
 
 排行榜存储键包含完整发行版本，记录本身同时检查发行版本与计分规则版本。新版本不会自动导入旧榜；如需迁移，应单独设计规则并在更新记录中注明。每个版本保留每种模式、每种推进剂各 50 条最好成绩。
 
 ## 比较与查看历史
 
 - 查看发布标签：`git tag --list`。
-- 查看版本变化：`git diff baseline-pre-v0.3 v0.3 -- challenge.js app.js`。
-- 查看历史文件：`git show v0.3:package.json`。
+- 查看版本变化：`git diff v0.3 v0.4 -- challenge.js app.js`。
+- 查看历史文件：`git show v0.4:package.json`。
 - 当前可玩 HTML 随发布提交一起保存，任何版本标签都能追溯对应代码和计分规则。
 
 截图和临时验证产物由 `.gitignore` 排除。当前仅进行本地版本管理；未来配置远端后可另行推送提交与标签。

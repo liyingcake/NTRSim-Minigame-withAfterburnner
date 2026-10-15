@@ -155,3 +155,17 @@ test('a new mission resets durable damage, counters, fuel, and all configuration
   assert.equal(fresh.engine.fuel, 4000); assert.equal(fresh.engine.diameterLocked, false);
   assert.equal(fresh.engine.propellantLocked, true); assert.equal(fresh.engine.controlsLocked, false);
 });
+test('settlement captures launch settings and lifetime peaks without changing score precision', () => {
+  const m = make({ type: 'precision', diameter: 1.8, fuelLoad: 2000 });
+  ignite(m, 40, 60); advance(m, 5); const firstPower = m.engine.power;
+  m.engine.demand = 65; m.engine.valve = 75; advance(m, 5); const secondPower = m.engine.power;
+  m.engine.shutdown(); m.engine.valve = 0; advance(m, 90); assert.equal(m.settle().ok, true);
+  const r = m.result;
+  assert.equal(r.launchDemand, 40); assert.equal(r.launchValve, 60);
+  assert.equal(r.engineModel, 'NTR-II-180H'); assert.equal(r.diameter, 1.8);
+  assert.ok(r.peakPower >= Math.max(firstPower, secondPower));
+  assert.ok(r.peakIsp > 0 && r.peakTemperature > r.temperature);
+  assert.ok(Math.abs(r.initialMass - r.finalMass - r.consumedFuel) < 1e-7);
+  assert.equal(r.total, calculateScore(r).total);
+  const original = r.engineModel; m.engine.reset(true); assert.equal(r.engineModel, original);
+});

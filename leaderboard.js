@@ -2,6 +2,12 @@
   'use strict';
   const release = typeof module !== 'undefined' && module.exports ? require('./version.js') : root.NTR_RELEASE;
   const KEY = 'nerva.leaderboard.' + release.version;
+  const FIELDS = ['id', 'version', 'scoreSchema', 'type', 'propellant', 'total', 'deltaV', 'elapsed', 'initialFuel', 'fuel',
+    'diameter', 'engineModel', 'ratedPower', 'dryMass', 'initialMass', 'finalMass', 'consumedFuel', 'launchDemand', 'launchValve',
+    'target', 'distance', 'integrity', 'temperature', 'peakAcceleration', 'peakThrust', 'peakPower', 'peakIsp', 'peakTemperature', 'peakPressure', 'peakFlow', 'reason',
+    'base', 'basePoints', 'dvPoints', 'fuelPoints', 'fuelUnitCost', 'loadingCost', 'error', 'errorPenalty', 'timePenalty', 'durabilityPenalty', 'errorDeduction', 'timeDeduction', 'durabilityDeduction'];
+  const NUMERIC_FIELDS = FIELDS.filter(key => !['id', 'version', 'scoreSchema', 'type', 'propellant', 'engineModel', 'target', 'reason'].includes(key));
+  const snapshot = record => Object.freeze(Object.fromEntries(FIELDS.map(key => [key, record[key]])));
   const compare = (a, b) => b.total - a.total || a.elapsed - b.elapsed || a.id.localeCompare(b.id);
   function retainBest(records) {
     const counts = {};
@@ -14,21 +20,23 @@
   function valid(record) {
     return record && typeof record.id === 'string' && record.id.length < 100 && record.version === release.version && record.scoreSchema === release.scoreSchema
       && ['precision', 'endurance'].includes(record.type) && ['hydrogen', 'water'].includes(record.propellant)
-      && ['total', 'deltaV', 'elapsed', 'initialFuel', 'fuel'].every(key => Number.isFinite(record[key]) && record[key] >= 0)
+      && NUMERIC_FIELDS.every(key => Number.isFinite(record[key]) && record[key] >= 0)
+      && typeof record.engineModel === 'string' && /^NTR-II-\d{3}[HW]$/.test(record.engineModel)
+      && typeof record.reason === 'string' && record.reason.length < 200
+      && (record.target === null || Number.isFinite(record.target)) && record.diameter >= .8 && record.diameter <= 2.4
       && Number.isInteger(record.total) && record.fuel <= record.initialFuel;
   }
   class NTRLeaderboard {
     constructor(storage) {
       this.storage = storage; this.records = []; this.persistent = Boolean(storage);
       if (storage) {
-        try { const saved = JSON.parse(storage.getItem(KEY) || '[]'); if (Array.isArray(saved)) this.records = retainBest(saved.filter(valid)); }
+        try { const saved = JSON.parse(storage.getItem(KEY) || '[]'); if (Array.isArray(saved)) this.records = retainBest(saved.filter(valid).map(snapshot)); }
         catch { this.persistent = false; }
       }
     }
     add(result) {
       if (!valid(result) || this.records.some(record => record.id === result.id)) return false;
-      const { id, version, scoreSchema, type, propellant, total, deltaV, elapsed, initialFuel, fuel } = result;
-      this.records.push({ id, version, scoreSchema, type, propellant, total, deltaV, elapsed, initialFuel, fuel });
+      this.records.push(snapshot(result));
       this.records = retainBest(this.records);
       try { if (this.storage) { this.storage.setItem(KEY, JSON.stringify(this.records)); this.persistent = true; } }
       catch { this.persistent = false; }
@@ -38,6 +46,7 @@
       return this.records.filter(record => record.type === type && (propellant === 'all' || record.propellant === propellant))
         .sort(compare).slice(0, limit);
     }
+    get(id) { return this.records.find(record => record.id === id) || null; }
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = { NTRLeaderboard, LEADERBOARD_KEY: KEY };
   else root.NTRLeaderboard = NTRLeaderboard;
