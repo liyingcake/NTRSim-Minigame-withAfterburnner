@@ -1,0 +1,8 @@
+node_modules/
+artifacts/
+preview.jpg
+challenge-preview.jpg
+challenge-result.jpg
+v0.3-preview.jpg
+v0.3-result.jpg
+*.log

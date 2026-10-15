@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#212725">
+  <title>NERVA · 核热推进试验控制台</title>
+  <meta name="description" content="复古核热推进模拟小游戏：自由沙盒、无限加速与精确入轨挑战，驾驶十吨飞船，管理推进剂、温压、故障与耐久。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23212725'/%3E%3Ctext x='32' y='48' text-anchor='middle' font-size='52' fill='%23dda55c'%3E☢%3C/text%3E%3C/svg%3E">
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;450;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+
+:root{color-scheme:dark;--bg:#202624;--panel:#343b38;--ink:#d5d4c4;--muted:#92988b;--line:#51574e;--green:#a5c891;--amber:#d6a465;--red:#dd7763;--mono:'IBM Plex Mono','Consolas',monospace;--sans:'Noto Sans SC','Microsoft YaHei',sans-serif;--condensed:'Barlow Condensed','Arial Narrow',sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:12px var(--sans);background-image:radial-gradient(ellipse at 50% 0,#39403744,transparent 65%),url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.035' filter='url(%23n)'/%3E%3C/svg%3E")}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--amber);outline-offset:4px}button{color:inherit}button:disabled{cursor:not-allowed;opacity:.42}button:hover:not(:disabled){filter:brightness(1.15)}button:active:not(:disabled){transform:translateY(1px)}button{transition:filter .15s,background .15s}button svg{pointer-events:none}button small{pointer-events:none}button kbd{pointer-events:none}.utility-bar{height:33px;border-bottom:1px solid #ffffff10;display:flex;align-items:center;justify-content:space-between;padding:0 35px;font:9px var(--mono);letter-spacing:1.4px;color:#99a18f}.utility-bar>span:first-child{display:flex;align-items:center;gap:9px}.utility-right b{margin:0 12px;color:#676e62}.console{max-width:1600px;margin:0 auto;padding:0 34px}.masthead{display:flex;justify-content:space-between;align-items:center;height:111px}.identity{display:flex;align-items:center;gap:17px}.mission-symbol{color:var(--amber);width:48px;height:48px;border:1px solid #aa9f784d;display:grid;place-items:center;font-size:49px;line-height:1;transform:rotate(15deg);border-radius:50%}.wordmark{font:600 36px/.95 var(--condensed);letter-spacing:4px;color:#e2e0cd}.wordmark>span{font-weight:400;color:#8c9285;margin:0 10px;font-size:29px}.wordmark small{font-size:20px;font-weight:400;letter-spacing:3px}.identity p{font-size:11px;letter-spacing:2px;margin:10px 0 0;color:#b9bcab}.identity p span{font:9px var(--mono);letter-spacing:1px;margin-left:14px;color:#858f80}.header-tools{display:flex;align-items:center;gap:27px}.session{display:flex;flex-direction:column;gap:6px}.session>span{font:9px var(--mono);letter-spacing:1px;color:#899181}.session strong{font:500 19px var(--mono);letter-spacing:2px}.session i{color:#a6bb81;font-size:9px;font-style:normal;margin-left:11px}.outline-button{background:transparent;border:1px solid #656c5e;padding:10px 13px;color:#c4c9b6;font-size:11px;letter-spacing:1px;display:flex;gap:11px;align-items:center}.outline-button>span{font-size:16px}kbd{font:10px var(--mono);color:#a6ae99;border:1px solid #65705b;padding:1px 4px;border-radius:2px}.instrument-rack{position:relative;padding:20px;background:#42483f;border:1px solid #6e7563;box-shadow:0 14px 35px #0004,0 2px 4px #0008,inset 0 1px 0 #b9bba326,inset 0 -1px 0 #131a1770;background-image:linear-gradient(105deg,#74795b09,transparent 30%,#d1c8a305),repeating-linear-gradient(0deg,#fff01 0,#fff01 1px,transparent 1px,transparent 3px);border-radius:3px}.rack-heading{height:32px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:1px}.rack-heading>div:first-child{display:flex;align-items:center;gap:9px}.rack-heading strong{font-weight:500;color:#d8d9c7}.rack-caption{font:9px var(--mono);letter-spacing:1.2px;color:#a0a693;margin-left:9px}.test-clock{display:flex;align-items:center;gap:12px}.test-clock>span{font-size:10px;color:#b6bba6}.test-clock b{font:500 13px var(--mono);color:#dbdbc5}.test-clock button{background:#333a31;border:1px solid #626958;height:25px;min-width:28px;padding:0 7px;font:12px var(--mono);color:#c5cdb6}.tiny-light{display:inline-block;width:6px;height:6px;border-radius:50%;background:#151c17;flex-shrink:0;border:1px solid #1b231e;vertical-align:middle}.tiny-light.green.on{background:#b2d591;box-shadow:0 0 6px #addb8750}.tiny-light.blue.on{background:#79c6d4;box-shadow:0 0 6px #79c6d450}.tiny-light.amber.on{background:#e6b66a;box-shadow:0 0 6px #e6b66a50}.tiny-light.red.on{background:#e37c66;box-shadow:0 0 6px #e37c6650}.telemetry-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:#181f18;border:5px solid #2b322a;box-shadow:0 1px 0 #68705c,0 -1px 0 #1b231c;margin-bottom:17px}.telemetry{padding:13px 13px 11px;background:linear-gradient(120deg,#212a22,#252e24);position:relative}.telemetry>div:first-child{display:flex;align-items:center;gap:6px;font-size:10px;white-space:nowrap;color:#b5bd9e}.telemetry>div:first-child>span{font:8px var(--condensed);letter-spacing:.8px;color:#889679}.telemetry>div:first-child>i{margin-left:auto;width:4px;height:4px}.telemetry p{margin:10px 0 9px;display:flex;align-items:baseline;gap:6px;white-space:nowrap}.telemetry strong{font:450 clamp(22px,2.35vw,35px)/1 var(--mono);letter-spacing:-1.5px;color:#d7d9b3;text-shadow:0 0 12px #d4df9b12;font-variant-numeric:tabular-nums}.telemetry small{font:10px var(--mono);color:#8f9c7b}.meter-track{height:3px;background:#434b35}.meter-track i{height:100%;display:block;background:#9fb27b;width:60%;transition:width .2s}.telemetry:nth-child(3) .meter-track i{background:var(--amber)}.main-panels{display:grid;grid-template-columns:225px minmax(0,1fr) 292px;gap:13px}.panel{background:#343c33;border:1px solid #606854;box-shadow:0 1px 1px #1b211c9c,inset 0 1px 0 #b2b6970d;min-width:0}.panel-title{height:37px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #62695477;padding:0 12px;letter-spacing:1px;font-size:11px;white-space:nowrap}.panel-title>span{display:flex;align-items:center;gap:8px}.panel-title b{font:10px var(--mono);color:#959f86;margin-right:0}.panel-title>small{font:8px var(--mono);letter-spacing:.8px;color:#a0a98d}.panel-title>small i{margin-left:5px}.analog-panel{display:flex;flex-direction:column;align-items:stretch}.analog-gauge{width:calc(100% - 30px);margin:13px auto 0;background:#242b24;border:1px solid #1d251e;box-shadow:inset 0 2px 7px #0007,0 1px 0 #82886b35;border-radius:50% 50% 7px 7px;padding:0 0 9px;position:relative}.analog-gauge svg{width:100%;display:block;margin-bottom:-10px}.gauge-caption{font-size:10px;text-align:center;letter-spacing:1px;color:#c8c6a4}.gauge-caption span{font:9px var(--mono);margin-left:6px;color:#9ca180}.pressure-gauge{margin-top:13px}.tank-display{padding:17px 15px 11px;margin-top:auto}.tank-display>div:first-child{display:flex;justify-content:space-between;font-size:9px;letter-spacing:1px}.tank-display b{color:#c4d89d;font:10px var(--mono)}.tank-track{display:flex;gap:3px;margin:8px 0;height:11px}.tank-track i{flex:1;background:#94ae77;border-top:1px solid #bad099;box-shadow:0 0 4px #94ae771a}.tank-track i.empty{background:#222b21;border-color:#434d3b;box-shadow:none}.tank-meta{display:flex;justify-content:space-between;font:8px var(--mono);color:#969f84}.engraved-note{font:7px var(--mono);letter-spacing:1.1px;text-align:center;padding:6px 0 12px;color:#7f8b74}.mfd-panel{padding-bottom:0}.mfd-bezel{background:#20281f;margin:11px 11px 0;padding:10px 10px 0;border:1px solid #1b221b;box-shadow:inset 0 1px 4px #0008,0 1px 0 #6c755a70;border-radius:7px}.crt-screen{position:relative;background:#111d18;color:#9cc894;border:1px solid #4a5b43;border-radius:6px 6px 16px 16px;box-shadow:inset 0 0 40px #0007,0 0 5px #0004;overflow:hidden;aspect-ratio:1.55;min-height:290px}.crt-topline,.crt-bottomline{position:absolute;left:15px;right:15px;z-index:2;display:flex;justify-content:space-between;align-items:center;font:8px var(--mono);letter-spacing:.5px}.crt-topline{top:12px;border-bottom:1px solid #6a9b633f;padding-bottom:9px}.crt-topline>span:first-child{font-size:10px}.crt-topline>span:last-child{font-size:7px}.crt-bottomline{bottom:10px;font-size:7px;border-top:1px solid #6a9b633f;padding-top:7px;color:#799f72}.crt-screen canvas{display:block;width:100%;height:100%;position:absolute;inset:0}.screen-grain{pointer-events:none;position:absolute;inset:0;z-index:3;background:repeating-linear-gradient(0deg,#0002 0px,#0002 1px,transparent 1px,transparent 3px);box-shadow:inset 0 0 35px #0006,inset 0 0 6px #000a;border-radius:inherit;opacity:.6}.mfd-softkeys{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;padding:12px 0 11px}.mfd-softkeys button{border:1px solid #5d6950;border-bottom:3px solid #111a12;background:linear-gradient(#3c4937,#2d392a);border-radius:2px;color:#b6c3a2;font-size:9px;padding:7px 1px 6px;letter-spacing:.5px;box-shadow:0 1px 2px #0008}.mfd-softkeys button>span{display:block;color:#869a76;font:8px var(--mono);margin-bottom:4px}.mfd-softkeys button.selected{background:#879877;color:#152416;border-color:#98aa84;border-bottom-color:#526446;text-shadow:0 1px #d5e0be40}.mfd-softkeys button.selected>span{color:#3d5435}.mfd-foot{display:flex;align-items:center;justify-content:space-between;padding:11px 13px 10px;font:7px var(--mono);letter-spacing:.6px;color:#919b81}.mfd-foot i{width:4px;height:4px;margin-right:5px}.annunciator-panel{display:flex;flex-direction:column}.lamp-matrix{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:13px 12px 10px;background:#2b332a}.status-lamp{border:2px solid #1a211a;height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#242e23;box-shadow:inset 0 0 9px #0009,0 1px 0 #6c73594d;position:relative;text-align:center;color:#66735b;border-radius:1px}.status-lamp>span{font-size:8px;letter-spacing:.5px;line-height:1}.status-lamp>small{font:6px var(--mono);letter-spacing:.5px}.status-lamp.green.on{color:#172c13;background:#9bb978;box-shadow:inset 0 0 10px #d5ec9b66,0 0 8px #a0ca6d25}.status-lamp.blue.on{color:#15313a;background:#78adbd;box-shadow:inset 0 0 10px #a0d8e566,0 0 8px #78adbd25}.status-lamp.yellow.on{color:#3c3613;background:#d0c473;box-shadow:inset 0 0 10px #fff4b055,0 0 8px #d0c47325}.status-lamp.amber.on{color:#432e0f;background:#d1a058;box-shadow:inset 0 0 10px #ffd38e55,0 0 8px #d1a05825}.status-lamp.red.on{color:#4a1d15;background:#d37c65;box-shadow:inset 0 0 10px #ffb39e55,0 0 8px #d37c6540}.status-lamp.flashing.on{animation:alarmFlash 1s steps(2,jump-none) infinite}.lamp-legend{display:flex;justify-content:space-between;padding:9px 13px;font-size:8px;color:#a5af91;border-top:1px solid #62695444}.lamp-legend span{display:flex;align-items:center;gap:5px}.lamp-legend i{width:4px;height:4px}.annunciator-actions{display:flex;gap:7px;padding:0 12px 12px}.small-button{border:1px solid #70765b;background:#3c4435;box-shadow:0 2px 1px #20271e;padding:6px 4px;font-size:9px;flex:1;letter-spacing:.5px}.small-button span{font:8px var(--mono);color:#9ea98b;margin-left:3px}.small-button.testing{background:#a8b78c;color:#22301b}.log-heading{display:flex;justify-content:space-between;align-items:center;margin:0 12px;padding:10px 0;border-top:1px solid #65705266;font-size:9px;letter-spacing:1px}.log-heading>span:last-child{font:7px var(--mono);color:#a2aa90}.log-heading i{width:4px;height:4px;margin-left:5px}.event-log{margin:0 12px 12px;background:#252e23;border:1px solid #535f46;padding:8px 7px;flex:1;min-height:93px;max-height:120px;overflow:auto;scrollbar-width:thin;scrollbar-color:#5a6749 #252e23}.event-entry{display:flex;gap:7px;font:8px/1.9 var(--mono);color:#9eb48c}.event-entry time{color:#6e8365;font-size:7px;flex-shrink:0}.event-entry.warning{color:#dbb676}.event-entry.danger{color:#e59279}.event-entry>span{overflow-wrap:anywhere}.lower-panels{display:grid;grid-template-columns:1.05fr 1.5fr .8fr;gap:13px;margin-top:13px}.config-content{padding:15px}.control-label{display:flex;align-items:center;justify-content:space-between;font-size:10px;letter-spacing:1px;color:#c7cbb3}.control-label small{font:7px var(--mono);color:#909b7f;letter-spacing:.6px}.control-label output{font:500 19px/1 var(--mono);letter-spacing:0;color:#dddcc2}.control-label output small{font-size:10px;color:#a8b296}.propellant-selector>.control-label{justify-content:flex-start;gap:8px}.segmented{display:flex;margin-top:10px;padding:3px;border:1px solid #20291d;background:#2a3325;box-shadow:0 1px 0 #737d5c44;gap:4px}.segmented button{flex:1;padding:9px 5px;border:1px solid #525c43;background:#38412f;display:flex;align-items:center;justify-content:center;gap:9px;color:#92a07d;box-shadow:0 1px 2px #0005;min-width:0}.segmented button>b{font:500 21px var(--mono);letter-spacing:-1px}.segmented button>span{font-size:10px;text-align:left;white-space:nowrap}.segmented button small{font:6px var(--mono);display:block;margin-top:3px}.segmented button.active{background:#a9b48d;color:#263121;border-color:#b7c097}.size-control{margin-top:18px}.size-control .control-label{margin-bottom:9px}.size-control p{font:8px var(--mono);color:#a0ac8d;margin:11px 0 1px;white-space:nowrap}.size-control p strong{font-weight:500;color:#d0d6b5}.size-control p>span:first-of-type{margin:0 4px;color:#6d7d5d}input[type=range]{appearance:none;-webkit-appearance:none;height:5px;background:linear-gradient(to right,#b2bb8c 0%,#b2bb8c var(--range,50%),#202a1c var(--range,50%),#202a1c 100%);border:1px solid #1c2418;border-bottom-color:#66744b;width:100%;margin:4px 0 0;border-radius:1px;cursor:pointer}input[type=range]::-webkit-slider-thumb{appearance:none;width:13px;height:20px;background:linear-gradient(90deg,#7c8869,#c3c8aa 40%,#a6b28c);border:1px solid #252f21;border-top-color:#e0e1c3;border-bottom:3px solid #58674b;border-radius:2px;box-shadow:0 1px 3px #0008}input[type=range]::-moz-range-thumb{width:12px;height:18px;background:#b9c3a0;border:1px solid #252f21;border-radius:2px}.range-labels{display:flex;justify-content:space-between;color:#879777;font:7px var(--mono);letter-spacing:.3px;margin-top:8px}.power-content{display:flex;padding:15px 15px 13px;gap:19px}.sliders{flex:1;min-width:0;display:flex;flex-direction:column;gap:23px}.sliders .control-label{margin-bottom:12px}.switch-bank{display:flex;gap:16px;align-items:center;border-left:1px solid #67734e66;padding-left:18px}.toggle-control{padding:0;background:none;border:0;display:flex;align-items:center;flex-direction:column;white-space:nowrap;gap:10px}.toggle-control>span{font-size:9px;letter-spacing:1px}.toggle-control>i{position:relative;display:block;width:23px;height:53px;background:linear-gradient(90deg,#1e281b,#323d2a 50%,#1e281b);border:1px solid #1c2418;border-bottom-color:#6c7959;border-radius:13px;box-shadow:inset 0 1px 5px #0009}.toggle-control>i:after{content:'OFF';position:absolute;bottom:5px;left:4px;font:5px var(--mono);color:#879572}.toggle-control em{display:block;position:absolute;z-index:1;top:26px;left:4px;width:13px;height:20px;background:linear-gradient(90deg,#718068,#dde0cc 35%,#899b7e 80%);border:1px solid #4c5a40;border-radius:4px;box-shadow:0 2px 4px #000b;transition:top .15s}.toggle-control.on em{top:5px}.toggle-control.on>i:after{content:'ON';bottom:7px;left:7px;color:#c0d39a}.toggle-control small{font:6px var(--mono);color:#98a789;letter-spacing:.4px}.operations-content{padding:14px;display:grid;grid-template-columns:1fr 85px;gap:12px}.run-button{background:linear-gradient(#5c6c4c,#45593d);border:1px solid #839371;border-bottom:3px solid #22351f;box-shadow:0 3px 4px #0005;display:flex;align-items:center;justify-content:center;gap:12px;min-height:97px}.run-button i{font-size:18px;font-style:normal;color:#c9d6b4}.run-button>span{font-size:12px;letter-spacing:1px;text-align:left}.run-button small{display:block;font:6px var(--mono);letter-spacing:.3px;color:#a9bc95;margin-top:7px}.run-button.start-ready{background:linear-gradient(#76845c,#586c42)}.scram-button{background:repeating-linear-gradient(135deg,#262d22 0px,#262d22 6px,#978251 6px,#978251 12px);border:1px solid #ab9260;box-shadow:0 3px 4px #0005;position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;padding:16px 2px;isolation:isolate}.scram-button:before{content:'';position:absolute;inset:6px;background:linear-gradient(#aa6351,#8a463b);z-index:-1;border:1px solid #d39373;border-bottom:4px solid #602f29;box-shadow:0 2px 3px #0008}.scram-button>span{font-size:10px;color:#f3d2b0;letter-spacing:1px}.scram-button>b{font:600 20px var(--condensed);letter-spacing:2px;color:#f4d6b3}.operation-secondary{display:flex;gap:8px;grid-column:1/-1;margin-top:0}.operation-secondary button{flex:1;background:#3c4632;border:1px solid #6a7757;border-bottom:2px solid #26341e;padding:9px 2px;font-size:9px;white-space:nowrap;letter-spacing:.5px}.operation-secondary button:first-child{color:#d0b98b}.rack-footer{display:flex;justify-content:space-between;align-items:center;margin-top:17px;font:8px var(--mono);letter-spacing:.5px;color:#a1ad8b;gap:10px}.rack-footer>span:first-child{display:flex;align-items:center;gap:7px;white-space:nowrap}.rack-footer b{font-size:9px;font-weight:400;color:#c4cfaf}.rack-footer>span:last-of-type{font-size:7px}.rack-footer>span:last-of-type>b{margin:0 6px;color:#8b9874}.footer-divider{color:#72805f;margin:0 3px}.rack-screw{position:absolute;width:7px;height:7px;border-radius:50%;background:linear-gradient(120deg,#8f967c,#363e31 70%);box-shadow:0 1px 1px #0006,inset 0 1px 0 #b2b69966}.rack-screw:after{content:'';position:absolute;height:1px;width:5px;top:3px;left:1px;background:#1b231a;transform:rotate(-35deg)}.s1{left:7px;top:8px}.s2{right:7px;top:8px}.s3{bottom:8px;left:7px}.s4{bottom:8px;right:7px}.page-footer{display:flex;align-items:center;justify-content:space-between;color:#7f8c77;font:8px var(--mono);letter-spacing:1px;padding:22px 0 26px}.page-footer b{font-size:17px;vertical-align:middle;margin-right:8px;color:#97a383}.footer-serial{margin-left:22px;color:#66745f}dialog{padding:0;max-width:min(650px,calc(100vw - 32px));width:650px;border:1px solid #83906e;background:#343e30;color:#d3d9be;box-shadow:0 20px 90px #000b}dialog::backdrop{background:#101b16bb;backdrop-filter:blur(4px)}.dialog-top{display:flex;justify-content:space-between;align-items:center;background:#293522;border-bottom:1px solid #667551;padding:12px 20px;font:10px var(--mono);letter-spacing:1px;color:#bfcda8}.dialog-top button{font-size:23px;line-height:1;border:0;background:transparent;color:#bbc9a6}.dialog-body{padding:26px}.dialog-body h2{font-size:23px;font-weight:500;letter-spacing:2px;margin:0 0 14px}.dialog-body>p{color:#aab99b;line-height:1.9;font-size:12px}.fault-options{display:flex;flex-direction:column;gap:8px;margin-top:22px}.fault-option{border:1px solid #657750;background:#2c3925;text-align:left;padding:13px;display:flex;align-items:center;gap:14px}.fault-option>i{font:17px var(--mono);color:#d1ab68;font-style:normal}.fault-option>span{flex:1}.fault-option b{display:block;font-size:12px;font-weight:500;color:#d7d7b6;letter-spacing:1px}.fault-option small{display:block;font-size:10px;color:#9aaa89;margin-top:4px;line-height:1.6}.fault-option>em{font-style:normal;font-size:10px;color:#c7ac76}.fault-option.injected{border-color:#bf8361;background:#4e3829}.fault-option.injected>em{color:#dfaa7c}.dialog-actions{display:flex;align-items:center;gap:16px;margin-top:22px}.dialog-actions>span{color:#9ead8b;font-size:9px}.primary-dialog-button{padding:11px 16px;border:1px solid #a4b38a;background:#6c8151;color:#ecedd2;font-size:11px}.manual-kicker{display:block;font:10px var(--mono);color:#b8ab78;letter-spacing:2px;margin-bottom:17px}.manual-body ol{padding-left:22px}.manual-body li{padding:6px 0 7px 6px;font:12px var(--mono);color:#d0b77c}.manual-body li b{font:500 12px var(--sans);color:#d9ddc4;letter-spacing:1px}.manual-body li span{font:11px/1.9 var(--sans);color:#aebda0;display:block;margin-top:6px}.keyboard-guide{display:flex;flex-wrap:wrap;gap:15px;padding:17px 0;border-top:1px solid #6b79524d;margin-top:17px;font-size:10px;color:#b1bf9f}.keyboard-guide kbd{margin-right:5px}.dialog-body p.model-note{font-size:10px;color:#91a27f;border-top:1px solid #6b79524d;padding-top:15px;margin-bottom:0}.model-note a{color:#bacb9c;display:block;margin-top:8px}.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);z-index:10;pointer-events:none;opacity:0;background:#bcc69f;color:#263520;padding:13px 24px;border:1px solid #dce0be;box-shadow:0 4px 24px #0007;font-size:12px;transition:opacity .2s,transform .2s;max-width:calc(100vw - 30px);text-align:center}.toast.visible{opacity:1;transform:translate(-50%,0)}@keyframes alarmFlash{50%{filter:brightness(.4)}}
+@media(min-width:1450px){.main-panels{grid-template-columns:250px minmax(0,1fr) 320px}.status-lamp{height:53px}.analog-gauge{max-width:205px}.crt-screen{aspect-ratio:1.64}.event-log{max-height:140px}.power-content{gap:25px}.switch-bank{gap:22px}.telemetry{padding:15px 17px}.telemetry p{margin:13px 0}.lower-panels .panel-title{height:39px}.config-content{padding:17px}.power-content{padding:20px 18px}.operations-content{padding:17px}.sliders{gap:26px}}
+@media(max-width:1190px){.console{padding:0 20px}.utility-bar{padding:0 20px}.main-panels{grid-template-columns:190px minmax(0,1fr) 255px;gap:10px}.panel-title{padding:0 9px;font-size:10px}.panel-title>small{font-size:7px}.mfd-bezel{margin:9px 8px 0;padding:8px 7px 0}.crt-screen{min-height:290px}.lamp-matrix{gap:4px;padding:10px 8px}.status-lamp{height:44px}.status-lamp>span{font-size:7px}.status-lamp>small{font-size:5px}.analog-gauge{margin-top:19px}.pressure-gauge{margin-top:22px}.lower-panels{grid-template-columns:1fr 1.35fr .85fr;gap:10px}.power-content{gap:12px;padding:15px 11px}.switch-bank{gap:11px;padding-left:11px}.toggle-control>span{font-size:8px}.toggle-control small{font-size:5px}.telemetry{padding:13px 9px}.telemetry>div:first-child{font-size:9px;gap:4px}.telemetry>div:first-child>span{font-size:7px}.telemetry strong{font-size:27px}.telemetry small{font-size:8px}.operations-content{padding:14px 9px;grid-template-columns:1fr 70px;gap:10px}.run-button{gap:6px}.run-button>span{font-size:10px}.run-button small{font-size:5px}.scram-button>b{font-size:18px}.rack-caption{font-size:8px}.tank-display{padding:15px 10px 10px}.tank-meta{font-size:7px}.mfd-foot{font-size:6px}.event-log{font-size:7px}.segmented button{gap:6px}.segmented button>b{font-size:18px}.segmented button small{font-size:5px}.config-content{padding:15px 11px}}
+@media(max-width:980px){.main-panels{grid-template-columns:180px minmax(0,1fr)}.annunciator-panel{grid-column:1/-1;display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:37px auto auto}.annunciator-panel .panel-title{grid-column:1/-1}.lamp-matrix{grid-column:1;grid-row:2;grid-template-columns:repeat(8,1fr);padding:13px 10px 7px}.status-lamp{height:43px}.annunciator-actions{grid-column:2;grid-row:3;padding:5px 11px 10px}.lamp-legend{grid-column:1;grid-row:3;border-top:0;padding:8px 12px}.log-heading{display:none}.event-log{grid-column:2;grid-row:2;margin:12px 11px 0;min-height:85px;max-height:85px}.lower-panels{grid-template-columns:1fr 1.4fr}.operations-panel{grid-column:1/-1}.operations-content{display:flex;padding:13px;align-items:stretch;gap:14px}.run-button{min-height:60px;width:35%}.scram-button{width:22%;padding:12px;gap:4px}.scram-button>b{font-size:20px}.operation-secondary{margin:0;flex:1;gap:10px}.operation-secondary button{padding:13px}.telemetry strong{font-size:23px}.telemetry>div:first-child>span{display:none}.crt-screen{min-height:300px;aspect-ratio:1.5}.analog-gauge{margin-top:13px}.pressure-gauge{margin-top:10px}.rack-footer>span:last-child{font-size:6px}.header-tools{gap:16px}.wordmark{font-size:32px}.wordmark small{font-size:17px}.identity p span{display:none}.session{display:none}.mfd-foot{padding-bottom:11px}}
+@media(max-width:680px){.utility-bar{padding:0 14px;font-size:7px;height:28px;letter-spacing:.7px}.utility-right{display:none}.console{padding:0 10px}.masthead{height:96px;padding:0 5px}.identity{gap:10px}.mission-symbol{width:35px;height:35px;font-size:36px}.wordmark{font-size:28px;letter-spacing:2px}.wordmark>span{font-size:22px;margin:0 5px}.wordmark small{font-size:13px;letter-spacing:1.4px}.identity p{font-size:9px;letter-spacing:1.2px}.outline-button{padding:8px;font-size:9px;gap:6px}.outline-button kbd{display:none}.instrument-rack{padding:13px 9px}.rack-heading{height:25px;margin-bottom:10px;font-size:9px}.rack-caption{display:none}.test-clock{gap:7px}.test-clock>span{display:none}.test-clock b{font-size:10px}.test-clock button{font-size:10px;height:23px;min-width:25px}.telemetry-strip{grid-template-columns:repeat(3,1fr);gap:1px;margin-bottom:11px;border-width:3px}.telemetry{padding:10px}.telemetry p{margin:8px 0}.telemetry strong{font-size:25px}.telemetry small{font-size:8px}.telemetry>div:first-child{font-size:8px}.telemetry>div:first-child>span{display:block;font-size:6px}.main-panels{display:flex;flex-wrap:wrap;gap:10px}.mfd-panel{order:0;width:100%}.analog-panel{order:1;width:100%;display:grid;grid-template-columns:1fr 1fr}.analog-panel .panel-title{grid-column:1/-1}.analog-gauge{width:calc(100% - 24px);max-width:175px;margin:12px auto 0}.pressure-gauge{margin-top:12px}.tank-display{grid-column:1/-1;padding:15px 12px 10px}.engraved-note{grid-column:1/-1;padding-bottom:10px}.crt-screen{min-height:280px;aspect-ratio:1.45}.mfd-softkeys{gap:5px}.mfd-softkeys button{font-size:9px;padding:7px 1px}.mfd-foot{font-size:6px}.annunciator-panel{order:2;width:100%;display:flex}.lamp-matrix{grid-template-columns:repeat(4,1fr);gap:5px;padding:12px}.status-lamp{height:46px}.status-lamp>span{font-size:9px}.status-lamp>small{font-size:6px}.annunciator-actions{padding:0 12px 12px}.lamp-legend{padding:9px 13px}.log-heading{display:flex}.event-log{margin:0 12px 12px;min-height:100px;max-height:100px}.lower-panels{grid-template-columns:1fr;margin-top:10px;gap:10px}.operations-panel{grid-column:auto}.power-content{padding:19px 13px;gap:20px}.switch-bank{padding-left:16px;gap:14px}.toggle-control>span{font-size:9px}.toggle-control small{font-size:5px}.config-content{display:flex;gap:18px;padding:16px 12px}.propellant-selector{flex:1.3;min-width:0}.segmented button{padding:9px 4px;gap:5px}.segmented button>b{font-size:16px}.segmented button>span{font-size:9px}.segmented button small{font-size:4px}.size-control{flex:1;margin:0;min-width:0}.size-control p{font-size:6px;white-space:normal;line-height:1.7;margin:10px 0 0}.size-control .control-label{margin-bottom:18px}.control-label output{font-size:17px}.control-label{font-size:9px}.run-button{width:34%}.scram-button{width:23%}.operation-secondary{flex-direction:column;gap:8px}.operation-secondary button{padding:8px 3px;font-size:8px}.operations-content{gap:10px;padding:13px 10px}.rack-footer{flex-wrap:wrap;gap:10px;margin-top:14px;font-size:7px}.rack-footer>span:last-of-type{font-size:5px}.page-footer{font-size:6px;letter-spacing:.3px;padding:17px 3px;gap:15px}.page-footer>span:last-child{max-width:120px;text-align:right;line-height:1.7}.footer-serial{display:none}.dialog-body{padding:21px}.dialog-body h2{font-size:20px}.dialog-actions{flex-wrap:wrap;gap:10px}.manual-body li span{font-size:10px}.keyboard-guide{gap:12px}.crt-topline{left:10px;right:10px}.crt-topline>span:first-child{font-size:9px}.crt-topline>span:last-child{font-size:6px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.tiny-light.yellow.on{background:#d9cf79;box-shadow:0 0 6px #d9cf7950}
+.crt-screen{width:100%}
+@media(max-width:680px){.crt-screen{min-height:220px;aspect-ratio:1.35}}
+
+/* Flight assignments retain the original console's instrument-panel language. */
+[hidden]{display:none!important}
+.mode-bar{display:flex;justify-content:space-between;align-items:center;margin:-2px 0 18px;border-top:1px solid #68745b55;border-bottom:1px solid #68745b55;min-height:47px;gap:12px}.mode-switch{display:flex;align-items:stretch;gap:6px;align-self:stretch}.mode-switch button{background:transparent;border:0;border-bottom:2px solid transparent;padding:11px 17px;color:#93a284;font-size:11px;letter-spacing:1px}.mode-switch button>span{font:8px var(--mono);margin-right:7px;color:#849373}.mode-switch button small{font:8px var(--mono);margin-left:8px;letter-spacing:1px}.mode-switch button.active{color:#ded7af;border-bottom-color:#c3a56d;background:linear-gradient(0deg,#c8ad6833,transparent)}.mode-bar>span{font-size:9px;color:#9ba98a;letter-spacing:1px;padding-right:6px}.mission-panel{margin-bottom:18px;border:1px solid #7a8264;background:linear-gradient(120deg,#354031,#2a3529);box-shadow:inset 0 1px #a0a78022,0 4px 16px #0002;padding:17px 20px 13px;position:relative;overflow:hidden}.mission-panel:before{content:'';height:2px;background:#baa476;width:70px;position:absolute;left:20px;top:0}.mission-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.mission-heading>div{display:flex;align-items:center;gap:13px}.mission-heading>div>span{font:8px var(--mono);color:#bba572;letter-spacing:1px}.mission-heading h2{font-size:15px;font-weight:500;letter-spacing:2px;margin:0;color:#e0dfc5}.mission-heading b{font-size:8px;letter-spacing:1px;font-weight:400;border:1px solid #738568;color:#b9caa3;padding:3px 7px;background:#405037}.mission-heading button{background:transparent;border:1px solid #66785b;color:#b3c0a1;font-size:9px;letter-spacing:1px;padding:6px 11px}.mission-heading button:last-child{border-color:#9f946a;color:#d6c69e}.flight-instruments{display:grid;grid-template-columns:1.3fr 1.15fr 1fr 1fr 1fr 1fr;gap:16px;margin:21px 0 19px}.flight-metric{border-right:1px solid #657a4f44;min-width:0}.flight-metric:last-child{border:0}.flight-metric>span{font-size:9px;color:#a3b38f;letter-spacing:1px;white-space:nowrap}.flight-metric>span>small{font:7px var(--mono);color:#829774;margin-left:4px}.flight-metric p{margin:9px 0 0;display:flex;align-items:baseline;gap:6px;white-space:nowrap}.flight-metric strong{font:500 22px/1 var(--mono);letter-spacing:-1px;color:#d0ddba}.flight-metric p>small{font:8px var(--mono);color:#829774}.flight-metric.primary strong{font-size:28px;color:#d8ddb2}.flight-metric.score strong{color:#dbc18c;font-size:24px}.flight-progress{padding-top:2px}.flight-rail{position:relative;height:15px;margin:0 14px 8px;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),#7b8b6266 calc(10% - 1px),#7b8b6266 10%)}.flight-rail:before{content:'';position:absolute;height:2px;background:#18291b;border-bottom:1px solid #748b5555;top:7px;left:0;right:0}.flight-rail-fill{position:absolute;height:2px;top:7px;background:#a3bf83;box-shadow:0 0 7px #9db87c44;width:0;max-width:100%}.flight-start,.flight-end{position:absolute;top:1px;color:#92a67d;font:13px var(--mono);background:#2e3b2b}.flight-start{left:-14px}.flight-end{right:-14px}.flight-ship{position:absolute;width:60px;height:26px;top:-6px;left:3%;transform:translateX(-50%);transition:left .2s;filter:drop-shadow(0 0 5px #c8ce9b25)}.flight-ship svg{width:100%;height:100%;display:block}.ship-plume{visibility:hidden}.mission-panel.is-burning .ship-plume{visibility:visible}.flight-progress-labels{display:flex;justify-content:space-between;font:8px var(--mono);letter-spacing:.3px;color:#8ea77b;gap:10px}.flight-progress-labels b{font-weight:400;color:#c5cda6}.flight-progress-labels b.overshot{color:#de9e7c}.mission-bottom{display:flex;justify-content:space-between;gap:15px;margin-top:12px;border-top:1px solid #71835a44;padding-top:10px;font-size:8px;color:#98ad85;line-height:1.6}.mission-bottom>span:first-child{color:#c2c99e}.mission-panel.finished .mission-heading b{background:#80916a;color:#182b19}.mission-panel.finished .flight-ship{filter:none}.settle-button{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;border:1px solid #a39765;background:linear-gradient(#736e43,#575a35);color:#e3d9af;box-shadow:0 2px 3px #0004;padding:11px 10px;gap:5px;text-align:left}.settle-button>span{font-size:10px;letter-spacing:1px}.settle-button>small{font:7px var(--mono);color:#c6bd8e}.settle-button>b{font-size:16px;font-weight:400}.settle-button.locked{border-color:#747451;background:#454c31;color:#b6ba91;box-shadow:none}.settle-button.locked small{color:#9caa80}.settle-button.complete{border-color:#a3ba89;background:#5b7147}.operations-content.has-mission .operation-secondary{margin-bottom:0}.challenge-dialog{width:780px;max-width:min(780px,calc(100vw - 30px))}dialog{max-height:92dvh;overflow:auto;scrollbar-width:thin;scrollbar-color:#71865a #2d3927}.challenge-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0}.challenge-card{text-align:left;border:1px solid #62784f;background:#2b3826;padding:17px 19px;min-width:0;position:relative}.challenge-card>span{font:8px var(--mono);color:#97aa80;letter-spacing:1.5px}.challenge-card>b{display:block;font-size:17px;font-weight:500;color:#ced6b6;letter-spacing:1px;margin:10px 0 14px}.challenge-card>strong{font:400 37px var(--mono);color:#b0c798;line-height:1.1;letter-spacing:-1px}.challenge-card>strong>small{font-size:11px;letter-spacing:0;color:#a9ba91}.challenge-card>p{font-size:10px;color:#99ae85;line-height:1.7;margin:12px 0}.challenge-card>em{font-size:9px;font-style:normal;color:#baa675}.challenge-card.selected{border-color:#c1ad78;background:linear-gradient(130deg,#5c634136,#8a805526);box-shadow:inset 0 0 0 1px #c9b5783b}.challenge-card.selected:after{content:'✓';position:absolute;right:14px;top:12px;font:14px var(--mono);color:#e1c990}.challenge-card.selected>span{color:#c7b684}.challenge-card.selected>b{color:#e1dbb8}.challenge-card.selected>strong{color:#e0c693}.challenge-loadout{display:grid;grid-template-columns:1.3fr 1fr;gap:28px;align-items:start}.challenge-loadout label{display:flex;align-items:center;justify-content:space-between;font-size:10px;letter-spacing:1px;color:#c5cfad;gap:5px}.challenge-loadout label small{font:6px var(--mono);color:#9aad84}.challenge-loadout output{font:16px var(--mono);color:#d6daba}.loadout-propellants{display:flex;gap:7px;margin-top:12px}.loadout-propellants button{display:flex;flex:1;align-items:center;flex-wrap:wrap;justify-content:center;gap:7px;border:1px solid #677b52;background:#2d3c25;padding:10px 4px;color:#aaba8e;font-size:10px;min-width:0}.loadout-propellants b{font:18px var(--mono);color:#c5d4aa}.loadout-propellants span{display:block;flex-basis:100%;text-align:center;font:8px var(--mono);color:#8fa875}.loadout-propellants button.selected{background:#64744b;border-color:#a2b37c;color:#edf0d6}.loadout-propellants button.selected b{color:#e5edce}.loadout-propellants button.selected span{color:#c2d2a4}.challenge-loadout input{margin-top:23px;--range:37.5%}.challenge-loadout p{font-size:8px;line-height:1.8;color:#95a982;margin:14px 0 0}.loadout-summary{display:flex;justify-content:space-between;gap:12px;margin-top:18px;padding:12px;background:#273721;border:1px solid #65784e77;font-size:8px;color:#9cae83;line-height:1.8}.loadout-summary b{font:10px var(--mono);color:#c7d2ae;margin-left:5px}.challenge-brief{font-size:10px;line-height:1.9;color:#c1c59d;padding:15px 0}.launch-challenge{width:100%;display:flex;justify-content:space-between;align-items:center;padding:13px 17px;border:1px solid #c5bb8a;background:linear-gradient(#9da275,#78885a);border-bottom:3px solid #4f623b;color:#172c18;font-size:12px;letter-spacing:1px;box-shadow:0 3px 6px #0003}.launch-challenge span{font-size:21px;line-height:1}.dialog-body .challenge-switch-note{font-size:8px;color:#8fa47b;margin:12px 0 0}.rules-body dt{font:11px var(--mono);color:#d1bc88;letter-spacing:1px;margin-top:22px}.rules-body dd{margin:9px 0 0;font-size:11px;line-height:2;color:#b6c5a3}.rules-body dl{margin-top:0}.result-score{display:flex;align-items:baseline;justify-content:center;gap:14px;border-top:1px solid #7f8e624f;border-bottom:1px solid #7f8e624f;padding:21px 0;margin:20px 0}.result-score>strong{font:500 59px/1 var(--mono);letter-spacing:-3px;color:#d6ce9b}.result-score>span{font:8px var(--mono);color:#9caf84;letter-spacing:2px}.result-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px 20px;padding:2px 0 20px}.result-metrics>div{display:flex;flex-direction:column;gap:7px;min-width:0}.result-metrics span{font-size:9px;color:#92a77c;letter-spacing:.5px}.result-metrics strong{font:14px var(--mono);color:#cdd9b6;white-space:nowrap}.score-breakdown{border:1px solid #6b7e5170;background:#293923}.score-row{display:flex;justify-content:space-between;gap:15px;padding:10px 13px;border-bottom:1px solid #6b7e512f;font-size:10px;color:#b6c5a0}.score-row:last-child{border:0}.score-row small{font:8px var(--mono);color:#8ca173;margin-left:8px}.score-row b{font:11px var(--mono);color:#cad5ae;white-space:nowrap}.score-row.penalty b{color:#d0ae7c}.score-row.total{background:#3f5132;color:#d1dbb9}.score-row.total b{color:#ded09b}.result-formula{font:8px/1.8 var(--mono);color:#9aad83;padding:10px 0;margin:0}.result-actions{display:flex;gap:12px;align-items:stretch;margin-top:6px}.result-actions>button{flex:1}.result-actions>button:last-child{border:1px solid #6f8357;background:#34472b;color:#baca9f;font-size:10px}.controls-frozen input,.controls-frozen .toggle-control{opacity:.5;cursor:not-allowed}
+@media(max-width:1190px){.flight-instruments{gap:12px}.flight-metric strong{font-size:19px}.flight-metric.primary strong{font-size:24px}.flight-metric.score strong{font-size:21px}.flight-metric>span>small{display:none}.flight-metric p>small{font-size:7px}.mission-panel{padding:15px}.mission-bottom{font-size:7px}.settle-button{padding:9px 7px}.settle-button>small{font-size:6px}.settle-button>span{font-size:9px}}
+@media(max-width:980px){.flight-instruments{grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:18px 0}.flight-metric:nth-child(3){border-right:0}.flight-metric.primary strong{font-size:25px}.flight-metric strong{font-size:21px}.mission-bottom{flex-wrap:wrap;gap:5px}.mode-bar>span{font-size:8px}.operations-content.has-mission{flex-wrap:wrap}.operations-content.has-mission .settle-button{flex:1 0 100%;padding:11px 14px}.settle-button>small{font-size:8px}.settle-button>span{font-size:11px}}
+@media(max-width:680px){.mode-bar{margin:-3px 3px 12px;min-height:42px}.mode-switch{gap:3px}.mode-switch button{padding:10px 8px;font-size:10px;letter-spacing:.5px}.mode-switch button>span{font-size:7px;margin-right:4px}.mode-switch button small{font-size:6px;letter-spacing:.2px;margin-left:4px}.mode-bar>span{display:none}.mission-panel{padding:14px 12px 10px;margin-bottom:12px}.mission-heading{align-items:flex-start;gap:7px}.mission-heading>div{gap:7px;flex-wrap:wrap}.mission-heading>div:first-child{max-width:64%;align-items:center}.mission-heading>div>span{font-size:6px;letter-spacing:.5px;flex-basis:100%}.mission-heading h2{font-size:13px;letter-spacing:1px}.mission-heading b{font-size:6px;padding:3px 4px}.mission-heading>div:last-child{flex-direction:column;align-items:stretch;gap:5px}.mission-heading button{font-size:8px;padding:5px 7px}.flight-instruments{gap:15px 10px;margin:19px 0 17px}.flight-metric>span{font-size:7px;letter-spacing:.3px}.flight-metric strong{font-size:16px;letter-spacing:-.6px}.flight-metric.primary strong{font-size:20px}.flight-metric.score strong{font-size:18px}.flight-metric p{gap:3px;margin-top:8px}.flight-metric p>small{font-size:6px}.flight-progress-labels{font-size:6px}.flight-ship{width:47px;top:-5px}.mission-bottom{font-size:7px;line-height:1.8;margin-top:10px;padding-top:7px}.mission-bottom>span:last-child{font-size:6px}.challenge-dialog .dialog-body{padding:19px 16px}.challenge-dialog h2{font-size:18px;letter-spacing:1px}.challenge-dialog .manual-kicker{font-size:7px;letter-spacing:1px}.challenge-cards{gap:8px;margin:17px 0}.challenge-card{padding:13px 11px}.challenge-card>span{font-size:6px;letter-spacing:.6px}.challenge-card>b{font-size:14px;margin:10px 0 13px}.challenge-card>strong{font-size:27px;letter-spacing:-1px}.challenge-card>strong>small{font-size:7px;display:block;letter-spacing:0;margin-top:5px}.challenge-card>p{font-size:8px;line-height:1.8}.challenge-card>em{font-size:7px}.challenge-card.selected:after{font-size:10px;right:8px;top:10px}.challenge-loadout{grid-template-columns:1fr;gap:20px}.challenge-loadout label{font-size:9px}.challenge-loadout input{margin-top:17px}.challenge-loadout p{margin-top:8px;font-size:7px}.loadout-propellants{margin-top:9px}.loadout-propellants button{display:flex;flex-wrap:nowrap;gap:7px;font-size:9px}.loadout-propellants b{font-size:16px}.loadout-propellants span{flex-basis:auto;font-size:7px}.loadout-summary{gap:8px;flex-wrap:wrap;font-size:7px;padding:9px;margin-top:14px}.loadout-summary b{font-size:8px;margin-left:3px}.challenge-brief{font-size:9px;padding:13px 0}.launch-challenge{font-size:10px;padding:11px 13px}.dialog-body .challenge-switch-note{font-size:7px;line-height:1.9}.rules-body dd{font-size:10px}.rules-body dt{font-size:10px}.result-score{padding:18px 0;gap:10px}.result-score>strong{font-size:45px}.result-score>span{font-size:6px;letter-spacing:1px}.result-metrics{gap:15px 10px}.result-metrics span{font-size:7px}.result-metrics strong{font-size:11px}.score-row{font-size:8px;padding:10px}.score-row b{font-size:9px}.score-row small{font-size:6px;margin-left:4px}.result-formula{font-size:6px}.result-actions{gap:8px}.result-actions>button{font-size:9px;padding:10px 5px}.result-actions>button:last-child{font-size:9px}}
+
+</style>
+  
+  
+  
+</head>
+<body>
+  <div class="utility-bar"><span><i class="tiny-light green on"></i> DEEP SPACE PROPULSION LABORATORY</span><span class="utility-right">EXPERIMENTAL SYSTEMS DIVISION <b>／</b> EST. 1963</span></div>
+  <main class="console">
+    <header class="masthead">
+      <div class="identity"><div class="mission-symbol" aria-hidden="true">✳</div><div><div class="wordmark">NERVA<span>—</span><small>SIMULATOR</small></div><p>核热推进试验控制台 <span>NUCLEAR THERMAL ROCKET</span></p></div></div>
+      <div class="header-tools"><div class="session"><span>试验序列 / TEST NO.</span><strong>NT–024 <i>●</i></strong></div><button class="outline-button" id="manualButton"><span>▤</span> 操作手册 <kbd>?</kbd></button></div>
+    </header>
+
+    <nav class="mode-bar" aria-label="游戏模式"><div class="mode-switch"><button id="sandboxModeButton" class="active" aria-pressed="true"><span>01</span> 沙盒模式 <small>SANDBOX</small></button><button id="challengeModeButton" aria-pressed="false"><span>02</span> 挑战模式 <small>CHALLENGE</small></button></div><span id="modeDescription">自由试车 · 自定义参数与故障</span></nav>
+
+    <section class="mission-panel" id="missionPanel" aria-label="飞船变轨进度" hidden>
+      <div class="mission-heading"><div><span id="missionCode">01 / ENDURANCE</span><h2 id="missionName">无限加速</h2><b id="missionStage">冷态准备</b></div><div><button id="challengeRulesButton">计分规则</button><button id="newChallengeButton">新挑战 ↗</button></div></div>
+      <div class="flight-instruments">
+        <div class="flight-metric primary"><span>已获得速度增量 <small>DELTA-V</small></span><p><strong id="flightDv">0.00</strong><small>m/s</small></p></div>
+        <div class="flight-metric"><span id="flightTargetLabel">挑战目标</span><p><strong id="flightTarget">∞</strong><small id="flightTargetUnit">MAX Δv</small></p></div>
+        <div class="flight-metric"><span>当前加速度</span><p><strong id="flightAcceleration">0.000</strong><small>m/s²</small></p></div>
+        <div class="flight-metric"><span>飞行距离</span><p><strong id="flightDistance">0.00</strong><small>km</small></p></div>
+        <div class="flight-metric"><span>飞船总质量</span><p><strong id="flightMass">20.00</strong><small>t</small></p></div>
+        <div class="flight-metric score"><span id="flightScoreLabel">当前预计得分</span><p><strong id="flightScore">0</strong><small>PTS</small></p></div>
+      </div>
+      <div class="flight-progress"><div class="flight-rail"><div class="flight-rail-fill" id="flightProgressFill"></div><span class="flight-start">✦</span><div class="flight-ship" id="flightShip" aria-label="模拟飞船"><svg viewBox="0 0 76 28" aria-hidden="true"><path class="ship-plume" d="M19 9 0 14 19 19" fill="#b9d290" opacity=".6"/><path d="M18 6h12v16H18l5-8z" fill="#687b5c" stroke="#c8d3ac"/><path d="M30 8h24l10 6-10 6H30z" fill="#c4c5a2" stroke="#e2dfbb"/><path d="m42 8-5-6H27l5 6m10 12-5 6H27l5-6" fill="#64785a" stroke="#b4c4a0"/><path d="M48 9v10M34 9v10" stroke="#64785a"/><circle cx="55" cy="14" r="2" fill="#293e2a"/></svg></div><span class="flight-end" id="flightEndMarker">∞</span></div><div class="flight-progress-labels"><span id="flightProgressLabel">推进剂使用进度 0.0%</span><b id="flightError">尽可能获得更高 Δv</b></div></div>
+      <div class="mission-bottom"><span id="flightHint">冷启动：开启泵与冷却 → 设置主阀和功率 → 启动试车</span><span id="flightMassNote">干重＋载荷 10.00 t · 推进剂 10.00 t · 一维真空变轨</span></div>
+    </section>
+
+    <section class="instrument-rack" aria-label="核热推进控制台">
+      <div class="rack-heading"><div><i class="tiny-light green on" id="runLed"></i><strong id="runState">稳定运行</strong><span class="rack-caption">GROUND TEST OPERATIONS</span></div><div class="test-clock"><span>试验计时</span><b id="missionTime">T+ 00:00:00</b><button id="pauseButton" title="暂停 / 继续模拟（空格）" aria-label="暂停模拟">Ⅱ</button><button id="speedButton" title="切换模拟速度">1×</button></div></div>
+
+      <div class="telemetry-strip" aria-label="实时遥测">
+        <div class="telemetry"><div>推力 <span>THRUST</span><i class="tiny-light green on"></i></div><p><strong id="thrustValue">00.0</strong><small>kN</small></p><div class="meter-track"><i id="thrustBar"></i></div></div>
+        <div class="telemetry"><div>热功率 <span>THERMAL POWER</span></div><p><strong id="powerValue">000</strong><small>MW</small></p><div class="meter-track"><i id="powerBar"></i></div></div>
+        <div class="telemetry"><div>堆芯温度 <span>CORE TEMP.</span></div><p><strong id="temperatureValue">0000</strong><small>K</small></p><div class="meter-track"><i id="temperatureBar"></i></div></div>
+        <div class="telemetry"><div>腔室压力 <span>CHAMBER PRESS.</span></div><p><strong id="pressureValue">0.00</strong><small>MPa</small></p><div class="meter-track"><i id="pressureBar"></i></div></div>
+        <div class="telemetry"><div>推进剂流量 <span>MASS FLOW</span></div><p><strong id="flowValue">00.00</strong><small>kg/s</small></p><div class="meter-track"><i id="flowBar"></i></div></div>
+        <div class="telemetry"><div>排气速度 <span>EXHAUST VEL.</span></div><p><strong id="velocityValue">0.00</strong><small>km/s</small></p><div class="meter-track"><i id="velocityBar"></i></div></div>
+      </div>
+
+      <div class="main-panels">
+        <section class="panel analog-panel">
+          <div class="panel-title"><span><b>01</b> 主仪表</span><small>PRIMARY</small></div>
+          <div class="analog-gauge"><svg id="temperatureGauge" viewBox="0 0 240 166" role="img" aria-label="堆芯温度模拟仪表"></svg><div class="gauge-caption">堆芯温度 <span>× 10³ K</span></div></div>
+          <div class="analog-gauge pressure-gauge"><svg id="pressureGauge" viewBox="0 0 240 166" role="img" aria-label="腔室压力模拟仪表"></svg><div class="gauge-caption">腔室压力 <span>MPa</span></div></div>
+          <div class="tank-display"><div><span>推进剂余量</span><b id="tankPercent">100.0%</b></div><div class="tank-track" id="tankSegments" aria-label="推进剂余量"></div><div class="tank-meta"><span id="tankLabel">LH₂ / 液氢</span><span id="tankMass">6,000 kg</span></div></div>
+          <div class="engraved-note">FLIGHT INSTRUMENTS · TYPE 04-B</div>
+        </section>
+
+        <section class="panel mfd-panel">
+          <div class="panel-title"><span><b>02</b> 多功能显示器</span><small>MFD–01 <i class="tiny-light green on"></i></small></div>
+          <div class="mfd-bezel"><div class="crt-screen"><div class="crt-topline"><span id="mfdTitle">SYS / 系统总览</span><span id="mfdStatus">● TELEMETRY LIVE</span></div><canvas id="mfdCanvas" aria-label="发动机结构、热力状态及趋势可视化"></canvas><div class="crt-bottomline"><span id="screenHint">NTR–II · CLOSED EXPANDER CYCLE</span><span id="screenTime">00:00:00</span></div><div class="screen-grain"></div></div><div class="mfd-softkeys" role="tablist" aria-label="MFD 显示页面"><button role="tab" aria-selected="true" data-page="overview" class="selected"><span>F1</span>系统总览</button><button role="tab" aria-selected="false" data-page="thermal"><span>F2</span>热力回路</button><button role="tab" aria-selected="false" data-page="propulsion"><span>F3</span>推进性能</button><button role="tab" aria-selected="false" data-page="trend"><span>F4</span>遥测趋势</button><button role="tab" aria-selected="false" data-page="diagnostics"><span>F5</span>故障诊断</button></div></div>
+          <div class="mfd-foot"><span><i class="tiny-light green on"></i> DATA LINK ESTABLISHED</span><span>DISPLAY UNIT 004 / REV. C</span></div>
+        </section>
+
+        <section class="panel annunciator-panel">
+          <div class="panel-title"><span><b>03</b> 状态与告警</span><small>ANNUNCIATOR</small></div>
+          <div class="lamp-matrix" id="lampMatrix" aria-label="状态和故障指示灯矩阵"></div>
+          <div class="lamp-legend"><span><i class="tiny-light green on"></i>正常</span><span><i class="tiny-light blue on"></i>就绪</span><span><i class="tiny-light yellow on"></i>预警</span><span><i class="tiny-light amber on"></i>注意</span><span><i class="tiny-light red on"></i>故障</span></div>
+          <div class="annunciator-actions"><button id="lampTestButton" class="small-button">指示灯测试</button><button id="ackButton" class="small-button">告警确认 <span>ACK</span></button></div>
+          <div class="log-heading"><span>事件记录</span><span>EVENT LOG <i class="tiny-light amber on"></i></span></div>
+          <div class="event-log" id="eventLog" role="log" aria-label="试验事件记录"></div>
+        </section>
+      </div>
+
+      <div class="lower-panels">
+        <section class="panel configuration-panel">
+          <div class="panel-title"><span><b>04</b> 发动机配置</span><small>CONFIGURATION</small></div>
+          <div class="config-content"><div class="propellant-selector"><span class="control-label">推进剂 <small>PROPELLANT</small></span><div class="segmented" role="group" aria-label="选择推进剂"><button id="hydrogenButton" class="active" aria-pressed="true"><b>H₂</b><span>液氢<small>LIQUID HYDROGEN</small></span></button><button id="waterButton" aria-pressed="false"><b>H₂O</b><span>水<small>WATER / STEAM</small></span></button></div></div><div class="size-control"><label class="control-label" for="sizeSlider">堆芯直径 <output id="sizeOutput">1.40 <small>m</small></output></label><input id="sizeSlider" type="range" min="0.8" max="2.4" step="0.05" value="1.4"><div class="range-labels"><span>0.8 m</span><span>2.4 m</span></div><p>额定热功率 <strong id="ratedPower">600</strong> MW <span>／</span> <span id="engineMass">3,800</span> kg</p></div></div>
+        </section>
+
+        <section class="panel power-panel">
+          <div class="panel-title"><span><b>05</b> 功率与流量控制</span><small>ENGINE CONTROL</small></div>
+          <div class="power-content"><div class="sliders"><div><label class="control-label" for="powerSlider">反应堆功率 <output id="powerOutput">60 <small>%</small></output></label><input id="powerSlider" type="range" min="0" max="100" step="1" value="60"><div class="range-labels"><span>IDLE</span><span>REACTOR DEMAND</span><span>MAX</span></div></div><div><label class="control-label" for="valveSlider">主阀开度 <output id="valveOutput">70 <small>%</small></output></label><input id="valveSlider" type="range" min="0" max="100" step="1" value="70"><div class="range-labels"><span>CLOSED</span><span>PROPELLANT VALVE</span><span>OPEN</span></div></div></div><div class="switch-bank"><button class="toggle-control on" id="pumpToggle" aria-pressed="true"><span>推进剂泵</span><i><em></em></i><small>FEED PUMP</small></button><button class="toggle-control on" id="coolingToggle" aria-pressed="true"><span>冷却回路</span><i><em></em></i><small>COOLANT</small></button><button class="toggle-control on" id="autoToggle" aria-pressed="true"><span>自动保护</span><i><em></em></i><small>AUTO TRIP</small></button></div></div>
+        </section>
+
+        <section class="panel operations-panel">
+          <div class="panel-title"><span><b>06</b> 试验操作</span><small>OPERATIONS</small></div>
+          <div class="operations-content"><button class="run-button" id="runButton"><i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span></button><button class="scram-button" id="scramButton"><span>紧急停堆</span><b>SCRAM</b></button><div class="operation-secondary"><button id="faultButton">⚡ 故障注入</button><button id="resetButton">↺ 重置试验</button></div><button id="settleButton" class="settle-button" hidden><span>结算本次变轨</span><small id="settleHint">堆芯需低于 800 K</small><b>↗</b></button></div>
+        </section>
+      </div>
+      <div class="rack-footer"><span><i class="tiny-light green on" id="healthLed"></i><b id="healthText">所有子系统正常</b><span class="footer-divider">│</span><span id="footerPropellant">LH₂ CYCLE</span></span><span>INTERACTIVE ENGINEERING DEMO <b>·</b> SIMULATION MODEL / 非工程计算</span></div>
+      <i class="rack-screw s1"></i><i class="rack-screw s2"></i><i class="rack-screw s3"></i><i class="rack-screw s4"></i>
+    </section>
+    <footer class="page-footer"><span><b>☢</b> NUCLEAR THERMAL PROPULSION PROGRAM</span><span>DESIGNED FOR THE NEXT FRONTIER. <span class="footer-serial">S/N 1963–024</span></span></footer>
+  </main>
+
+  <dialog id="challengeDialog" class="challenge-dialog"><div class="dialog-top"><span>FLIGHT ASSIGNMENT / 选择挑战任务</span><button data-close="challengeDialog" aria-label="关闭挑战选择">×</button></div><div class="dialog-body"><span class="manual-kicker">10 TONNE SPACECRAFT · TWO WAYS TO FLY</span><h2>把热量，变成你的航程。</h2><p>一艘干重与载荷共 10 吨的飞船。选定推进剂，配置反应堆，从冷态完成一次真空变轨。</p><div class="challenge-cards" role="group" aria-label="挑战类型"><button class="challenge-card selected" data-challenge="endurance" aria-pressed="true"><span>01 / ENDURANCE</span><b>无限加速</b><strong>∞ <small>Δv</small></strong><p>给定推进剂，跑出尽可能高的速度增量。</p><em>每 1 m/s = 10 分</em></button><button class="challenge-card" data-challenge="precision" aria-pressed="false"><span>02 / PRECISION</span><b>精确入轨注入</b><strong>2.8 <small>km/s ±50m/s</small></strong><p>精确靠近随机目标，节约推进剂。</p><em>10,000 基础分 + 剩余推进剂</em></button></div><div class="challenge-loadout"><div><label>任务推进剂 <small>PROPELLANT · 开局后锁定</small></label><div class="loadout-propellants"><button data-loadout="hydrogen" class="selected" aria-pressed="true"><b>LH₂</b>液氢 <span>10,000 kg</span></button><button data-loadout="water" aria-pressed="false"><b>H₂O</b>水 <span>30,000 kg</span></button></div></div><div><label for="challengeSizeSlider">堆芯直径 <output id="challengeSizeOutput">1.40 m</output></label><input id="challengeSizeSlider" type="range" min="0.8" max="2.4" step="0.05" value="1.4"><div class="range-labels"><span>0.80 m</span><span id="challengeRatedPower">600 MW</span><span>2.40 m</span></div><p>首次点火前可调整；点火后尺寸锁定。</p></div></div><div class="loadout-summary"><span>起飞总质量 <b id="loadoutMass">20.00 t</b></span><span>冷机 <b>293 K / 20°C</b></span><span>初始功率与 Δv <b>0</b></span></div><div class="challenge-brief" id="challengeBrief">每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。</div><button id="beginChallengeButton" class="launch-challenge">装载任务 · 进入冷态准备 <span>→</span></button><p class="challenge-switch-note">装载新任务会重置当前试验。准备阶段不计时，首次点火后计时；推进剂在本局中无法切换。</p></div></dialog>
+
+  <dialog id="rulesDialog"><div class="dialog-top"><span>SCORING PROTOCOL / 挑战计分规则</span><button data-close="rulesDialog" aria-label="关闭计分规则">×</button></div><div class="dialog-body rules-body"><h2>每一次操作，都有代价。</h2><dl><dt>01 / 无限加速</dt><dd>基础分 = 最终 Δv（m/s）× 10。</dd><dt>02 / 精确入轨注入</dt><dd>每局抽取 2,750–2,850 m/s 的整数目标。原始分 = 10,000 + 剩余推进剂（kg）；绝对误差每 1 m/s 扣 1%，误差达到 100 m/s 得分归零。</dd><dt>共用修正</dt><dd>时间系数 = max(0, 1 − 任务秒数 ÷ 10,000)。每运行 100 秒扣 1%。<br>耐久系数 = 1 − (100 − 剩余耐久百分比) × 0.005。每损失 10% 耐久扣 5%。<br>各系数相乘，按连续比例计算，最终分向下取整且不低于 0。</dd><dt>计时与结算</dt><dd>首次点火至结算为任务用时，包含冷却与滑行；暂停不计时，加速按模拟时间计。堆芯必须低于 800 K 方可结算。推进剂耗尽或堆芯损毁后，自动停堆，达到温度条件后自动结算。</dd><dt>飞船与燃料</dt><dd>干重＋载荷固定为 10,000 kg（含发动机）。液氢初装 10,000 kg，水初装 30,000 kg。由实时推力与变化的总质量积分加速度、Δv 和距离。变轨为一维真空加速，不含引力与轨道几何。</dd></dl><p class="model-note">冷态功率、推力、压力、流量、加速度和 Δv 均为 0；温度使用开尔文，冷机约 293 K（20°C）。手动结算会结束本局；故障注入和保护开关仍可使用。</p></div></dialog>
+
+  <dialog id="resultDialog" class="result-dialog"><div class="dialog-top"><span>MISSION DEBRIEF / 变轨结算</span><button data-close="resultDialog" aria-label="关闭结算报告">×</button></div><div class="dialog-body"><span class="manual-kicker" id="resultMission">ENDURANCE / LH₂</span><h2 id="resultTitle">变轨已完成。</h2><div class="result-score"><strong id="resultTotal">0</strong><span>FINAL SCORE</span></div><div id="resultMetrics" class="result-metrics"></div><div class="score-breakdown" id="scoreBreakdown"></div><p id="resultFormula" class="result-formula"></p><div class="result-actions"><button id="retryChallengeButton" class="primary-dialog-button">再挑战一次 ↗</button><button id="reviewFlightButton">返回控制台复盘</button></div></div></dialog>
+
+  <dialog id="faultDialog"><div class="dialog-top"><span>故障注入 / FAULT INJECTION</span><button data-close="faultDialog" aria-label="关闭">×</button></div><div class="dialog-body"><h2>没有完美的试车。</h2><p>向正在运行的系统注入故障，观察温度、压力和推力的连锁变化。自动保护开启时，超限将触发紧急停堆。</p><div id="faultOptions" class="fault-options"></div><div class="dialog-actions"><button id="repairButton" class="primary-dialog-button">修复全部故障</button><span>也可在 MFD「故障诊断」中查看详情</span></div></div></dialog>
+  <dialog id="manualDialog"><div class="dialog-top"><span>操作手册 / OPERATOR HANDBOOK</span><button data-close="manualDialog" aria-label="关闭">×</button></div><div class="dialog-body manual-body"><span class="manual-kicker">NERVA · NT–024</span><h2>下一次点火，由你指挥。</h2><p>沙盒保留原有 60% 功率试车。挑战从零功率冷机开始：先打开推进剂泵与冷却回路，再将主阀设为约 70%、功率设为约 60%，执行启动。提前降功率，留意停机后余热仍会贡献 Δv。</p><ol><li><b>沙盒与挑战</b><span>顶部可选择自由沙盒，或「无限加速」「精确入轨注入」。挑战中推进剂锁定，堆芯尺寸在首次点火前可调；点火后锁定。</span></li><li><b>调节与观察</b><span>提高功率会先增加产热，随后堆芯温度和排气速度逐渐升高。增大主阀开度会增加流量，同时降低温度。飞船质量随推进剂消耗下降，相同推力会产生更高加速度。</span></li><li><b>处理故障</b><span>注入泵故障、冷却失效、管路泄漏、阀门卡滞或温度传感器漂移。确认告警可停止闪烁，修复故障后可重新启动。</span></li><li><b>停堆与结算</b><span>停机后保持冷却回路运行，堆芯低于 800 K 才可结算。关闭主阀能减少推进剂消耗，独立闭式冷却回路仍可带走余热。精确挑战尤其需要预留停机过程产生的额外 Δv。</span></li></ol><div class="keyboard-guide"><span><kbd>Space</kbd>暂停</span><span><kbd>1–5</kbd>切换 MFD</span><span><kbd>Esc</kbd>关闭窗口</span><span><kbd>?</kbd>操作手册</span></div><p class="model-note">演示模型使用集总热容、质量流量与理想喷管近似，含简化水汽化能耗。未模拟中子学、真实燃料材料和水的高温化学；水模式为假设性演示。仅用于交互与概念探索。<a href="https://www.nasa.gov/space-technology-mission-directorate/tdm/space-nuclear-propulsion/" target="_blank" rel="noreferrer">参考：NASA 核热推进原理 ↗</a></p></div></dialog>
+  <div id="toast" class="toast" role="status"></div>
+<script>
+/* A deliberately simplified, deterministic thermal / fluid model for the demo.
+   Units inside the model: s, K, MPa, MW, kg/s, m/s, kN. No neutronics model. */
+(function (root) {
+  'use strict';
+  const PROPELLANTS = {
+    hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, cp: 12000, latent: 0, gasConstant: 4124, gamma: 1.4, ratedFlow: 16, capacity: 6000 },
+    water: { label: '水', symbol: 'H₂O', inlet: 293, cp: 4600, latent: 2300000, gasConstant: 461.5, gamma: 1.27, ratedFlow: 45, capacity: 14000 }
+  };
+  const FAULTS = {
+    pump: { title: '推进剂泵失速', code: 'P–021', description: '泵转速下降，供液与压力衰减，堆芯冷却不足。', remedy: '紧急停堆并修复推进剂泵；保持冷却回路运行。' },
+    cooling: { title: '冷却回路失效', code: 'T–014', description: '再生冷却效率下降，堆芯与喷管温度升高。', remedy: '降低功率或停堆，修复冷却回路。' },
+    leak: { title: '推进剂管路泄漏', code: 'F–032', description: '部分推进剂流失，喷管流量下降，储量消耗加快。', remedy: '停止试车，修复管路并检查剩余推进剂。' },
+    valve: { title: '主阀卡滞', code: 'V–008', description: '主阀卡在 28% 开度，控制指令与实际流量不符。', remedy: '降低反应堆功率，停堆检修主阀。' },
+    sensor: { title: '温度传感器漂移', code: 'S–006', description: '温度读数偏高 280 K；独立保护传感器仍正常。', remedy: '对照诊断页的独立温度通道，校准或更换传感器。' }
+  };
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const approach = (a, b, dt, tau) => a + (b - a) * (1 - Math.exp(-dt / tau));
+
+  class NTRSimulation {
+    constructor() { this.events = []; this.eventId = 0; this.reset(false); }
+    get prop() { return PROPELLANTS[this.propellant]; }
+    get scale() { return (this.diameter / 1.4) ** 2; }
+    get ratedPower() { return 600 * this.scale; }
+    get ratedFlow() { return this.prop.ratedFlow * this.scale; }
+    get engineMass() { return 3800 * (this.diameter / 1.4) ** 2.6; }
+    get fuelCapacity() { return this.tankCapacity || this.prop.capacity; }
+    get fuelPercent() { return this.fuel / this.fuelCapacity * 100; }
+    get measuredTemperature() { return this.coreTemperature + (this.faults.has('sensor') ? 280 : 0); }
+    get isActive() { return this.mode === 'RUNNING' || this.mode === 'STARTING'; }
+    get canConfigure() { return !this.isActive && this.power < 5; }
+
+    reset(cold = true) {
+      this.time = 0; this.propellant = 'hydrogen'; this.diameter = 1.4;
+      this.demand = 60; this.valve = 70; this.pump = true; this.cooling = true; this.autoProtection = true;
+      this.tankCapacity = null; this.propellantLocked = false; this.diameterLocked = false; this.controlsLocked = false;
+      this.faults = new Set(); this.acknowledged = false; this.integrity = 100;
+      this.fuel = this.prop.capacity; this.mode = cold ? 'STANDBY' : 'RUNNING';
+      this.power = cold ? 0 : 360; this.flow = cold ? 0 : this.ratedFlow * .7;
+      this.feedFlow = this.flow; this.coreTemperature = cold ? 293 : this.equilibriumTemperature();
+      this.pressure = 0; this.exhaustVelocity = 0; this.thrust = 0; this.isp = 0;
+      this.coolantTemperature = cold ? 293 : 475; this.decayPower = 0; this.protectionTimer = 0;
+      this.totalImpulse = 0; this.consumed = 0; this.history = []; this.sampleTimer = 0;
+      this.events = []; this.eventId = 0; this.updatePerformance(); this.recordSample();
+      this.log(cold ? '试验复位 · 待机就绪' : '试验开始 · 60% 额定功率');
+      this.log('冷却回路 / 推进剂泵 已上线');
+      this.log('遥测连接已建立 · 系统自检通过');
+    }
+
+    log(message, severity = 'info') {
+      this.events.unshift({ id: ++this.eventId, time: this.time, message, severity });
+      this.events = this.events.slice(0, 80);
+    }
+
+    equilibriumTemperature() {
+      // The closed coolant loop can remove residual heat after the feed tank is empty.
+      if (!this.isActive && this.flow < this.ratedFlow * .01 && this.cooling && !this.faults.has('cooling')) {
+        return clamp(293 + this.power / this.ratedPower * 2200, 293, 4900);
+      }
+      const available = this.power * 1e6 / Math.max(this.flow, .05);
+      const gasTemp = this.prop.inlet + Math.max(0, available - this.prop.latent) / this.prop.cp;
+      const coolingPenalty = (!this.cooling || this.faults.has('cooling')) ? 600 * Math.min(1, this.power / Math.max(1, this.ratedPower * .2)) : 0;
+      return clamp(gasTemp + (this.power > .1 ? 180 : 0) + coolingPenalty, 293, 4900);
+    }
+
+    start() {
+      if (this.controlsLocked) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
+      if (this.isActive) return { ok: false, message: '发动机已在运行' };
+      if (this.integrity <= 0) return { ok: false, message: '堆芯受损，请重置试验' };
+      if (this.faults.size) return { ok: false, message: '请先修复故障，再重新启动' };
+      if (!this.pump || !this.cooling) return { ok: false, message: '启动联锁：请开启推进剂泵和冷却回路' };
+      if (this.fuel < 10) return { ok: false, message: '推进剂不足，请重置试验' };
+      if (this.valve < 15) return { ok: false, message: '启动联锁：主阀开度至少需要 15%' };
+      if (this.demand === 0) this.demand = 30;
+      this.mode = 'STARTING'; this.acknowledged = false; this.protectionTimer = 0;
+      this.log('启动序列执行 · 供液 / 功率爬升');
+      return { ok: true, message: '启动序列已执行' };
+    }
+
+    shutdown() {
+      if (!this.isActive) return { ok: false, message: '发动机已处于停堆状态' };
+      this.mode = 'SHUTDOWN'; this.decayPower = this.power * .015;
+      this.log('正常停机 · 保持供液与余热冷却', 'warning');
+      return { ok: true, message: '正常停机中，正在带走余热' };
+    }
+
+    scram(reason = '操作员执行紧急停堆') {
+      if (this.mode === 'SCRAM' || this.mode === 'DAMAGED') return { ok: false, message: '紧急停堆已执行' };
+      this.decayPower = Math.max(this.decayPower, this.power * .025);
+      this.mode = 'SCRAM'; this.acknowledged = false;
+      this.log(reason + ' · SCRAM', 'danger');
+      return { ok: true, message: '紧急停堆已执行，冷却回路保持当前状态' };
+    }
+
+    configure(type, diameter) {
+      if (this.controlsLocked) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
+      if (this.propellantLocked && type !== this.propellant) return { ok: false, message: '挑战中推进剂已锁定；请开始新挑战以更换推进剂' };
+      if (this.diameterLocked && diameter !== this.diameter) return { ok: false, message: '首次点火后发动机尺寸锁定；请在新挑战准备阶段调整' };
+      if (!this.canConfigure) return { ok: false, message: '配置联锁：请先正常停机，等待热功率低于 5 MW' };
+      if (!PROPELLANTS[type] || !Number.isFinite(diameter)) return { ok: false, message: '配置参数无效' };
+      if (this.propellant !== type) {
+        this.propellant = type; this.fuel = this.prop.capacity; this.consumed = 0;
+        this.log('推进剂切换为 ' + this.prop.symbol + ' / ' + this.prop.label);
+      }
+      if (this.diameter !== diameter) {
+        this.diameter = clamp(diameter, .8, 2.4);
+        this.log('堆芯直径设定 ' + this.diameter.toFixed(2) + ' m');
+      }
+      return { ok: true, message: '发动机配置已更新' };
+    }
+
+    injectFault(key) {
+      if (!FAULTS[key] || this.faults.has(key)) return false;
+      this.faults.add(key); this.acknowledged = false;
+      this.log(FAULTS[key].code + ' ' + FAULTS[key].title, 'danger');
+      return true;
+    }
+
+    repairFault(key) {
+      if (!this.faults.delete(key)) return false;
+      this.log(FAULTS[key].title + ' · 已修复');
+      if (!this.faults.size) this.acknowledged = false;
+      return true;
+    }
+
+    repairAll() {
+      if (!this.faults.size) return false;
+      this.faults.clear(); this.acknowledged = false; this.protectionTimer = 0;
+      this.log('全部故障已修复 · 检修完成');
+      return true;
+    }
+
+    setSwitch(key, value) {
+      if (!['pump', 'cooling', 'autoProtection'].includes(key)) return;
+      this[key] = Boolean(value);
+      const labels = { pump: '推进剂泵', cooling: '冷却回路', autoProtection: '自动保护' };
+      this.log(labels[key] + (value ? ' · 开启' : ' · 关闭'), value ? 'info' : 'warning');
+    }
+
+    acknowledge() {
+      this.acknowledged = true;
+      this.log('操作员确认告警 · 故障状态保留', 'warning');
+    }
+
+    updatePerformance() {
+      const gasTemp = Math.max(this.prop.inlet, this.coreTemperature - 180);
+      const targetPressure = this.flow / this.ratedFlow * Math.sqrt(gasTemp / 2600) * 5.8;
+      this.pressure = Math.max(0, targetPressure);
+      const expansion = this.pressure > .005 ? 1 - (.002 / this.pressure) ** ((this.prop.gamma - 1) / this.prop.gamma) : 0;
+      this.exhaustVelocity = this.flow > .01 ? Math.sqrt(Math.max(0, 2 * this.prop.gamma / (this.prop.gamma - 1) * this.prop.gasConstant * gasTemp * expansion)) * .96 : 0;
+      this.thrust = this.flow * this.exhaustVelocity / 1000;
+      this.isp = this.exhaustVelocity / 9.80665;
+    }
+
+    tick(delta) {
+      if (!Number.isFinite(delta) || delta <= 0) return;
+      // Substeps preserve protection timing and thermal stability at 5× time.
+      let remaining = Math.min(delta, 5);
+      while (remaining > 1e-8) { const dt = Math.min(.05, remaining); this.step(dt); remaining -= dt; }
+    }
+
+    step(dt) {
+      this.time += dt;
+      if (this.mode === 'DAMAGED') { this.power = approach(this.power, 0, dt, .4); }
+      else {
+        const demand = this.isActive ? this.ratedPower * this.demand / 100 : this.decayPower;
+        this.power = approach(this.power, demand, dt, this.mode === 'SCRAM' ? .25 : this.isActive ? 3.8 : 3.3);
+      }
+      this.decayPower *= Math.exp(-dt / 24);
+      const valve = this.faults.has('valve') ? 28 : this.valve;
+      const pumpEfficiency = !this.pump || this.fuel <= 0 ? 0 : this.faults.has('pump') ? .23 : 1;
+      const purgeFactor = this.isActive ? 1 : this.coreTemperature > 480 ? .35 : 0;
+      const feedTarget = this.ratedFlow * valve / 100 * pumpEfficiency * purgeFactor;
+      this.feedFlow = approach(this.feedFlow, feedTarget, dt, 1.1);
+      // No thrust or mass flow may be generated by propellant that does not exist.
+      this.feedFlow = Math.min(this.feedFlow, Math.max(0, this.fuel / dt));
+      this.flow = this.feedFlow * (this.faults.has('leak') ? .57 : 1);
+      const desiredCore = this.equilibriumTemperature();
+      this.coreTemperature = approach(this.coreTemperature, desiredCore, dt, this.flow > .1 ? 7.5 : 18);
+      this.coolantTemperature = approach(this.coolantTemperature, 293 + (this.coreTemperature - 293) * ((!this.cooling || this.faults.has('cooling')) ? .22 : .075), dt, 6);
+      const used = Math.min(this.fuel, this.feedFlow * dt);
+      this.fuel = Math.max(0, this.fuel - used); this.consumed += used;
+      this.updatePerformance(); this.totalImpulse += this.thrust * dt;
+      if (this.mode === 'STARTING' && Math.abs(this.power - this.ratedPower * this.demand / 100) < Math.max(2, this.ratedPower * .02)) {
+        this.mode = 'RUNNING'; this.log('启动序列完成 · 进入稳定运行');
+      }
+      if (this.mode === 'SHUTDOWN' && this.power < 1 && this.coreTemperature < 500) {
+        this.mode = 'STANDBY'; this.log('停机完成 · 系统待机');
+      }
+      const danger = this.coreTemperature > 3200 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuel <= 0 ? '自动保护：推进剂耗尽' : null;
+      this.protectionTimer = danger ? this.protectionTimer + dt : 0;
+      if (this.autoProtection && this.isActive && this.protectionTimer > .75) this.scram(danger);
+      if (this.coreTemperature > 3400) this.integrity = Math.max(0, this.integrity - (this.coreTemperature - 3400) / 75 * dt);
+      if (this.integrity <= 0 && this.mode !== 'DAMAGED') {
+        this.mode = 'DAMAGED'; this.decayPower = 0; this.acknowledged = false;
+        this.log('堆芯结构失效 · 试验终止，请重置', 'danger');
+      }
+      this.sampleTimer += dt;
+      if (this.sampleTimer >= .5) { this.sampleTimer -= .5; this.recordSample(); }
+    }
+
+    recordSample() {
+      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.flow });
+      if (this.history.length > 240) this.history.shift();
+    }
+
+    get lamps() {
+      const hot = this.measuredTemperature > 3050;
+      return [
+        ['reactor', '反应堆', 'REACTOR', 'green', this.isActive && this.power > 10],
+        ['pump', '供液泵', 'FEED PUMP', 'green', this.pump && !this.faults.has('pump')],
+        ['cooling', '冷却回路', 'COOLANT', 'green', this.cooling && !this.faults.has('cooling')],
+        ['telemetry', '遥测在线', 'TELEMETRY', 'green', true],
+        ['hydrogen', '液氢模式', 'LH2 CYCLE', 'blue', this.propellant === 'hydrogen'],
+        ['water', '水汽模式', 'H2O CYCLE', 'blue', this.propellant === 'water'],
+        ['auto', '自动保护', 'AUTO TRIP', 'blue', this.autoProtection],
+        ['ready', '启动就绪', 'SYS READY', 'blue', this.integrity > 0 && !this.faults.size && this.pump && this.cooling && this.fuel > 10],
+        ['tempHigh', '温度过高', 'TEMP HIGH', 'yellow', hot],
+        ['pressureHigh', '压力过高', 'PRES HIGH', 'yellow', this.pressure > 6.5],
+        ['fuelLow', '储量不足', 'TANK LOW', 'amber', this.fuelPercent < 20],
+        ['decay', '余热冷却', 'DECAY HEAT', 'amber', !this.isActive && this.coreTemperature > 500],
+        ['pumpFault', '泵组故障', 'PUMP FAIL', 'red', this.faults.has('pump')],
+        ['leakFault', '管路泄漏', 'LINE LEAK', 'red', this.faults.has('leak') || this.faults.has('valve')],
+        ['thermalFault', '热控故障', 'THERM FAIL', 'red', this.faults.has('cooling') || this.faults.has('sensor')],
+        ['scram', '紧急停堆', 'SCRAM', 'red', this.mode === 'SCRAM' || this.mode === 'DAMAGED']
+      ];
+    }
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRSimulation, PROPELLANTS, FAULTS };
+  else { root.NTRSimulation = NTRSimulation; root.NTR_PROPELLANTS = PROPELLANTS; root.NTR_FAULTS = FAULTS; }
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* One-dimensional vacuum maneuver game. Dry mass includes engine and payload.
+   Scoring penalties are continuous, linear percentages, applied multiplicatively. */
+(function (root) {
+  'use strict';
+  const TYPES = {
+    endurance: { title: '无限加速', subtitle: '把每一千克推进剂变成速度', code: '01 / ENDURANCE' },
+    precision: { title: '精确入轨注入', subtitle: '在目标速度附近，留下更多推进剂', code: '02 / PRECISION' }
+  };
+  const CAPACITIES = { hydrogen: 10000, water: 30000 };
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+  function calculateScore({ type, deltaV, target, fuel, elapsed, integrity }) {
+    if (!TYPES[type] || ![deltaV, fuel, elapsed, integrity].every(Number.isFinite) || (type === 'precision' && !Number.isFinite(target))) throw new TypeError('Invalid challenge score inputs');
+    const error = type === 'precision' ? Math.abs(deltaV - target) : 0;
+    const dvPoints = type === 'endurance' ? Math.max(0, deltaV) * 10 : 0;
+    const basePoints = type === 'precision' ? 10000 : 0;
+    const fuelPoints = type === 'precision' ? Math.max(0, fuel) : 0;
+    const base = basePoints + dvPoints + fuelPoints;
+    const errorPenalty = clamp(error / 100, 0, 1);
+    const timePenalty = clamp(Math.max(0, elapsed) / 10000, 0, 1);
+    const durabilityPenalty = (100 - clamp(integrity, 0, 100)) / 100 * .5;
+    const accuracySubtotal = base * (1 - errorPenalty);
+    const timeSubtotal = accuracySubtotal * (1 - timePenalty);
+    return Object.freeze({ base, basePoints, dvPoints, fuelPoints, error, errorPenalty, timePenalty, durabilityPenalty,
+      errorDeduction: base - accuracySubtotal, timeDeduction: accuracySubtotal - timeSubtotal,
+      durabilityDeduction: timeSubtotal * durabilityPenalty,
+      total: Math.max(0, Math.floor(timeSubtotal * (1 - durabilityPenalty))) });
+  }
+
+  class NTRChallenge {
+    constructor(engine, { type = 'endurance', propellant = 'hydrogen', diameter = 1.4, random = Math.random } = {}) {
+      if (!TYPES[type] || !CAPACITIES[propellant] || !Number.isFinite(diameter) || diameter < .8 || diameter > 2.4) throw new TypeError('Invalid challenge configuration');
+      this.engine = engine; this.type = type; this.propellant = propellant; this.dryMass = 10000;
+      this.initialFuel = CAPACITIES[propellant]; this.target = type === 'precision' ? 2750 + Math.floor(clamp(random(), 0, .999999999) * 101) : null;
+      this.state = 'PREPARING'; this.started = false; this.elapsed = 0; this.deltaV = 0;
+      this.distance = 0; this.acceleration = 0; this.peakAcceleration = 0; this.result = null; this.autoReason = null;
+      engine.reset(true); engine.configure(propellant, diameter);
+      engine.tankCapacity = this.initialFuel; engine.fuel = this.initialFuel;
+      engine.propellantLocked = true; engine.demand = 0; engine.valve = 0;
+      engine.pump = false; engine.cooling = false;
+      engine.events = []; engine.log(TYPES[type].title + ' · 冷态准备');
+      engine.log('推进剂锁定 ' + engine.prop.symbol + ' / ' + this.initialFuel.toLocaleString('en-US') + ' kg');
+      engine.log('干重＋载荷 10,000 kg · 开启泵与冷却后设置功率/主阀');
+      engine.history = []; engine.recordSample();
+    }
+    get mass() { return this.dryMass + this.engine.fuel; }
+    get complete() { return this.state === 'COMPLETE'; }
+    get remainingError() { return this.target === null ? null : this.target - this.deltaV; }
+    get canSettle() { return this.started && !this.complete && this.engine.coreTemperature < 800; }
+    get liveScore() { return calculateScore({ type: this.type, deltaV: this.deltaV, target: this.target, fuel: this.engine.fuel, elapsed: this.elapsed, integrity: this.engine.integrity }); }
+
+    startEngine() {
+      if (this.complete) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
+      if (this.autoReason) return { ok: false, message: '任务正在自动冷却结算，请保持冷却回路开启' };
+      if (this.engine.demand <= 0) return { ok: false, message: '冷启动：请先设定大于 0% 的反应堆功率' };
+      const result = this.engine.start();
+      if (result.ok && !this.started) {
+        this.started = true; this.state = 'ACTIVE'; this.engine.diameterLocked = true;
+        this.engine.time = 0; this.engine.history = []; this.engine.sampleTimer = 0; this.engine.recordSample();
+        this.engine.log('首次点火 · 航行计时开始 / 发动机尺寸锁定');
+      }
+      return result;
+    }
+
+    tick(delta) {
+      if (this.complete || !this.started || !Number.isFinite(delta) || delta <= 0) return;
+      let remaining = Math.min(delta, 25);
+      while (remaining > 1e-8 && !this.complete) {
+        const dt = Math.min(.05, remaining), beforeMass = this.mass, previousVelocity = this.deltaV;
+        this.engine.tick(dt);
+        const accelerationDuringStep = this.engine.thrust * 1000 / ((beforeMass + this.mass) / 2);
+        this.deltaV += accelerationDuringStep * dt;
+        this.distance += (previousVelocity + this.deltaV) * .5 * dt;
+        this.elapsed += dt;
+        this.acceleration = this.engine.fuel > 0 ? this.engine.thrust * 1000 / this.mass : 0;
+        this.peakAcceleration = Math.max(this.peakAcceleration, accelerationDuringStep);
+        if (!this.autoReason && (this.engine.fuel <= 0 || this.engine.mode === 'DAMAGED')) {
+          this.autoReason = this.engine.fuel <= 0 ? '推进剂耗尽' : '反应堆损毁';
+          this.state = 'COOLING';
+          if (this.engine.mode !== 'DAMAGED') this.engine.scram('推进剂耗尽 · 自动停堆');
+          this.engine.log(this.autoReason + ' · 冷却至低于 800 K 后自动结算', 'warning');
+        }
+        if (this.autoReason && this.canSettle) this.settle(this.autoReason + ' / 自动结算');
+        remaining -= dt;
+      }
+    }
+
+    settle(reason = '操作员结算') {
+      if (this.complete) return { ok: true, message: '本次挑战已结算', result: this.result };
+      if (!this.started) return { ok: false, message: '请先完成冷启动，开始本次挑战' };
+      if (this.engine.coreTemperature >= 800) return { ok: false, message: '结算联锁：堆芯需低于 800 K；请先停机并保持冷却' };
+      const score = this.liveScore;
+      this.result = Object.freeze({ ...score, type: this.type, propellant: this.propellant, diameter: this.engine.diameter, reason,
+        target: this.target, deltaV: this.deltaV, distance: this.distance, elapsed: this.elapsed,
+        fuel: this.engine.fuel, initialFuel: this.initialFuel, integrity: this.engine.integrity,
+        temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration });
+      if (this.engine.isActive) this.engine.shutdown();
+      this.engine.controlsLocked = true; this.state = 'COMPLETE'; this.acceleration = 0;
+      this.engine.log('挑战完成 · 最终得分 ' + score.total.toLocaleString('en-US'));
+      return { ok: true, message: '挑战已结算', result: this.result };
+    }
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRChallenge, calculateScore, CHALLENGE_TYPES: TYPES, CHALLENGE_CAPACITIES: CAPACITIES };
+  else { root.NTRChallenge = NTRChallenge; root.NTR_CHALLENGE_TYPES = TYPES; root.NTR_CHALLENGE_CAPACITIES = CAPACITIES; }
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+'use strict';
+const sim = new NTRSimulation();
+const $ = id => document.getElementById(id);
+const canvas = $('mfdCanvas');
+const ctx = canvas.getContext('2d');
+const mono = '"IBM Plex Mono", Consolas, "Microsoft YaHei", monospace';
+const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835', amber: '#d3b372', blue: '#8abcc1', red: '#db8e70', bg: '#111d18' };
+let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = -1;
+let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
+let motionTime = 0;
+let mission = null, resultShown = false;
+let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MODE = { RUNNING: '稳定运行', STARTING: '启动序列', SHUTDOWN: '停机冷却', STANDBY: '系统待机', SCRAM: '紧急停堆', DAMAGED: '堆芯损坏' };
+const pageNames = { overview: 'SYS / 系统总览', thermal: 'THM / 热力回路', propulsion: 'PRP / 推进性能', trend: 'TEL / 遥测趋势', diagnostics: 'DGN / 故障诊断' };
+const num = (v, places = 0) => Number.isFinite(v) ? v.toFixed(places) : '—';
+const clock = t => [Math.floor(t / 3600), Math.floor(t / 60) % 60, Math.floor(t) % 60].map(n => String(n).padStart(2, '0')).join(':');
+const safe = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+function toast(message) {
+  $('toast').textContent = message; $('toast').classList.add('visible');
+  clearTimeout(toastTimeout); toastTimeout = setTimeout(() => $('toast').classList.remove('visible'), 3600);
+}
+
+function gaugeMarkup(max, major, label, danger) {
+  const point = (v, r) => { const a = (150 + 240 * v / max) * Math.PI / 180; return [120 + Math.cos(a) * r, 110 + Math.sin(a) * r]; };
+  const arc = (from, to, r) => { const a = point(from, r), b = point(to, r); return `M ${a[0]} ${a[1]} A ${r} ${r} 0 ${to - from > max * .75 ? 1 : 0} 1 ${b[0]} ${b[1]}`; };
+  let ticks = '';
+  for (let i = 0; i <= major * 5; i++) {
+    const v = max * i / (major * 5), isMajor = i % 5 === 0;
+    const a = point(v, 88), b = point(v, isMajor ? 77 : 82);
+    ticks += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${v >= danger ? '#c58c70' : '#b3b797'}" stroke-width="${isMajor ? 1.5 : .7}"/>`;
+    if (isMajor) { const p = point(v, 66); ticks += `<text x="${p[0]}" y="${p[1] + 3}" text-anchor="middle" fill="#c6c6a3" font-size="10" font-family="${mono.replaceAll('"', '')}">${num(v, max < 5 && v % 1 !== 0 ? 1 : 0)}</text>`; }
+  }
+  return `<path d="${arc(0, max, 96)}" stroke="#56634c" fill="none" stroke-width="1"/><path d="${arc(danger, max, 92)}" stroke="#b27b5d" fill="none" stroke-width="3" opacity=".7"/>${ticks}<text x="120" y="67" text-anchor="middle" fill="#7e8d70" font-size="8" font-family="Consolas">${label}</text><g class="needle" style="transform-origin:120px 110px"><path d="M 117 119 L 120 29 L 123 119 Z" fill="#dac897"/><circle cx="120" cy="110" r="8" fill="#68725a" stroke="#20291f" stroke-width="3"/><circle cx="120" cy="110" r="3" fill="#b5b99a"/></g><rect x="87" y="132" width="66" height="20" rx="1" fill="#182319" stroke="#4c5c40"/><text class="gauge-reading" x="120" y="146" text-anchor="middle" fill="#c3cf9f" font-size="12" font-family="Consolas">0.00</text>`;
+}
+$('temperatureGauge').innerHTML = gaugeMarkup(4, 4, 'CORE / K', 3.2);
+$('pressureGauge').innerHTML = gaugeMarkup(8, 4, 'CHAMBER / MPa', 6.5);
+$('tankSegments').innerHTML = '<i></i>'.repeat(20);
+$('lampMatrix').innerHTML = sim.lamps.map(([id, label, english, color]) => `<div class="status-lamp ${color}" id="lamp-${id}" aria-label="${label}"><span>${label}</span><small>${english}</small></div>`).join('');
+
+function drawGauge(id, value, maximum, places) {
+  const svg = $(id);
+  svg.querySelector('.needle').style.transform = `rotate(${-120 + Math.min(1, Math.max(0, value / maximum)) * 240}deg)`;
+  svg.querySelector('.gauge-reading').textContent = num(value, places);
+}
+
+function updateSliders() {
+  $('powerSlider').value = sim.demand; $('valveSlider').value = sim.valve; $('sizeSlider').value = sim.diameter;
+  $('powerOutput').innerHTML = `${num(sim.demand)} <small>%</small>`;
+  $('valveOutput').innerHTML = `${num(sim.valve)} <small>%</small>`;
+  $('sizeOutput').innerHTML = `${num(sim.diameter, 2)} <small>m</small>`;
+  for (const id of ['powerSlider', 'valveSlider', 'sizeSlider']) { const el = $(id); el.style.setProperty('--range', `${(el.value - el.min) / (el.max - el.min) * 100}%`); }
+  $('ratedPower').textContent = num(sim.ratedPower);
+  $('engineMass').textContent = mission ? '干重 10,000' : Math.round(sim.engineMass).toLocaleString('en-US');
+  $('hydrogenButton').classList.toggle('active', sim.propellant === 'hydrogen');
+  $('waterButton').classList.toggle('active', sim.propellant === 'water');
+  $('hydrogenButton').setAttribute('aria-pressed', sim.propellant === 'hydrogen');
+  $('waterButton').setAttribute('aria-pressed', sim.propellant === 'water');
+}
+
+function render() {
+  $('missionTime').textContent = 'T+ ' + clock(mission ? mission.elapsed : sim.time); $('screenTime').textContent = clock(sim.time);
+  $('runState').textContent = mission?.complete ? '挑战已结算' : paused ? '模拟暂停' : MODE[sim.mode];
+  const isDanger = sim.mode === 'SCRAM' || sim.mode === 'DAMAGED';
+  $('runLed').className = 'tiny-light on ' + (isDanger ? 'red' : paused || !sim.isActive ? 'amber' : 'green');
+  $('thrustValue').textContent = num(sim.thrust, 1); $('powerValue').textContent = num(sim.power);
+  $('temperatureValue').textContent = num(sim.measuredTemperature); $('pressureValue').textContent = num(sim.pressure, 2);
+  $('flowValue').textContent = num(sim.flow, 2); $('velocityValue').textContent = num(sim.exhaustVelocity / 1000, 2);
+  $('temperatureValue').style.color = sim.measuredTemperature > 3050 ? '#e0a17a' : '';
+  const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / 8, flow: sim.flow / sim.ratedFlow, velocity: sim.exhaustVelocity / 10000 };
+  for (const [key, value] of Object.entries(bars)) $(key + 'Bar').style.width = `${Math.min(100, Math.max(0, value * 100))}%`;
+  drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, 8, 2);
+  $('tankPercent').textContent = num(sim.fuelPercent, 1) + '%'; $('tankLabel').textContent = sim.prop.symbol + ' / ' + sim.prop.label;
+  $('tankMass').textContent = Math.round(sim.fuel).toLocaleString('en-US') + ' kg';
+  [...$('tankSegments').children].forEach((segment, i) => segment.classList.toggle('empty', i >= Math.ceil(sim.fuelPercent / 5)));
+  for (const [id, label, , color, active] of sim.lamps) {
+    const el = $('lamp-' + id); const on = lampTest || active;
+    el.classList.toggle('on', on); el.classList.toggle('flashing', active && (color === 'red' || color === 'yellow') && !sim.acknowledged && !lampTest);
+    el.setAttribute('aria-label', label + (on ? '：亮' : '：灭'));
+  }
+  const alarms = sim.lamps.filter(l => l[4] && ['red', 'yellow', 'amber'].includes(l[3]) && l[0] !== 'decay');
+  $('healthText').textContent = sim.mode === 'DAMAGED' ? '堆芯受损 · 试验终止' : alarms.length ? `${alarms.length} 项告警 ${sim.acknowledged ? '· 已确认' : '· 待处理'}` : sim.isActive ? '所有子系统正常' : sim.coreTemperature > 500 ? '余热冷却进行中' : '所有子系统就绪';
+  $('healthLed').className = 'tiny-light on ' + (alarms.length ? 'red' : 'green');
+  $('footerPropellant').textContent = sim.propellant === 'hydrogen' ? 'LH₂ CYCLE' : 'H₂O CYCLE';
+  $('mfdStatus').textContent = paused ? 'Ⅱ SIMULATION PAUSED' : alarms.length ? `! ${alarms.length} ACTIVE ALERT` : '● TELEMETRY LIVE';
+  $('mfdStatus').style.color = alarms.length ? C.amber : '';
+  $('runButton').innerHTML = sim.isActive ? '<i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span>' : '<i>▶</i><span>启动试车<small>START TEST SEQUENCE</small></span>';
+  $('runButton').classList.toggle('start-ready', !sim.isActive);
+  $('runButton').disabled = sim.mode === 'DAMAGED' || Boolean(mission?.complete || mission?.autoReason);
+  for (const [id, key] of [['pumpToggle', 'pump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) {
+    $(id).classList.toggle('on', sim[key]); $(id).setAttribute('aria-pressed', sim[key]);
+  }
+  // Keep configuration controls discoverable; activation explains the live interlock.
+  $('sizeSlider').disabled = Boolean(mission && (sim.diameterLocked || mission.complete));
+  $('sizeSlider').setAttribute('aria-disabled', !sim.canConfigure || sim.diameterLocked);
+  $('hydrogenButton').disabled = $('waterButton').disabled = Boolean(mission);
+  $('hydrogenButton').title = $('waterButton').title = mission ? '本局推进剂已锁定' : sim.canConfigure ? '选择推进剂' : '请先停机，等待热功率低于 5 MW';
+  for (const id of ['powerSlider', 'valveSlider', 'pumpToggle', 'coolingToggle', 'autoToggle', 'scramButton', 'faultButton']) $(id).disabled = Boolean(mission?.complete);
+  document.querySelector('.instrument-rack').classList.toggle('controls-frozen', Boolean(mission?.complete));
+  $('resetButton').textContent = mission ? '↺ 重试挑战' : '↺ 重置试验';
+  if (lastLogId !== sim.eventId) {
+    $('eventLog').innerHTML = sim.events.slice(0, 20).map(e => `<div class="event-entry ${e.severity}"><time>${clock(e.time).slice(3)}</time><span>${safe(e.message)}</span></div>`).join('');
+    lastLogId = sim.eventId;
+  }
+  renderMission();
+}
+
+function resetUIClock() {
+  paused = false; speed = 1; lastFrame = performance.now(); motionTime = 0;
+  updatePauseButton(); $('speedButton').textContent = '1×'; lastLogId = -1; resultShown = false;
+}
+
+function beginMission(type, propellant, diameter) {
+  mission = new NTRChallenge(sim, { type, propellant, diameter });
+  resetUIClock(); setPage('overview'); updateSliders(); render();
+  $('challengeDialog').close();
+  $('missionPanel').scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' });
+  toast('挑战已装载 · 冷态准备不计时，首次点火后开始计时');
+}
+
+function updateChallengeSetup() {
+  document.querySelectorAll('[data-challenge]').forEach(button => { const on = button.dataset.challenge === selectedChallenge; button.classList.toggle('selected', on); button.setAttribute('aria-pressed', on); });
+  document.querySelectorAll('[data-loadout]').forEach(button => { const on = button.dataset.loadout === selectedPropellant; button.classList.toggle('selected', on); button.setAttribute('aria-pressed', on); });
+  const diameter = Number($('challengeSizeSlider').value);
+  $('challengeSizeSlider').style.setProperty('--range', `${(diameter - .8) / 1.6 * 100}%`);
+  $('challengeSizeOutput').textContent = num(diameter, 2) + ' m';
+  $('challengeRatedPower').textContent = num(600 * (diameter / 1.4) ** 2) + ' MW';
+  $('loadoutMass').textContent = selectedPropellant === 'hydrogen' ? '20.00 t' : '40.00 t';
+  $('challengeBrief').textContent = selectedChallenge === 'endurance'
+    ? '每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。每 100 秒扣 1%；每损失 10% 耐久扣 5%。'
+    : '每局随机目标 2,750–2,850 m/s。基础 10,000 分 + 剩余推进剂，每 1 m/s 误差扣 1%；时间与耐久修正同无限加速。必须冷却至低于 800 K 才可结算。';
+}
+
+function openChallengeSetup() {
+  selectedChallenge = mission?.type || selectedChallenge;
+  selectedPropellant = mission?.propellant || sim.propellant;
+  $('challengeSizeSlider').value = sim.diameter;
+  updateChallengeSetup(); $('challengeDialog').showModal();
+}
+
+function renderMission() {
+  $('missionPanel').hidden = !mission; $('settleButton').hidden = !mission;
+  document.querySelector('.operations-content').classList.toggle('has-mission', Boolean(mission));
+  $('sandboxModeButton').classList.toggle('active', !mission); $('sandboxModeButton').setAttribute('aria-pressed', !mission);
+  $('challengeModeButton').classList.toggle('active', Boolean(mission)); $('challengeModeButton').setAttribute('aria-pressed', Boolean(mission));
+  $('modeDescription').textContent = mission ? '推进剂锁定 · 一次航行，一份成绩' : '自由试车 · 自定义参数与故障';
+  if (!mission) return;
+  const info = NTR_CHALLENGE_TYPES[mission.type], score = mission.result || mission.liveScore;
+  $('missionCode').textContent = info.code + ' / ' + sim.prop.symbol;
+  $('missionName').textContent = info.title;
+  $('missionStage').textContent = mission.complete ? '挑战完成' : paused ? '模拟暂停' : !mission.started ? '冷态准备' : mission.autoReason ? '自动冷却结算' : sim.isActive ? '推进加速' : '滑行 / 冷却';
+  $('missionPanel').classList.toggle('finished', mission.complete);
+  $('missionPanel').classList.toggle('is-burning', sim.thrust > .1 && !mission.complete && !paused);
+  $('flightDv').textContent = num(mission.deltaV, 2);
+  $('flightAcceleration').textContent = num(mission.acceleration, 3);
+  $('flightDistance').textContent = num(mission.distance / 1000, 2);
+  $('flightMass').textContent = num(mission.mass / 1000, 2);
+  $('flightScore').textContent = score.total.toLocaleString('en-US');
+  $('flightScoreLabel').textContent = mission.complete ? '最终得分' : '当前预计得分';
+  $('flightTargetLabel').textContent = mission.type === 'precision' ? '目标速度增量' : '挑战目标';
+  $('flightTarget').textContent = mission.target === null ? '∞' : num(mission.target);
+  $('flightTargetUnit').textContent = mission.target === null ? 'MAX Δv' : 'm/s';
+  const progress = Math.min(1, Math.max(0, mission.target ? mission.deltaV / mission.target : 1 - sim.fuel / mission.initialFuel));
+  $('flightProgressFill').style.width = progress * 100 + '%';
+  $('flightShip').style.left = (3 + progress * 94) + '%';
+  $('flightEndMarker').textContent = mission.target === null ? '∞' : '⊕';
+  $('flightProgressLabel').textContent = mission.target === null ? '推进剂使用进度 ' + num(progress * 100, 1) + '%' : '变轨完成度 ' + num(mission.deltaV / mission.target * 100, 2) + '%';
+  $('flightError').textContent = mission.target === null ? '尽可能获得更高 Δv' : mission.remainingError >= 0 ? '距目标 ' + num(mission.remainingError, 2) + ' m/s' : '超调 ' + num(-mission.remainingError, 2) + ' m/s';
+  $('flightError').classList.toggle('overshot', mission.target !== null && mission.remainingError < 0);
+  $('flightMassNote').textContent = '干重＋载荷 10.00 t · 剩余 ' + sim.prop.symbol + ' ' + num(sim.fuel, 1) + ' kg · 一维真空变轨';
+  $('flightHint').textContent = mission.complete ? '已结算 · 可以查看报告、复盘遥测或开始新挑战'
+    : !mission.started ? '冷启动：开启泵与冷却 → 主阀约 70% → 功率约 60% → 启动试车'
+    : mission.autoReason ? mission.autoReason + ' · 保持冷却开启，低于 800 K 自动结算（当前 ' + num(sim.coreTemperature) + ' K）'
+    : !sim.isActive ? '余热仍可能产生 Δv · 关闭主阀可减少推进剂消耗，保持冷却回路开启'
+    : mission.target && mission.remainingError < 300 ? '接近目标！提前降功率，预留停机后余热产生的额外 Δv'
+    : '持续监控温压和耐久 · 停机后冷却至低于 800 K，才能结算';
+  const settle = $('settleButton'); settle.classList.toggle('locked', !mission.canSettle && !mission.complete); settle.classList.toggle('complete', mission.complete);
+  settle.querySelector('span').textContent = mission.complete ? '查看结算报告' : '结算本次变轨';
+  $('settleHint').textContent = mission.complete ? score.total.toLocaleString('en-US') + ' PTS' : !mission.started ? '等待首次点火' : mission.canSettle ? '温度合格 · 可结算' : num(sim.coreTemperature) + ' K / 需 < 800 K';
+  if (mission.complete && !resultShown) { resultShown = true; showResult(); }
+}
+
+function showResult() {
+  if (!mission?.result) return;
+  const r = mission.result;
+  $('resultMission').textContent = NTR_CHALLENGE_TYPES[r.type].code + ' / ' + sim.prop.symbol + ' / ' + r.reason;
+  $('resultTitle').textContent = r.type === 'precision' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
+  $('resultTotal').textContent = r.total.toLocaleString('en-US');
+  const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target) + ' / ' + num(r.error, 2) + ' m/s'], ['剩余推进剂', num(r.fuel, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 1) + ' s'], ['剩余耐久', num(r.integrity, 1) + '%'], ['结算堆芯温度', num(r.temperature, 1) + ' K']];
+  $('resultMetrics').innerHTML = metrics.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
+  const row = (label, detail, value, penalty = false) => `<div class="score-row ${penalty ? 'penalty' : ''}"><span>${label}<small>${detail}</small></span><b>${value}</b></div>`;
+  let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + num(r.dvPoints, 2)) : row('基础分', 'PRECISION', '+10,000') + row('剩余推进剂奖励', '1 分 / kg', '+' + num(r.fuelPoints, 2));
+  if (r.type === 'precision') rows += row('速度误差扣分', num(r.error, 2) + ' m/s · ' + num(r.errorPenalty * 100, 2) + '%', '−' + num(r.errorDeduction, 2), true);
+  rows += row('耗时扣分', num(r.elapsed, 1) + ' s · ' + num(r.timePenalty * 100, 2) + '%', '−' + num(r.timeDeduction, 2), true);
+  rows += row('耐久扣分', '每损失 10% 扣 5% · ' + num(r.durabilityPenalty * 100, 2) + '%', '−' + num(r.durabilityDeduction, 2), true);
+  rows += `<div class="score-row total"><span>最终得分<small>向下取整</small></span><b>${r.total.toLocaleString('en-US')}</b></div>`;
+  $('scoreBreakdown').innerHTML = rows;
+  $('resultFormula').textContent = `${num(r.base, 2)} × ${num(1 - r.errorPenalty, 4)}（精度）× ${num(1 - r.timePenalty, 4)}（时间）× ${num(1 - r.durabilityPenalty, 4)}（耐久）`;
+  document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+  $('resultDialog').showModal();
+}
+
+function setPage(value) {
+  page = value; $('mfdTitle').textContent = pageNames[page];
+  document.querySelectorAll('[data-page]').forEach(button => { const selected = button.dataset.page === value; button.classList.toggle('selected', selected); button.setAttribute('aria-selected', selected); });
+  $('screenHint').textContent = { overview: 'NTR–II · CLOSED EXPANDER CYCLE', thermal: 'THERMAL CIRCUIT · TEMPERATURE IN K', propulsion: 'VACUUM PERFORMANCE · IDEALIZED MODEL', trend: '120 SEC HISTORY · INDEPENDENT SCALES', diagnostics: 'BUILT-IN TEST · INDEPENDENT SENSOR CH.' }[page];
+}
+
+// CRT drawing uses a fixed logical coordinate system for clear, stable layout.
+function text(value, x, y, size = 10, color = C.green, align = 'left') {
+  ctx.fillStyle = color; ctx.font = `${size}px ${mono}`; ctx.textAlign = align; ctx.fillText(value, x, y);
+}
+function line(points, color = C.dim, width = 1, dash = []) {
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath();
+  points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); ctx.setLineDash([]);
+}
+function rect(x, y, w, h, color = C.dim, fill = null, radius = 0) {
+  ctx.beginPath(); if (radius) ctx.roundRect(x, y, w, h, radius); else ctx.rect(x, y, w, h);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+}
+function circle(x, y, r, color = C.green, fill = null) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+}
+function arrow(x, y, direction = 'right', color = C.green) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[direction]);
+  line([[-5, -3], [0, 0], [-5, 3]], color); ctx.restore();
+}
+function flowLine(points, color = C.green) {
+  line(points, C.faint, 3);
+  ctx.lineDashOffset = reducedMotion ? 0 : -motionTime * 15;
+  line(points, color, 1.1, [5, 10]); ctx.lineDashOffset = 0;
+}
+function miniMetric(label, value, unit, x, y, color = C.bright) {
+  text(label, x, y, 8, C.dim); text(value, x, y + 25, 22, color); text(unit, x + ctx.measureText(value).width + 7, y + 24, 9, C.dim);
+}
+
+function drawOverview() {
+  // Subtle drafting grid and reference marks.
+  ctx.globalAlpha = .15;
+  for (let x = 28; x < 670; x += 25) for (let y = 65; y < 330; y += 25) { ctx.fillStyle = C.green; ctx.fillRect(x, y, 1, 1); }
+  ctx.globalAlpha = 1;
+  line([[35, 203], [647, 203]], C.faint, .7, [3, 6]);
+  text('ENGINE SCHEMATIC', 32, 69, 8, C.dim); text('SECTION A–A', 648, 69, 8, C.dim, 'right');
+
+  // Propellant tank.
+  rect(61, 112, 64, 102, C.green, '#17291e', 22);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(65, 116, 56, 94, 18); ctx.clip();
+  ctx.fillStyle = '#587e493b'; ctx.fillRect(65, 210 - 94 * sim.fuelPercent / 100, 56, 100); ctx.restore();
+  line([[67, 134], [119, 134]], C.dim); line([[67, 192], [119, 192]], C.dim);
+  text(sim.prop.symbol, 93, 161, 18, C.bright, 'center'); text('TANK', 93, 179, 8, C.dim, 'center');
+  text(num(sim.prop.inlet) + ' K', 93, 240, 9, C.blue, 'center'); text('PROPELLANT', 93, 254, 7, C.dim, 'center');
+  flowLine([[125, 162], [164, 162]], C.blue); arrow(150, 162, 'right', C.blue);
+
+  // Feed turbopump.
+  const pumpColor = sim.faults.has('pump') || !sim.pump ? C.red : C.blue;
+  circle(183, 162, 19, pumpColor, C.bg); circle(183, 162, 7, pumpColor);
+  ctx.save(); ctx.translate(183, 162); ctx.rotate(sim.pump && !paused ? motionTime * 1.2 : 0);
+  for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); line([[0, -7], [10, -11], [5, -15]], pumpColor); } ctx.restore();
+  text('TURBOPUMP', 183, 204, 7, C.dim, 'center');
+  text(num(sim.flow, 1) + ' kg/s', 183, 219, 9, pumpColor, 'center');
+  flowLine([[202, 162], [241, 162], [241, 134], [308, 134], [308, 155]], C.blue);
+  arrow(242, 146, 'up', C.blue); arrow(293, 134, 'right', C.blue);
+  // Main valve symbol.
+  line([[218, 153], [232, 169], [232, 153], [218, 169], [218, 153]], sim.faults.has('valve') ? C.red : C.blue);
+
+  // Reactor pressure vessel and shield.
+  rect(264, 145, 125, 126, C.green, '#192a1e', 14);
+  rect(272, 152, 109, 112, C.dim, null, 9);
+  line([[281, 144], [281, 129], [365, 129], [365, 144]], C.dim);
+  for (let i = 0; i < 5; i++) { const x = 285 + i * 20; line([[x, 145], [x, 137]], C.green, 2); }
+  text('REACTOR CORE', 327, 106, 9, C.green, 'center'); text('Ø ' + num(sim.diameter, 2) + ' m', 327, 121, 8, C.dim, 'center');
+  const hot = Math.min(1, Math.max(0, (sim.coreTemperature - 293) / 2500));
+  const glow = ctx.createRadialGradient(327, 206, 5, 327, 206, 65);
+  glow.addColorStop(0, `rgba(206,165,90,${hot * .22})`); glow.addColorStop(1, 'rgba(206,165,90,0)');
+  ctx.fillStyle = glow; ctx.fillRect(267, 150, 120, 118);
+  for (let i = 0; i < 7; i++) {
+    const x = 286 + i * 12;
+    rect(x, 165, 6, 84, hot > .25 ? C.amber : C.dim, hot > .25 ? '#ad86492c' : null, 2);
+    for (let j = 0; j < 5; j++) line([[x, 178 + j * 14], [x + 6, 178 + j * 14]], hot > .25 ? '#a58d5b' : C.dim);
+  }
+  // Control drum, regenerative cooling jacket, and nozzle.
+  rect(254, 176, 8, 63, C.dim, '#2c3b27', 2); rect(392, 176, 8, 63, C.dim, '#2c3b27', 2);
+  const outline = [[400, 182], [425, 182], [447, 194], [461, 191], [494, 172], [551, 142], [566, 139], [566, 266], [551, 263], [494, 233], [461, 214], [447, 211], [425, 224], [400, 224]];
+  line([...outline, outline[0]], C.green, 1.4);
+  line([[400, 191], [425, 191], [447, 202], [461, 201], [503, 179], [559, 148]], C.dim);
+  line([[400, 215], [425, 215], [447, 205], [461, 206], [503, 228], [559, 257]], C.dim);
+  line([[571, 139], [571, 266]], C.green, 2);
+  // Moving exhaust streaks stay within the nozzle silhouette.
+  if (sim.thrust > .5) {
+    ctx.save(); ctx.beginPath(); ctx.moveTo(408, 195); ctx.lineTo(446, 202); ctx.lineTo(568, 150); ctx.lineTo(645, 161); ctx.lineTo(645, 248); ctx.lineTo(568, 257); ctx.lineTo(446, 205); ctx.lineTo(408, 213); ctx.closePath(); ctx.clip();
+    const exhaust = ctx.createLinearGradient(414, 0, 644, 0); exhaust.addColorStop(0, '#d4bc7933'); exhaust.addColorStop(.45, '#bed7a32b'); exhaust.addColorStop(1, '#9ccf9d00');
+    ctx.fillStyle = exhaust; ctx.fillRect(410, 142, 235, 125);
+    for (let i = 0; i < 14; i++) { const offset = reducedMotion ? i * 18 : ((motionTime * 50 + i * 18) % 210); const x = 435 + offset; const fan = (x - 435) / 200; const y = 203 + Math.sin(i * 8.3) * fan * 44; line([[x, y], [x + 13, y + (y - 203) * .05]], '#9cbf8977', .7); }
+    ctx.restore();
+  }
+  text('REGENERATIVE NOZZLE', 502, 294, 8, C.dim, 'center');
+  flowLine([[565, 270], [565, 283], [407, 283], [407, 258]], sim.cooling && !sim.faults.has('cooling') ? C.blue : C.red);
+  text(num(sim.pressure, 2) + ' MPa', 450, 247, 9, C.green, 'center');
+  line([[327, 274], [327, 294], [279, 294]], C.dim); text(num(sim.measuredTemperature) + ' K', 271, 297, 11, C.amber, 'right');
+
+  line([[32, 325], [648, 325]], C.faint);
+  miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 40, 347);
+  miniMetric('CORE INTEGRITY', num(sim.integrity, 1), '%', 260, 347, sim.integrity < 90 ? C.amber : C.bright);
+  miniMetric('EXHAUST TEMPERATURE', num(Math.max(sim.prop.inlet, sim.coreTemperature - 180)), 'K', 464, 347, C.amber);
+}
+
+function drawThermal() {
+  text('REACTOR HEAT → PROPELLANT → KINETIC ENERGY', 34, 72, 9, C.dim);
+  const coolingColor = sim.cooling && !sim.faults.has('cooling') ? C.blue : C.red;
+  flowLine([[127, 170], [254, 170]], C.blue); arrow(210, 170, 'right', C.blue);
+  flowLine([[397, 170], [544, 170]], C.amber); arrow(490, 170, 'right', C.amber);
+  flowLine([[563, 221], [563, 276], [93, 276], [93, 221]], coolingColor);
+  arrow(348, 276, 'left', coolingColor); arrow(93, 245, 'up', coolingColor);
+  rect(42, 117, 111, 104, C.blue, '#142820', 4); text('PROPELLANT', 98, 143, 9, C.blue, 'center'); text(sim.prop.symbol, 98, 176, 23, C.bright, 'center'); text(num(sim.prop.inlet) + ' K INLET', 98, 201, 8, C.dim, 'center');
+  rect(255, 111, 142, 118, C.amber, '#302c1e44', 4); text('REACTOR', 326, 136, 10, C.amber, 'center'); text(num(sim.measuredTemperature) + ' K', 326, 174, 25, C.amber, 'center'); text(num(sim.power) + ' MW THERMAL', 326, 207, 9, C.green, 'center');
+  rect(518, 117, 115, 104, C.green, '#192b1d', 4); text('NOZZLE', 575, 143, 10, C.green, 'center'); text(num(sim.exhaustVelocity / 1000, 2), 575, 177, 26, C.bright, 'center'); text('km/s EXHAUST', 575, 201, 8, C.dim, 'center');
+  text(num(sim.flow, 2) + ' kg/s', 205, 155, 9, C.blue, 'center'); text(num(sim.pressure, 2) + ' MPa', 456, 155, 9, C.amber, 'center');
+  rect(265, 255, 125, 43, coolingColor, C.bg, 4); text('COOLANT LOOP', 327, 272, 8, coolingColor, 'center'); text(num(sim.coolantTemperature) + ' K', 327, 289, 12, coolingColor, 'center');
+  line([[33, 326], [647, 326]], C.faint);
+  miniMetric('FEED PUMP', sim.pump ? num(sim.faults.has('pump') ? 23 : 100) : '0', '%', 40, 347, C.blue);
+  miniMetric('HEAT EXCHANGE', sim.cooling && !sim.faults.has('cooling') ? 'NOMINAL' : 'DEGRADED', '', 255, 347, coolingColor);
+  miniMetric('DECAY HEAT', num(sim.decayPower, 2), 'MW', 482, 347, C.amber);
+}
+
+function drawPropulsion() {
+  text('VACUUM PERFORMANCE / ' + sim.prop.symbol, 34, 72, 9, C.dim);
+  miniMetric('NET THRUST', num(sim.thrust, 1), 'kN', 42, 108);
+  miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 252, 108);
+  miniMetric('TOTAL IMPULSE', num(sim.totalImpulse / 1000, 2), 'MN·s', 462, 108);
+  line([[33, 159], [647, 159]], C.faint);
+  text('EXHAUST VELOCITY / CORE TEMPERATURE', 42, 184, 8, C.dim);
+  const x0 = 62, y0 = 299, width = 548, height = 91;
+  for (let i = 0; i <= 4; i++) { const y = y0 - i * height / 4; line([[x0, y], [x0 + width, y]], C.faint, .7); text(String(i * 2.5), x0 - 9, y + 3, 7, C.dim, 'right'); }
+  for (let i = 0; i <= 5; i++) { const x = x0 + i * width / 5; text(String(500 + i * 600), x, y0 + 15, 7, C.dim, 'center'); }
+  text('km/s', 33, 202, 7, C.dim); text('K', 630, 314, 7, C.dim);
+  for (const [type, color] of [['hydrogen', C.green], ['water', C.blue]]) {
+    const p = NTR_PROPELLANTS[type]; const points = [];
+    for (let i = 0; i <= 80; i++) { const temp = 500 + i / 80 * 3000; const velocity = Math.sqrt(2 * p.gamma / (p.gamma - 1) * p.gasConstant * temp * .87) * .96 / 1000; points.push([x0 + i / 80 * width, y0 - velocity / 10 * height]); }
+    line(points, color, type === sim.propellant ? 1.8 : .8, type === sim.propellant ? [] : [3, 4]);
+  }
+  const px = x0 + Math.max(0, Math.min(1, (sim.coreTemperature - 180 - 500) / 3000)) * width;
+  const py = y0 - sim.exhaustVelocity / 1000 / 10 * height; circle(px, py, 4, C.amber, C.bg);
+  text('● LH₂', 450, 184, 8, C.green); text('● H₂O', 540, 184, 8, C.blue);
+  line([[33, 333], [647, 333]], C.faint);
+  if (mission) {
+    miniMetric('ACCELERATION', num(mission.acceleration, 3), 'm/s²', 42, 351, C.blue);
+    miniMetric('DELTA-V', num(mission.deltaV, 1), 'm/s', 252, 351);
+    miniMetric('SPACECRAFT MASS', num(mission.mass / 1000, 2), 't', 462, 351);
+  } else {
+    miniMetric('MASS FLOW', num(sim.flow, 2), 'kg/s', 42, 351, C.blue);
+    miniMetric('CONSUMED', num(sim.consumed, 1), 'kg', 252, 351);
+    miniMetric('THRUST / WEIGHT', num(sim.thrust * 1000 / (sim.engineMass * 9.80665), 2), '', 462, 351);
+  }
+}
+
+function drawTrend() {
+  text('TELEMETRY RECORDER / LAST 120 SECONDS', 34, 73, 9, C.dim);
+  const chart = { x: 52, y: 109, w: 568, h: 205 };
+  for (let i = 0; i <= 4; i++) { const y = chart.y + i * chart.h / 4; line([[chart.x, y], [chart.x + chart.w, y]], C.faint, .7); text(String(100 - i * 25), 41, y + 3, 8, C.dim, 'right'); }
+  for (let i = 0; i <= 6; i++) { const x = chart.x + i * chart.w / 6; line([[x, chart.y], [x, chart.y + chart.h]], C.faint, .7, [2, 4]); text('-' + (120 - i * 20) + 's', x, 330, 7, C.dim, 'center'); }
+  text('%', 26, 95, 8, C.dim);
+  const lines = [['temperature', 4000, C.amber, 'TEMP / 4000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + num(sim.ratedPower) + 'MW'], ['pressure', 8, C.blue, 'PRESS / 8MPa']];
+  for (const [key, max, color] of lines) {
+    const points = sim.history.map(p => [chart.x + (120 - (sim.time - p.time)) / 120 * chart.w, chart.y + chart.h - Math.min(1, p[key] / max) * chart.h]);
+    if (points.length === 1) points.unshift([points[0][0] - 2, points[0][1]]);
+    line(points, color, 1.5);
+    const last = points.at(-1); if (last) circle(last[0], last[1], 2.5, color, color);
+  }
+  lines.forEach(([, , color, label], i) => { line([[45 + i * 207, 365], [60 + i * 207, 365]], color, 2); text(label, 66 + i * 207, 368, 8, color); });
+}
+
+function drawDiagnostics() {
+  text('BUILT-IN TEST / SUBSYSTEM HEALTH', 34, 72, 9, C.dim);
+  const faults = [...sim.faults];
+  if (!faults.length) {
+    rect(34, 95, 612, 54, C.dim, '#24432a44', 2);
+    circle(59, 122, 11, C.green); text('✓', 59, 126, 14, C.bright, 'center');
+    text('ALL SYSTEMS NOMINAL', 82, 118, 13, C.bright); text('系统自检通过 · 未检测到子系统故障', 82, 137, 10, C.green);
+  } else {
+    const fault = NTR_FAULTS[faults[0]];
+    rect(34, 94, 612, 66, C.red, '#5d34232f', 2);
+    text(fault.code + ' / ' + fault.title, 50, 117, 13, C.red);
+    text(fault.remedy, 50, 140, 9, C.amber);
+  }
+  const checks = [
+    ['REACTOR / 反应堆', sim.mode === 'DAMAGED' ? 'FAILED' : sim.mode === 'SCRAM' ? 'TRIPPED' : 'NOMINAL', sim.mode === 'DAMAGED' || sim.mode === 'SCRAM'],
+    ['FEED PUMP / 供液泵', sim.faults.has('pump') ? 'FAULT P–021' : sim.pump ? 'ONLINE' : 'OFFLINE', sim.faults.has('pump')],
+    ['COOLANT / 冷却系统', sim.faults.has('cooling') ? 'FAULT T–014' : sim.cooling ? 'ONLINE' : 'OFFLINE', sim.faults.has('cooling')],
+    ['MAIN LINE / 主供液管路', sim.faults.has('leak') ? 'LEAK F–032' : sim.faults.has('valve') ? 'JAM V–008' : 'NOMINAL', sim.faults.has('leak') || sim.faults.has('valve')],
+    ['TEMP. SENSOR / 温度传感器', sim.faults.has('sensor') ? 'DRIFT +280K' : 'CALIBRATED', sim.faults.has('sensor')]
+  ];
+  checks.forEach(([label, value, error], i) => { const y = 185 + i * 29; text(label, 44, y, 10, C.green); text(value, 633, y, 10, error ? C.red : C.bright, 'right'); line([[43, y + 11], [637, y + 11]], C.faint, .5); });
+  text('INDEPENDENT TEMP: ' + num(sim.coreTemperature) + ' K', 44, 359, 9, C.amber);
+  text('INTEGRITY: ' + num(sim.integrity, 1) + '%', 633, 359, 9, sim.integrity < 90 ? C.red : C.bright, 'right');
+  text(faults.length ? `${faults.length} 项注入故障 · 打开「故障注入」进行检修` : 'NO ACTIVE FAULTS / READY FOR TEST', 44, 382, 9, faults.length ? C.amber : C.dim);
+}
+
+function drawMFD() {
+  const dpr = Math.min(devicePixelRatio || 1, 2); const bounds = canvas.getBoundingClientRect();
+  const w = Math.round(bounds.width * dpr), h = Math.round(bounds.height * dpr);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.setTransform(canvas.width / 680, 0, 0, canvas.height / 420, 0, 0);
+  ctx.clearRect(0, 0, 680, 420);
+  ({ overview: drawOverview, thermal: drawThermal, propulsion: drawPropulsion, trend: drawTrend, diagnostics: drawDiagnostics })[page]();
+}
+
+function faultOptions() {
+  $('faultOptions').innerHTML = Object.entries(NTR_FAULTS).map(([key, fault]) => `<button class="fault-option ${sim.faults.has(key) ? 'injected' : ''}" data-fault="${key}"><i>${fault.code}</i><span><b>${fault.title}</b><small>${fault.description}</small></span><em>${sim.faults.has(key) ? '修复 ↗' : '注入 + '}</em></button>`).join('');
+}
+
+document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => setPage(button.dataset.page)));
+document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => $(button.dataset.close).close()));
+document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } }));
+$('manualButton').addEventListener('click', () => $('manualDialog').showModal());
+$('faultButton').addEventListener('click', () => { faultOptions(); $('faultDialog').showModal(); });
+$('faultOptions').addEventListener('click', event => {
+  const button = event.target.closest('[data-fault]'); if (!button) return;
+  const key = button.dataset.fault;
+  if (sim.faults.has(key)) { sim.repairFault(key); toast(NTR_FAULTS[key].title + '已修复'); }
+  else { sim.injectFault(key); toast('已注入：' + NTR_FAULTS[key].title); setPage('diagnostics'); }
+  faultOptions(); render();
+});
+$('repairButton').addEventListener('click', () => { toast(sim.repairAll() ? '全部故障已修复' : '当前没有需要修复的故障'); faultOptions(); render(); });
+$('runButton').addEventListener('click', () => { const result = sim.isActive ? sim.shutdown() : mission ? mission.startEngine() : sim.start(); toast(result.message); if (result.ok && paused) togglePause(); updateSliders(); render(); });
+$('scramButton').addEventListener('click', () => { const result = sim.scram(); toast(result.message); if (paused) togglePause(); render(); });
+$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter); return; } sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
+$('ackButton').addEventListener('click', () => { sim.acknowledge(); toast('告警已确认；故障修复后指示灯将熄灭'); render(); });
+$('lampTestButton').addEventListener('click', () => { lampTest = true; $('lampTestButton').classList.add('testing'); render(); clearTimeout(lampTimeout); lampTimeout = setTimeout(() => { lampTest = false; $('lampTestButton').classList.remove('testing'); render(); }, 2200); });
+function updatePauseButton() { $('pauseButton').textContent = paused ? '▶' : 'Ⅱ'; $('pauseButton').setAttribute('aria-label', paused ? '继续模拟' : '暂停模拟'); }
+function togglePause() { paused = !paused; updatePauseButton(); render(); }
+$('pauseButton').addEventListener('click', togglePause);
+$('speedButton').addEventListener('click', () => { const speeds = mission ? [1, 2, 5, 10, 25] : [1, 2, 5]; speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length]; $('speedButton').textContent = speed + '×'; toast('模拟速度：' + speed + '×'); });
+for (const [id, key] of [['pumpToggle', 'pump'], ['coolingToggle', 'cooling'], ['autoToggle', 'autoProtection']]) $(id).addEventListener('click', () => { sim.setSwitch(key, !sim[key]); render(); });
+$('powerSlider').addEventListener('input', event => { sim.demand = Number(event.target.value); updateSliders(); });
+$('valveSlider').addEventListener('input', event => { sim.valve = Number(event.target.value); updateSliders(); });
+$('sizeSlider').addEventListener('input', event => { const result = sim.configure(sim.propellant, Number(event.target.value)); if (!result.ok) toast(result.message); updateSliders(); render(); });
+for (const [id, type] of [['hydrogenButton', 'hydrogen'], ['waterButton', 'water']]) $(id).addEventListener('click', () => { if (sim.propellant === type) return; const result = sim.configure(type, sim.diameter); toast(result.message); updateSliders(); render(); });
+$('sandboxModeButton').addEventListener('click', () => { if (!mission) return; mission = null; sim.reset(false); resetUIClock(); updateSliders(); render(); toast('已回到沙盒 · 60% 功率稳定试车'); });
+$('challengeModeButton').addEventListener('click', openChallengeSetup);
+$('newChallengeButton').addEventListener('click', openChallengeSetup);
+$('challengeRulesButton').addEventListener('click', () => $('rulesDialog').showModal());
+document.querySelectorAll('[data-challenge]').forEach(button => button.addEventListener('click', () => { selectedChallenge = button.dataset.challenge; updateChallengeSetup(); }));
+document.querySelectorAll('[data-loadout]').forEach(button => button.addEventListener('click', () => { selectedPropellant = button.dataset.loadout; updateChallengeSetup(); }));
+$('challengeSizeSlider').addEventListener('input', updateChallengeSetup);
+$('beginChallengeButton').addEventListener('click', () => beginMission(selectedChallenge, selectedPropellant, Number($('challengeSizeSlider').value)));
+$('settleButton').addEventListener('click', () => { if (mission?.complete) { showResult(); return; } if (!mission) return; const result = mission.settle(); if (!result.ok) toast(result.message); render(); });
+$('retryChallengeButton').addEventListener('click', () => { $('resultDialog').close(); openChallengeSetup(); });
+$('reviewFlightButton').addEventListener('click', () => $('resultDialog').close());
+document.addEventListener('keydown', event => {
+  if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { event.preventDefault(); togglePause(); }
+  const index = Number(event.key) - 1;
+  if (index >= 0 && index < 5) setPage(Object.keys(pageNames)[index]);
+  if (/^F[1-5]$/.test(event.key)) { event.preventDefault(); setPage(Object.keys(pageNames)[Number(event.key.slice(1)) - 1]); }
+  if (event.key === '?') $('manualDialog').showModal();
+});
+function frame(now) {
+  const delta = Math.min((now - lastFrame) / 1000, 1); lastFrame = now;
+  if (!paused) { if (mission) mission.tick(delta * speed); else sim.tick(delta * speed); motionTime += delta * speed; }
+  if (now - lastRender >= 90) { render(); lastRender = now; }
+  drawMFD(); requestAnimationFrame(frame);
+}
+// Exposed read-only instrumentation is useful for inspecting the demo in DevTools.
+window.nerva = { sim, get mission() { return mission; }, get page() { return page; }, get paused() { return paused; }, get speed() { return speed; } };
+updateSliders(); render(); requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>

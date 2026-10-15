@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#212725">
+  <title>NERVA · 核热推进试验控制台</title>
+  <meta name="description" content="复古核热推进模拟小游戏：自由沙盒、无限加速与精确入轨挑战，驾驶十吨飞船，管理推进剂、温压、故障与耐久。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23212725'/%3E%3Ctext x='32' y='48' text-anchor='middle' font-size='52' fill='%23dda55c'%3E☢%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="simulation.js" defer></script>
+  <script src="challenge.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="utility-bar"><span><i class="tiny-light green on"></i> DEEP SPACE PROPULSION LABORATORY</span><span class="utility-right">EXPERIMENTAL SYSTEMS DIVISION <b>／</b> EST. 1963</span></div>
+  <main class="console">
+    <header class="masthead">
+      <div class="identity"><div class="mission-symbol" aria-hidden="true">✳</div><div><div class="wordmark">NERVA<span>—</span><small>SIMULATOR</small></div><p>核热推进试验控制台 <span>NUCLEAR THERMAL ROCKET</span></p></div></div>
+      <div class="header-tools"><div class="session"><span>试验序列 / TEST NO.</span><strong>NT–024 <i>●</i></strong></div><button class="outline-button" id="manualButton"><span>▤</span> 操作手册 <kbd>?</kbd></button></div>
+    </header>
+
+    <nav class="mode-bar" aria-label="游戏模式"><div class="mode-switch"><button id="sandboxModeButton" class="active" aria-pressed="true"><span>01</span> 沙盒模式 <small>SANDBOX</small></button><button id="challengeModeButton" aria-pressed="false"><span>02</span> 挑战模式 <small>CHALLENGE</small></button></div><span id="modeDescription">自由试车 · 自定义参数与故障</span></nav>
+
+    <section class="mission-panel" id="missionPanel" aria-label="飞船变轨进度" hidden>
+      <div class="mission-heading"><div><span id="missionCode">01 / ENDURANCE</span><h2 id="missionName">无限加速</h2><b id="missionStage">冷态准备</b></div><div><button id="challengeRulesButton">计分规则</button><button id="newChallengeButton">新挑战 ↗</button></div></div>
+      <div class="flight-instruments">
+        <div class="flight-metric primary"><span>已获得速度增量 <small>DELTA-V</small></span><p><strong id="flightDv">0.00</strong><small>m/s</small></p></div>
+        <div class="flight-metric"><span id="flightTargetLabel">挑战目标</span><p><strong id="flightTarget">∞</strong><small id="flightTargetUnit">MAX Δv</small></p></div>
+        <div class="flight-metric"><span>当前加速度</span><p><strong id="flightAcceleration">0.000</strong><small>m/s²</small></p></div>
+        <div class="flight-metric"><span>飞行距离</span><p><strong id="flightDistance">0.00</strong><small>km</small></p></div>
+        <div class="flight-metric"><span>飞船总质量</span><p><strong id="flightMass">20.00</strong><small>t</small></p></div>
+        <div class="flight-metric score"><span id="flightScoreLabel">当前预计得分</span><p><strong id="flightScore">0</strong><small>PTS</small></p></div>
+      </div>
+      <div class="flight-progress"><div class="flight-rail"><div class="flight-rail-fill" id="flightProgressFill"></div><span class="flight-start">✦</span><div class="flight-ship" id="flightShip" aria-label="模拟飞船"><svg viewBox="0 0 76 28" aria-hidden="true"><path class="ship-plume" d="M19 9 0 14 19 19" fill="#b9d290" opacity=".6"/><path d="M18 6h12v16H18l5-8z" fill="#687b5c" stroke="#c8d3ac"/><path d="M30 8h24l10 6-10 6H30z" fill="#c4c5a2" stroke="#e2dfbb"/><path d="m42 8-5-6H27l5 6m10 12-5 6H27l5-6" fill="#64785a" stroke="#b4c4a0"/><path d="M48 9v10M34 9v10" stroke="#64785a"/><circle cx="55" cy="14" r="2" fill="#293e2a"/></svg></div><span class="flight-end" id="flightEndMarker">∞</span></div><div class="flight-progress-labels"><span id="flightProgressLabel">推进剂使用进度 0.0%</span><b id="flightError">尽可能获得更高 Δv</b></div></div>
+      <div class="mission-bottom"><span id="flightHint">冷启动：开启泵与冷却 → 设置主阀和功率 → 启动试车</span><span id="flightMassNote">干重＋载荷 10.00 t · 推进剂 10.00 t · 一维真空变轨</span></div>
+    </section>
+
+    <section class="instrument-rack" aria-label="核热推进控制台">
+      <div class="rack-heading"><div><i class="tiny-light green on" id="runLed"></i><strong id="runState">稳定运行</strong><span class="rack-caption">GROUND TEST OPERATIONS</span></div><div class="test-clock"><span>试验计时</span><b id="missionTime">T+ 00:00:00</b><button id="pauseButton" title="暂停 / 继续模拟（空格）" aria-label="暂停模拟">Ⅱ</button><button id="speedButton" title="切换模拟速度">1×</button></div></div>
+
+      <div class="telemetry-strip" aria-label="实时遥测">
+        <div class="telemetry"><div>推力 <span>THRUST</span><i class="tiny-light green on"></i></div><p><strong id="thrustValue">00.0</strong><small>kN</small></p><div class="meter-track"><i id="thrustBar"></i></div></div>
+        <div class="telemetry"><div>热功率 <span>THERMAL POWER</span></div><p><strong id="powerValue">000</strong><small>MW</small></p><div class="meter-track"><i id="powerBar"></i></div></div>
+        <div class="telemetry"><div>堆芯温度 <span>CORE TEMP.</span></div><p><strong id="temperatureValue">0000</strong><small>K</small></p><div class="meter-track"><i id="temperatureBar"></i></div></div>
+        <div class="telemetry"><div>腔室压力 <span>CHAMBER PRESS.</span></div><p><strong id="pressureValue">0.00</strong><small>MPa</small></p><div class="meter-track"><i id="pressureBar"></i></div></div>
+        <div class="telemetry"><div>推进剂流量 <span>MASS FLOW</span></div><p><strong id="flowValue">00.00</strong><small>kg/s</small></p><div class="meter-track"><i id="flowBar"></i></div></div>
+        <div class="telemetry"><div>排气速度 <span>EXHAUST VEL.</span></div><p><strong id="velocityValue">0.00</strong><small>km/s</small></p><div class="meter-track"><i id="velocityBar"></i></div></div>
+      </div>
+
+      <div class="main-panels">
+        <section class="panel analog-panel">
+          <div class="panel-title"><span><b>01</b> 主仪表</span><small>PRIMARY</small></div>
+          <div class="analog-gauge"><svg id="temperatureGauge" viewBox="0 0 240 166" role="img" aria-label="堆芯温度模拟仪表"></svg><div class="gauge-caption">堆芯温度 <span>× 10³ K</span></div></div>
+          <div class="analog-gauge pressure-gauge"><svg id="pressureGauge" viewBox="0 0 240 166" role="img" aria-label="腔室压力模拟仪表"></svg><div class="gauge-caption">腔室压力 <span>MPa</span></div></div>
+          <div class="tank-display"><div><span>推进剂余量</span><b id="tankPercent">100.0%</b></div><div class="tank-track" id="tankSegments" aria-label="推进剂余量"></div><div class="tank-meta"><span id="tankLabel">LH₂ / 液氢</span><span id="tankMass">6,000 kg</span></div></div>
+          <div class="engraved-note">FLIGHT INSTRUMENTS · TYPE 04-B</div>
+        </section>
+
+        <section class="panel mfd-panel">
+          <div class="panel-title"><span><b>02</b> 多功能显示器</span><small>MFD–01 <i class="tiny-light green on"></i></small></div>
+          <div class="mfd-bezel"><div class="crt-screen"><div class="crt-topline"><span id="mfdTitle">SYS / 系统总览</span><span id="mfdStatus">● TELEMETRY LIVE</span></div><canvas id="mfdCanvas" aria-label="发动机结构、热力状态及趋势可视化"></canvas><div class="crt-bottomline"><span id="screenHint">NTR–II · CLOSED EXPANDER CYCLE</span><span id="screenTime">00:00:00</span></div><div class="screen-grain"></div></div><div class="mfd-softkeys" role="tablist" aria-label="MFD 显示页面"><button role="tab" aria-selected="true" data-page="overview" class="selected"><span>F1</span>系统总览</button><button role="tab" aria-selected="false" data-page="thermal"><span>F2</span>热力回路</button><button role="tab" aria-selected="false" data-page="propulsion"><span>F3</span>推进性能</button><button role="tab" aria-selected="false" data-page="trend"><span>F4</span>遥测趋势</button><button role="tab" aria-selected="false" data-page="diagnostics"><span>F5</span>故障诊断</button></div></div>
+          <div class="mfd-foot"><span><i class="tiny-light green on"></i> DATA LINK ESTABLISHED</span><span>DISPLAY UNIT 004 / REV. C</span></div>
+        </section>
+
+        <section class="panel annunciator-panel">
+          <div class="panel-title"><span><b>03</b> 状态与告警</span><small>ANNUNCIATOR</small></div>
+          <div class="lamp-matrix" id="lampMatrix" aria-label="状态和故障指示灯矩阵"></div>
+          <div class="lamp-legend"><span><i class="tiny-light green on"></i>正常</span><span><i class="tiny-light blue on"></i>就绪</span><span><i class="tiny-light yellow on"></i>预警</span><span><i class="tiny-light amber on"></i>注意</span><span><i class="tiny-light red on"></i>故障</span></div>
+          <div class="annunciator-actions"><button id="lampTestButton" class="small-button">指示灯测试</button><button id="ackButton" class="small-button">告警确认 <span>ACK</span></button></div>
+          <div class="log-heading"><span>事件记录</span><span>EVENT LOG <i class="tiny-light amber on"></i></span></div>
+          <div class="event-log" id="eventLog" role="log" aria-label="试验事件记录"></div>
+        </section>
+      </div>
+
+      <div class="lower-panels">
+        <section class="panel configuration-panel">
+          <div class="panel-title"><span><b>04</b> 发动机配置</span><small>CONFIGURATION</small></div>
+          <div class="config-content"><div class="propellant-selector"><span class="control-label">推进剂 <small>PROPELLANT</small></span><div class="segmented" role="group" aria-label="选择推进剂"><button id="hydrogenButton" class="active" aria-pressed="true"><b>H₂</b><span>液氢<small>LIQUID HYDROGEN</small></span></button><button id="waterButton" aria-pressed="false"><b>H₂O</b><span>水<small>WATER / STEAM</small></span></button></div></div><div class="size-control"><label class="control-label" for="sizeSlider">堆芯直径 <output id="sizeOutput">1.40 <small>m</small></output></label><input id="sizeSlider" type="range" min="0.8" max="2.4" step="0.05" value="1.4"><div class="range-labels"><span>0.8 m</span><span>2.4 m</span></div><p>额定热功率 <strong id="ratedPower">600</strong> MW <span>／</span> <span id="engineMass">3,800</span> kg</p></div></div>
+        </section>
+
+        <section class="panel power-panel">
+          <div class="panel-title"><span><b>05</b> 功率与流量控制</span><small>ENGINE CONTROL</small></div>
+          <div class="power-content"><div class="sliders"><div><label class="control-label" for="powerSlider">反应堆功率 <output id="powerOutput">60 <small>%</small></output></label><input id="powerSlider" type="range" min="0" max="100" step="1" value="60"><div class="range-labels"><span>IDLE</span><span>REACTOR DEMAND</span><span>MAX</span></div></div><div><label class="control-label" for="valveSlider">主阀开度 <output id="valveOutput">70 <small>%</small></output></label><input id="valveSlider" type="range" min="0" max="100" step="1" value="70"><div class="range-labels"><span>CLOSED</span><span>PROPELLANT VALVE</span><span>OPEN</span></div></div></div><div class="switch-bank"><button class="toggle-control on" id="pumpToggle" aria-pressed="true"><span>推进剂泵</span><i><em></em></i><small>FEED PUMP</small></button><button class="toggle-control on" id="coolingToggle" aria-pressed="true"><span>冷却回路</span><i><em></em></i><small>COOLANT</small></button><button class="toggle-control on" id="autoToggle" aria-pressed="true"><span>自动保护</span><i><em></em></i><small>AUTO TRIP</small></button></div></div>
+        </section>
+
+        <section class="panel operations-panel">
+          <div class="panel-title"><span><b>06</b> 试验操作</span><small>OPERATIONS</small></div>
+          <div class="operations-content"><button class="run-button" id="runButton"><i>■</i><span>正常停机<small>SHUTDOWN SEQUENCE</small></span></button><button class="scram-button" id="scramButton"><span>紧急停堆</span><b>SCRAM</b></button><div class="operation-secondary"><button id="faultButton">⚡ 故障注入</button><button id="resetButton">↺ 重置试验</button></div><button id="settleButton" class="settle-button" hidden><span>结算本次变轨</span><small id="settleHint">堆芯需低于 800 K</small><b>↗</b></button></div>
+        </section>
+      </div>
+      <div class="rack-footer"><span><i class="tiny-light green on" id="healthLed"></i><b id="healthText">所有子系统正常</b><span class="footer-divider">│</span><span id="footerPropellant">LH₂ CYCLE</span></span><span>INTERACTIVE ENGINEERING DEMO <b>·</b> SIMULATION MODEL / 非工程计算</span></div>
+      <i class="rack-screw s1"></i><i class="rack-screw s2"></i><i class="rack-screw s3"></i><i class="rack-screw s4"></i>
+    </section>
+    <footer class="page-footer"><span><b>☢</b> NUCLEAR THERMAL PROPULSION PROGRAM</span><span>DESIGNED FOR THE NEXT FRONTIER. <span class="footer-serial">S/N 1963–024</span></span></footer>
+  </main>
+
+  <dialog id="challengeDialog" class="challenge-dialog"><div class="dialog-top"><span>FLIGHT ASSIGNMENT / 选择挑战任务</span><button data-close="challengeDialog" aria-label="关闭挑战选择">×</button></div><div class="dialog-body"><span class="manual-kicker">10 TONNE SPACECRAFT · TWO WAYS TO FLY</span><h2>把热量，变成你的航程。</h2><p>一艘干重与载荷共 10 吨的飞船。选定推进剂，配置反应堆，从冷态完成一次真空变轨。</p><div class="challenge-cards" role="group" aria-label="挑战类型"><button class="challenge-card selected" data-challenge="endurance" aria-pressed="true"><span>01 / ENDURANCE</span><b>无限加速</b><strong>∞ <small>Δv</small></strong><p>给定推进剂，跑出尽可能高的速度增量。</p><em>每 1 m/s = 10 分</em></button><button class="challenge-card" data-challenge="precision" aria-pressed="false"><span>02 / PRECISION</span><b>精确入轨注入</b><strong>2.8 <small>km/s ±50m/s</small></strong><p>精确靠近随机目标，节约推进剂。</p><em>10,000 基础分 + 剩余推进剂</em></button></div><div class="challenge-loadout"><div><label>任务推进剂 <small>PROPELLANT · 开局后锁定</small></label><div class="loadout-propellants"><button data-loadout="hydrogen" class="selected" aria-pressed="true"><b>LH₂</b>液氢 <span>10,000 kg</span></button><button data-loadout="water" aria-pressed="false"><b>H₂O</b>水 <span>30,000 kg</span></button></div></div><div><label for="challengeSizeSlider">堆芯直径 <output id="challengeSizeOutput">1.40 m</output></label><input id="challengeSizeSlider" type="range" min="0.8" max="2.4" step="0.05" value="1.4"><div class="range-labels"><span>0.80 m</span><span id="challengeRatedPower">600 MW</span><span>2.40 m</span></div><p>首次点火前可调整；点火后尺寸锁定。</p></div></div><div class="loadout-summary"><span>起飞总质量 <b id="loadoutMass">20.00 t</b></span><span>冷机 <b>293 K / 20°C</b></span><span>初始功率与 Δv <b>0</b></span></div><div class="challenge-brief" id="challengeBrief">每 1 m/s Δv 得 10 分。耗尽推进剂后自动停堆并冷却结算，也可在低于 800 K 时提前结算。</div><button id="beginChallengeButton" class="launch-challenge">装载任务 · 进入冷态准备 <span>→</span></button><p class="challenge-switch-note">装载新任务会重置当前试验。准备阶段不计时，首次点火后计时；推进剂在本局中无法切换。</p></div></dialog>
+
+  <dialog id="rulesDialog"><div class="dialog-top"><span>SCORING PROTOCOL / 挑战计分规则</span><button data-close="rulesDialog" aria-label="关闭计分规则">×</button></div><div class="dialog-body rules-body"><h2>每一次操作，都有代价。</h2><dl><dt>01 / 无限加速</dt><dd>基础分 = 最终 Δv（m/s）× 10。</dd><dt>02 / 精确入轨注入</dt><dd>每局抽取 2,750–2,850 m/s 的整数目标。原始分 = 10,000 + 剩余推进剂（kg）；绝对误差每 1 m/s 扣 1%，误差达到 100 m/s 得分归零。</dd><dt>共用修正</dt><dd>时间系数 = max(0, 1 − 任务秒数 ÷ 10,000)。每运行 100 秒扣 1%。<br>耐久系数 = 1 − (100 − 剩余耐久百分比) × 0.005。每损失 10% 耐久扣 5%。<br>各系数相乘，按连续比例计算，最终分向下取整且不低于 0。</dd><dt>计时与结算</dt><dd>首次点火至结算为任务用时，包含冷却与滑行；暂停不计时，加速按模拟时间计。堆芯必须低于 800 K 方可结算。推进剂耗尽或堆芯损毁后，自动停堆，达到温度条件后自动结算。</dd><dt>飞船与燃料</dt><dd>干重＋载荷固定为 10,000 kg（含发动机）。液氢初装 10,000 kg，水初装 30,000 kg。由实时推力与变化的总质量积分加速度、Δv 和距离。变轨为一维真空加速，不含引力与轨道几何。</dd></dl><p class="model-note">冷态功率、推力、压力、流量、加速度和 Δv 均为 0；温度使用开尔文，冷机约 293 K（20°C）。手动结算会结束本局；故障注入和保护开关仍可使用。</p></div></dialog>
+
+  <dialog id="resultDialog" class="result-dialog"><div class="dialog-top"><span>MISSION DEBRIEF / 变轨结算</span><button data-close="resultDialog" aria-label="关闭结算报告">×</button></div><div class="dialog-body"><span class="manual-kicker" id="resultMission">ENDURANCE / LH₂</span><h2 id="resultTitle">变轨已完成。</h2><div class="result-score"><strong id="resultTotal">0</strong><span>FINAL SCORE</span></div><div id="resultMetrics" class="result-metrics"></div><div class="score-breakdown" id="scoreBreakdown"></div><p id="resultFormula" class="result-formula"></p><div class="result-actions"><button id="retryChallengeButton" class="primary-dialog-button">再挑战一次 ↗</button><button id="reviewFlightButton">返回控制台复盘</button></div></div></dialog>
+
+  <dialog id="faultDialog"><div class="dialog-top"><span>故障注入 / FAULT INJECTION</span><button data-close="faultDialog" aria-label="关闭">×</button></div><div class="dialog-body"><h2>没有完美的试车。</h2><p>向正在运行的系统注入故障，观察温度、压力和推力的连锁变化。自动保护开启时，超限将触发紧急停堆。</p><div id="faultOptions" class="fault-options"></div><div class="dialog-actions"><button id="repairButton" class="primary-dialog-button">修复全部故障</button><span>也可在 MFD「故障诊断」中查看详情</span></div></div></dialog>
+  <dialog id="manualDialog"><div class="dialog-top"><span>操作手册 / OPERATOR HANDBOOK</span><button data-close="manualDialog" aria-label="关闭">×</button></div><div class="dialog-body manual-body"><span class="manual-kicker">NERVA · NT–024</span><h2>下一次点火，由你指挥。</h2><p>沙盒保留原有 60% 功率试车。挑战从零功率冷机开始：先打开推进剂泵与冷却回路，再将主阀设为约 70%、功率设为约 60%，执行启动。提前降功率，留意停机后余热仍会贡献 Δv。</p><ol><li><b>沙盒与挑战</b><span>顶部可选择自由沙盒，或「无限加速」「精确入轨注入」。挑战中推进剂锁定，堆芯尺寸在首次点火前可调；点火后锁定。</span></li><li><b>调节与观察</b><span>提高功率会先增加产热，随后堆芯温度和排气速度逐渐升高。增大主阀开度会增加流量，同时降低温度。飞船质量随推进剂消耗下降，相同推力会产生更高加速度。</span></li><li><b>处理故障</b><span>注入泵故障、冷却失效、管路泄漏、阀门卡滞或温度传感器漂移。确认告警可停止闪烁，修复故障后可重新启动。</span></li><li><b>停堆与结算</b><span>停机后保持冷却回路运行，堆芯低于 800 K 才可结算。关闭主阀能减少推进剂消耗，独立闭式冷却回路仍可带走余热。精确挑战尤其需要预留停机过程产生的额外 Δv。</span></li></ol><div class="keyboard-guide"><span><kbd>Space</kbd>暂停</span><span><kbd>1–5</kbd>切换 MFD</span><span><kbd>Esc</kbd>关闭窗口</span><span><kbd>?</kbd>操作手册</span></div><p class="model-note">演示模型使用集总热容、质量流量与理想喷管近似，含简化水汽化能耗。未模拟中子学、真实燃料材料和水的高温化学；水模式为假设性演示。仅用于交互与概念探索。<a href="https://www.nasa.gov/space-technology-mission-directorate/tdm/space-nuclear-propulsion/" target="_blank" rel="noreferrer">参考：NASA 核热推进原理 ↗</a></p></div></dialog>
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>

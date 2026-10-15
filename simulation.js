@@ -1,0 +1,230 @@
+/* A deliberately simplified, deterministic thermal / fluid model for the demo.
+   Units inside the model: s, K, MPa, MW, kg/s, m/s, kN. No neutronics model. */
+(function (root) {
+  'use strict';
+  const PROPELLANTS = {
+    hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, cp: 12000, latent: 0, gasConstant: 4124, gamma: 1.4, ratedFlow: 16, capacity: 6000 },
+    water: { label: '水', symbol: 'H₂O', inlet: 293, cp: 4600, latent: 2300000, gasConstant: 461.5, gamma: 1.27, ratedFlow: 45, capacity: 14000 }
+  };
+  const FAULTS = {
+    pump: { title: '推进剂泵失速', code: 'P–021', description: '泵转速下降，供液与压力衰减，堆芯冷却不足。', remedy: '紧急停堆并修复推进剂泵；保持冷却回路运行。' },
+    cooling: { title: '冷却回路失效', code: 'T–014', description: '再生冷却效率下降，堆芯与喷管温度升高。', remedy: '降低功率或停堆，修复冷却回路。' },
+    leak: { title: '推进剂管路泄漏', code: 'F–032', description: '部分推进剂流失，喷管流量下降，储量消耗加快。', remedy: '停止试车，修复管路并检查剩余推进剂。' },
+    valve: { title: '主阀卡滞', code: 'V–008', description: '主阀卡在 28% 开度，控制指令与实际流量不符。', remedy: '降低反应堆功率，停堆检修主阀。' },
+    sensor: { title: '温度传感器漂移', code: 'S–006', description: '温度读数偏高 280 K；独立保护传感器仍正常。', remedy: '对照诊断页的独立温度通道，校准或更换传感器。' }
+  };
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const approach = (a, b, dt, tau) => a + (b - a) * (1 - Math.exp(-dt / tau));
+
+  class NTRSimulation {
+    constructor() { this.events = []; this.eventId = 0; this.reset(false); }
+    get prop() { return PROPELLANTS[this.propellant]; }
+    get scale() { return (this.diameter / 1.4) ** 2; }
+    get ratedPower() { return 600 * this.scale; }
+    get ratedFlow() { return this.prop.ratedFlow * this.scale; }
+    get engineMass() { return 3800 * (this.diameter / 1.4) ** 2.6; }
+    get fuelCapacity() { return this.tankCapacity || this.prop.capacity; }
+    get fuelPercent() { return this.fuel / this.fuelCapacity * 100; }
+    get measuredTemperature() { return this.coreTemperature + (this.faults.has('sensor') ? 280 : 0); }
+    get isActive() { return this.mode === 'RUNNING' || this.mode === 'STARTING'; }
+    get canConfigure() { return !this.isActive && this.power < 5; }
+
+    reset(cold = true) {
+      this.time = 0; this.propellant = 'hydrogen'; this.diameter = 1.4;
+      this.demand = 60; this.valve = 70; this.pump = true; this.cooling = true; this.autoProtection = true;
+      this.tankCapacity = null; this.propellantLocked = false; this.diameterLocked = false; this.controlsLocked = false;
+      this.faults = new Set(); this.acknowledged = false; this.integrity = 100;
+      this.fuel = this.prop.capacity; this.mode = cold ? 'STANDBY' : 'RUNNING';
+      this.power = cold ? 0 : 360; this.flow = cold ? 0 : this.ratedFlow * .7;
+      this.feedFlow = this.flow; this.coreTemperature = cold ? 293 : this.equilibriumTemperature();
+      this.pressure = 0; this.exhaustVelocity = 0; this.thrust = 0; this.isp = 0;
+      this.coolantTemperature = cold ? 293 : 475; this.decayPower = 0; this.protectionTimer = 0;
+      this.totalImpulse = 0; this.consumed = 0; this.history = []; this.sampleTimer = 0;
+      this.events = []; this.eventId = 0; this.updatePerformance(); this.recordSample();
+      this.log(cold ? '试验复位 · 待机就绪' : '试验开始 · 60% 额定功率');
+      this.log('冷却回路 / 推进剂泵 已上线');
+      this.log('遥测连接已建立 · 系统自检通过');
+    }
+
+    log(message, severity = 'info') {
+      this.events.unshift({ id: ++this.eventId, time: this.time, message, severity });
+      this.events = this.events.slice(0, 80);
+    }
+
+    equilibriumTemperature() {
+      // The closed coolant loop can remove residual heat after the feed tank is empty.
+      if (!this.isActive && this.flow < this.ratedFlow * .01 && this.cooling && !this.faults.has('cooling')) {
+        return clamp(293 + this.power / this.ratedPower * 2200, 293, 4900);
+      }
+      const available = this.power * 1e6 / Math.max(this.flow, .05);
+      const gasTemp = this.prop.inlet + Math.max(0, available - this.prop.latent) / this.prop.cp;
+      const coolingPenalty = (!this.cooling || this.faults.has('cooling')) ? 600 * Math.min(1, this.power / Math.max(1, this.ratedPower * .2)) : 0;
+      return clamp(gasTemp + (this.power > .1 ? 180 : 0) + coolingPenalty, 293, 4900);
+    }
+
+    start() {
+      if (this.controlsLocked) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
+      if (this.isActive) return { ok: false, message: '发动机已在运行' };
+      if (this.integrity <= 0) return { ok: false, message: '堆芯受损，请重置试验' };
+      if (this.faults.size) return { ok: false, message: '请先修复故障，再重新启动' };
+      if (!this.pump || !this.cooling) return { ok: false, message: '启动联锁：请开启推进剂泵和冷却回路' };
+      if (this.fuel < 10) return { ok: false, message: '推进剂不足，请重置试验' };
+      if (this.valve < 15) return { ok: false, message: '启动联锁：主阀开度至少需要 15%' };
+      if (this.demand === 0) this.demand = 30;
+      this.mode = 'STARTING'; this.acknowledged = false; this.protectionTimer = 0;
+      this.log('启动序列执行 · 供液 / 功率爬升');
+      return { ok: true, message: '启动序列已执行' };
+    }
+
+    shutdown() {
+      if (!this.isActive) return { ok: false, message: '发动机已处于停堆状态' };
+      this.mode = 'SHUTDOWN'; this.decayPower = this.power * .015;
+      this.log('正常停机 · 保持供液与余热冷却', 'warning');
+      return { ok: true, message: '正常停机中，正在带走余热' };
+    }
+
+    scram(reason = '操作员执行紧急停堆') {
+      if (this.mode === 'SCRAM' || this.mode === 'DAMAGED') return { ok: false, message: '紧急停堆已执行' };
+      this.decayPower = Math.max(this.decayPower, this.power * .025);
+      this.mode = 'SCRAM'; this.acknowledged = false;
+      this.log(reason + ' · SCRAM', 'danger');
+      return { ok: true, message: '紧急停堆已执行，冷却回路保持当前状态' };
+    }
+
+    configure(type, diameter) {
+      if (this.controlsLocked) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
+      if (this.propellantLocked && type !== this.propellant) return { ok: false, message: '挑战中推进剂已锁定；请开始新挑战以更换推进剂' };
+      if (this.diameterLocked && diameter !== this.diameter) return { ok: false, message: '首次点火后发动机尺寸锁定；请在新挑战准备阶段调整' };
+      if (!this.canConfigure) return { ok: false, message: '配置联锁：请先正常停机，等待热功率低于 5 MW' };
+      if (!PROPELLANTS[type] || !Number.isFinite(diameter)) return { ok: false, message: '配置参数无效' };
+      if (this.propellant !== type) {
+        this.propellant = type; this.fuel = this.prop.capacity; this.consumed = 0;
+        this.log('推进剂切换为 ' + this.prop.symbol + ' / ' + this.prop.label);
+      }
+      if (this.diameter !== diameter) {
+        this.diameter = clamp(diameter, .8, 2.4);
+        this.log('堆芯直径设定 ' + this.diameter.toFixed(2) + ' m');
+      }
+      return { ok: true, message: '发动机配置已更新' };
+    }
+
+    injectFault(key) {
+      if (!FAULTS[key] || this.faults.has(key)) return false;
+      this.faults.add(key); this.acknowledged = false;
+      this.log(FAULTS[key].code + ' ' + FAULTS[key].title, 'danger');
+      return true;
+    }
+
+    repairFault(key) {
+      if (!this.faults.delete(key)) return false;
+      this.log(FAULTS[key].title + ' · 已修复');
+      if (!this.faults.size) this.acknowledged = false;
+      return true;
+    }
+
+    repairAll() {
+      if (!this.faults.size) return false;
+      this.faults.clear(); this.acknowledged = false; this.protectionTimer = 0;
+      this.log('全部故障已修复 · 检修完成');
+      return true;
+    }
+
+    setSwitch(key, value) {
+      if (!['pump', 'cooling', 'autoProtection'].includes(key)) return;
+      this[key] = Boolean(value);
+      const labels = { pump: '推进剂泵', cooling: '冷却回路', autoProtection: '自动保护' };
+      this.log(labels[key] + (value ? ' · 开启' : ' · 关闭'), value ? 'info' : 'warning');
+    }
+
+    acknowledge() {
+      this.acknowledged = true;
+      this.log('操作员确认告警 · 故障状态保留', 'warning');
+    }
+
+    updatePerformance() {
+      const gasTemp = Math.max(this.prop.inlet, this.coreTemperature - 180);
+      const targetPressure = this.flow / this.ratedFlow * Math.sqrt(gasTemp / 2600) * 5.8;
+      this.pressure = Math.max(0, targetPressure);
+      const expansion = this.pressure > .005 ? 1 - (.002 / this.pressure) ** ((this.prop.gamma - 1) / this.prop.gamma) : 0;
+      this.exhaustVelocity = this.flow > .01 ? Math.sqrt(Math.max(0, 2 * this.prop.gamma / (this.prop.gamma - 1) * this.prop.gasConstant * gasTemp * expansion)) * .96 : 0;
+      this.thrust = this.flow * this.exhaustVelocity / 1000;
+      this.isp = this.exhaustVelocity / 9.80665;
+    }
+
+    tick(delta) {
+      if (!Number.isFinite(delta) || delta <= 0) return;
+      // Substeps preserve protection timing and thermal stability at 5× time.
+      let remaining = Math.min(delta, 5);
+      while (remaining > 1e-8) { const dt = Math.min(.05, remaining); this.step(dt); remaining -= dt; }
+    }
+
+    step(dt) {
+      this.time += dt;
+      if (this.mode === 'DAMAGED') { this.power = approach(this.power, 0, dt, .4); }
+      else {
+        const demand = this.isActive ? this.ratedPower * this.demand / 100 : this.decayPower;
+        this.power = approach(this.power, demand, dt, this.mode === 'SCRAM' ? .25 : this.isActive ? 3.8 : 3.3);
+      }
+      this.decayPower *= Math.exp(-dt / 24);
+      const valve = this.faults.has('valve') ? 28 : this.valve;
+      const pumpEfficiency = !this.pump || this.fuel <= 0 ? 0 : this.faults.has('pump') ? .23 : 1;
+      const purgeFactor = this.isActive ? 1 : this.coreTemperature > 480 ? .35 : 0;
+      const feedTarget = this.ratedFlow * valve / 100 * pumpEfficiency * purgeFactor;
+      this.feedFlow = approach(this.feedFlow, feedTarget, dt, 1.1);
+      // No thrust or mass flow may be generated by propellant that does not exist.
+      this.feedFlow = Math.min(this.feedFlow, Math.max(0, this.fuel / dt));
+      this.flow = this.feedFlow * (this.faults.has('leak') ? .57 : 1);
+      const desiredCore = this.equilibriumTemperature();
+      this.coreTemperature = approach(this.coreTemperature, desiredCore, dt, this.flow > .1 ? 7.5 : 18);
+      this.coolantTemperature = approach(this.coolantTemperature, 293 + (this.coreTemperature - 293) * ((!this.cooling || this.faults.has('cooling')) ? .22 : .075), dt, 6);
+      const used = Math.min(this.fuel, this.feedFlow * dt);
+      this.fuel = Math.max(0, this.fuel - used); this.consumed += used;
+      this.updatePerformance(); this.totalImpulse += this.thrust * dt;
+      if (this.mode === 'STARTING' && Math.abs(this.power - this.ratedPower * this.demand / 100) < Math.max(2, this.ratedPower * .02)) {
+        this.mode = 'RUNNING'; this.log('启动序列完成 · 进入稳定运行');
+      }
+      if (this.mode === 'SHUTDOWN' && this.power < 1 && this.coreTemperature < 500) {
+        this.mode = 'STANDBY'; this.log('停机完成 · 系统待机');
+      }
+      const danger = this.coreTemperature > 3200 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuel <= 0 ? '自动保护：推进剂耗尽' : null;
+      this.protectionTimer = danger ? this.protectionTimer + dt : 0;
+      if (this.autoProtection && this.isActive && this.protectionTimer > .75) this.scram(danger);
+      if (this.coreTemperature > 3400) this.integrity = Math.max(0, this.integrity - (this.coreTemperature - 3400) / 75 * dt);
+      if (this.integrity <= 0 && this.mode !== 'DAMAGED') {
+        this.mode = 'DAMAGED'; this.decayPower = 0; this.acknowledged = false;
+        this.log('堆芯结构失效 · 试验终止，请重置', 'danger');
+      }
+      this.sampleTimer += dt;
+      if (this.sampleTimer >= .5) { this.sampleTimer -= .5; this.recordSample(); }
+    }
+
+    recordSample() {
+      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.flow });
+      if (this.history.length > 240) this.history.shift();
+    }
+
+    get lamps() {
+      const hot = this.measuredTemperature > 3050;
+      return [
+        ['reactor', '反应堆', 'REACTOR', 'green', this.isActive && this.power > 10],
+        ['pump', '供液泵', 'FEED PUMP', 'green', this.pump && !this.faults.has('pump')],
+        ['cooling', '冷却回路', 'COOLANT', 'green', this.cooling && !this.faults.has('cooling')],
+        ['telemetry', '遥测在线', 'TELEMETRY', 'green', true],
+        ['hydrogen', '液氢模式', 'LH2 CYCLE', 'blue', this.propellant === 'hydrogen'],
+        ['water', '水汽模式', 'H2O CYCLE', 'blue', this.propellant === 'water'],
+        ['auto', '自动保护', 'AUTO TRIP', 'blue', this.autoProtection],
+        ['ready', '启动就绪', 'SYS READY', 'blue', this.integrity > 0 && !this.faults.size && this.pump && this.cooling && this.fuel > 10],
+        ['tempHigh', '温度过高', 'TEMP HIGH', 'yellow', hot],
+        ['pressureHigh', '压力过高', 'PRES HIGH', 'yellow', this.pressure > 6.5],
+        ['fuelLow', '储量不足', 'TANK LOW', 'amber', this.fuelPercent < 20],
+        ['decay', '余热冷却', 'DECAY HEAT', 'amber', !this.isActive && this.coreTemperature > 500],
+        ['pumpFault', '泵组故障', 'PUMP FAIL', 'red', this.faults.has('pump')],
+        ['leakFault', '管路泄漏', 'LINE LEAK', 'red', this.faults.has('leak') || this.faults.has('valve')],
+        ['thermalFault', '热控故障', 'THERM FAIL', 'red', this.faults.has('cooling') || this.faults.has('sensor')],
+        ['scram', '紧急停堆', 'SCRAM', 'red', this.mode === 'SCRAM' || this.mode === 'DAMAGED']
+      ];
+    }
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { NTRSimulation, PROPELLANTS, FAULTS };
+  else { root.NTRSimulation = NTRSimulation; root.NTR_PROPELLANTS = PROPELLANTS; root.NTR_FAULTS = FAULTS; }
+})(typeof window !== 'undefined' ? window : globalThis);
