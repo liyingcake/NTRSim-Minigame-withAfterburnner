@@ -128,6 +128,7 @@
       hydroperoxyl: masses[6], peroxide: masses[7], radicals: masses[1] + masses[3] + masses[4] + masses[6] + masses[7],
       fractions: Object.fromEntries(M.species.map((name, i) => [name, exit.y[i]])),
       mixFractions: Object.fromEntries(M.species.map((name, i) => [name, final.y[i]])),
+      primaryFractions: Object.fromEntries(M.species.map((name, i) => [name, primary.y[i]])),
       dissociationPower: Math.max(0, exit.formation - completeFormation) * flow / 1e6,
       mixDissociationPower: Math.max(0, final.formation - completeFormation) * flow / 1e6,
       outside: primary.outside || final.outside || exit.outside,

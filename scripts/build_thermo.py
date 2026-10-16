@@ -25,7 +25,7 @@ species = {s.name: s for s in ct.Species.list_from_file('nasa_gas.yaml')}
 gas = ct.Solution(thermo='ideal-gas', species=[species[n] for n in NAMES])
 water_ratio = gas.molecular_weights[2] / (2 * gas.molecular_weights[0])
 ratios = [0, .025, .05, .1, .2, .35, .5, .75, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, float(water_ratio), 8, 10, 12, 16]
-pressures = [100, 200, 300, 1e3, 2e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 2e6, 3e6, 1e7, 3e7]
+pressures = [100, 200, 300, 1e3, 2e3, 3e3, 1e4, 3e4, 1e5, 3e5, 5e5, 1e6, 2e6, 3e6, 1e7, 3e7]
 temperatures = sorted(set([200, 250, 293.15, 350] + list(range(400, 6001, 100))))
 fields = ['h', 'cp', 'gamma', 'molarMass', 'formation', 'exitDrop', 'exitTemperature', 'injectionDrop', 'injectionTemperature'] + NAMES + ['equilibriumExitDrop', 'equilibriumExitTemperature']
 formation = np.array([s.thermo.h(298.15) / mw for s, mw in zip(gas.species(), gas.molecular_weights)])

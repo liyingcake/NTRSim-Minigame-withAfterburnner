@@ -1,0 +1,161 @@
+{
+  "version": "0.9.0",
+  "canteraVersion": "3.2.0",
+  "species": [
+    "H2",
+    "H",
+    "O2",
+    "O",
+    "OH",
+    "H2O",
+    "HO2",
+    "H2O2"
+  ],
+  "interpretation": "Neutral H2 <=> 2H equilibrium; no ions. Equal temperature does not imply equal required heating energy. Core metal temperature differs from propellant gas temperature.",
+  "reference": [
+    {
+      "gasTemperature": 2820,
+      "pressurePa": 1000000.0,
+      "hMassFraction": 0.013963662461991187,
+      "hMoleFraction": 0.027542727572872207,
+      "molarMass": 1.9882369306065448,
+      "enthalpy": 43879978.64410213
+    },
+    {
+      "gasTemperature": 2820,
+      "pressurePa": 500000.0,
+      "hMassFraction": 0.019745675883833646,
+      "hMoleFraction": 0.03872666754231574,
+      "molarMass": 1.9769635191173458,
+      "enthalpy": 45195781.59898523
+    },
+    {
+      "gasTemperature": 2820,
+      "pressurePa": 100000.0,
+      "hMassFraction": 0.044118284233708394,
+      "hMoleFraction": 0.08450821118622084,
+      "molarMass": 1.9308157231242895,
+      "enthalpy": 50742214.60514636
+    },
+    {
+      "gasTemperature": 2820,
+      "pressurePa": 10000.0,
+      "hMassFraction": 0.13830809678246353,
+      "hMoleFraction": 0.24300643590852875,
+      "molarMass": 1.771049512604203,
+      "enthalpy": 72176829.95960967
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 1000000.0,
+      "hMassFraction": 0.02512309023069542,
+      "hMoleFraction": 0.04901477777667007,
+      "molarMass": 1.9665931040011166,
+      "enthalpy": 49717912.53583463
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 500000.0,
+      "hMassFraction": 0.03551820769352547,
+      "hMoleFraction": 0.06859987092382934,
+      "molarMass": 1.9468513301087802,
+      "enthalpy": 52087919.94192543
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 100000.0,
+      "hMassFraction": 0.0792214957089979,
+      "hMoleFraction": 0.14681230131902273,
+      "molarMass": 1.868013200270425,
+      "enthalpy": 62051935.89821937
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 10000.0,
+      "hMassFraction": 0.24373140477123495,
+      "hMoleFraction": 0.3919357569266582,
+      "molarMass": 1.6209287570179285,
+      "enthalpy": 99558938.99337028
+    }
+  ],
+  "fixedTemperature": [
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 1000000,
+      "hMassFraction": 0.025123090300652094,
+      "molarMass": 1.966593103866912,
+      "enthalpy": 49717912,
+      "isp": 1016.8743715890005,
+      "exitH": 8.477899658535587e-30,
+      "energyResidualMW": -2.980232238769531e-14
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 500000,
+      "hMassFraction": 0.03551820744987296,
+      "molarMass": 1.946851330566865,
+      "enthalpy": 52087920,
+      "isp": 1031.1274740128786,
+      "exitH": 1.3919909456154692e-20,
+      "energyResidualMW": 1.4901161193847656e-14
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 100000,
+      "hMassFraction": 0.07922149390562255,
+      "molarMass": 1.8680132033918686,
+      "enthalpy": 62051936,
+      "isp": 1086.5276937639585,
+      "exitH": 5.382957885680911e-10,
+      "energyResidualMW": -4.470348358154297e-14
+    },
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 10000,
+      "hMassFraction": 0.24373140204753274,
+      "molarMass": 1.6209287605676719,
+      "enthalpy": 99558936,
+      "isp": 1150.2976419360266,
+      "exitH": 0.07035507661919092,
+      "energyResidualMW": -1.1920928955078124e-13
+    }
+  ],
+  "fixedEnthalpy": [
+    {
+      "gasTemperature": 3000,
+      "pressurePa": 1000000,
+      "hMassFraction": 0.025123090300652094,
+      "enthalpy": 49717912,
+      "isp": 1016.8743715890005
+    },
+    {
+      "gasTemperature": 2941.319470579613,
+      "pressurePa": 500000,
+      "hMassFraction": 0.029852212898826922,
+      "enthalpy": 49717912,
+      "isp": 1009.6878396521877
+    },
+    {
+      "gasTemperature": 2800.3019466147553,
+      "pressurePa": 100000,
+      "hMassFraction": 0.04119618116448669,
+      "enthalpy": 49717912.000000015,
+      "isp": 986.2697442600269
+    },
+    {
+      "gasTemperature": 2586.8297640901374,
+      "pressurePa": 10000,
+      "hMassFraction": 0.05821261353385369,
+      "enthalpy": 49717912,
+      "isp": 921.8918746109471
+    }
+  ],
+  "core3000WithoutRegeneration": {
+    "coreTemperature": 3000,
+    "gasTemperature": 2820,
+    "pressureMPa": 0.49999999999999994,
+    "flow": 1.225083938282853,
+    "hMassFraction": 0.019903340876390518,
+    "isp": 949.3938943037525
+  }
+}

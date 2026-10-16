@@ -4,10 +4,11 @@
   const KEY = 'nerva.leaderboard.' + release.version;
   const FIELDS = ['id', 'version', 'scoreSchema', 'type', 'propellant', 'total', 'deltaV', 'elapsed', 'initialFuel', 'fuel',
     'diameter', 'engineModel', 'ratedPower', 'dryMass', 'initialMass', 'finalMass', 'consumedFuel', 'launchDemand', 'launchValve',
+    'flightId', 'engineMass', 'meanThrust', 'burnMeanThrust', 'totalImpulse', 'burnTime', 'effectiveIsp', 'peakShipThrustWeight', 'peakEngineThrustWeight',
     'target', 'distance', 'integrity', 'temperature', 'peakAcceleration', 'peakThrust', 'peakPower', 'peakIsp', 'peakTemperature', 'peakPressure', 'peakFlow', 'reason',
     'base', 'basePoints', 'dvPoints', 'fuelPoints', 'fuelUnitCost', 'loadingCost', 'error', 'errorPenalty', 'timePenalty', 'durabilityPenalty', 'errorDeduction', 'timeDeduction', 'durabilityDeduction',
     'baseDryMass', 'payload', 'payloadPoints', 'payloadUnitReward', 'initialOxygen', 'oxygen', 'consumedOxygen', 'initialVolume', 'dividerVolume', 'primaryLoadingCost', 'oxygenLoadingCost', 'launchOxygenValve', 'peakAfterburnerPower', 'peakTotalPower', 'peakOxygenFlow', 'peakNozzleTemperature', 'peakWallTemperature', 'peakHeatLoad', 'peakDissociationPower'];
-  const NUMERIC_FIELDS = FIELDS.filter(key => !['id', 'version', 'scoreSchema', 'type', 'propellant', 'engineModel', 'target', 'reason'].includes(key));
+  const NUMERIC_FIELDS = FIELDS.filter(key => !['id', 'version', 'scoreSchema', 'type', 'propellant', 'engineModel', 'target', 'reason', 'flightId'].includes(key));
   const snapshot = record => Object.freeze(Object.fromEntries(FIELDS.map(key => [key, record[key]])));
   const compare = (a, b) => b.total - a.total || a.elapsed - b.elapsed || a.id.localeCompare(b.id);
   function retainBest(records) {
@@ -23,6 +24,7 @@
       && ['precision', 'endurance', 'lunar'].includes(record.type) && ['hydrogen', 'water'].includes(record.propellant)
       && NUMERIC_FIELDS.every(key => Number.isFinite(record[key]) && record[key] >= 0)
       && typeof record.engineModel === 'string' && /^(NTR-II|LANTR)-\d{3}[HW]$/.test(record.engineModel)
+      && typeof record.flightId === 'string' && record.flightId.length < 100
       && typeof record.reason === 'string' && record.reason.length < 200
       && (record.target === null || Number.isFinite(record.target)) && record.diameter >= .8 && record.diameter <= 2.4
       && Number.isInteger(record.total) && record.fuel <= record.initialFuel && record.oxygen <= record.initialOxygen && record.initialVolume <= 150 + 1e-8;

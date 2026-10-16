@@ -56,34 +56,39 @@
       const tank = loadout(propellant, initialFuel, oxygenLoad), info = TYPES[type];
       if (!Number.isInteger(initialFuel) || !Number.isInteger(oxygenLoad) || !tank.valid || !Number.isInteger(payload)
         || (type === 'endurance' ? payload !== 0 : payload < info.payloadMin || payload > info.payloadMax)) throw new TypeError('Invalid propellant / payload load');
-      this.engine = engine; this.type = type; this.propellant = propellant; this.payload = payload; this.baseDryMass = 10000; this.dryMass = this.baseDryMass + payload;
+      this.engine = engine; this.type = type; this.propellant = propellant; this.payload = payload; this.baseDryMass = engine.baseDryMass;
       this.initialFuel = initialFuel; this.initialOxygen = oxygenLoad; this.initialVolume = tank.usedVolume; this.target = info.target ?? null;
       this.state = 'PREPARING'; this.started = false; this.elapsed = 0; this.deltaV = 0;
       this.distance = 0; this.acceleration = 0; this.peakAcceleration = 0; this.result = null; this.autoReason = null;
       this.peaks = { thrust: 0, power: 0, isp: 0, temperature: 293, pressure: 0, flow: 0, afterburnerPower: 0, totalPower: 0, oxygenFlow: 0, nozzleTemperature: 293, nozzleWallTemperature: 293, nozzleHeatLoad: 0, dissociationPower: 0 };
       this.launchDemand = 0; this.launchValve = 0;
-      engine.reset(true); engine.configure(propellant, diameter);
+      engine.reset(true); engine.flight.operations = []; engine.configure(propellant, diameter);
+      engine.payload = payload;
       engine.tankCapacity = this.initialFuel; engine.fuel = this.initialFuel;
       engine.oxygen = engine.initialOxygen = oxygenLoad; engine.oxygenTankInstalled = oxygenLoad > 0;
       engine.oxygenInterlock = oxygenLoad > 0 ? '液氧泵关闭' : '未安装液氧舱';
       engine.propellantLocked = true; engine.demand = 0; engine.valve = 0;
       engine.pump = false; engine.cooling = false;
+      engine.flight.operation('missionSetup', { type, propellant, diameter, initialFuel, oxygenLoad, payload,
+        target: this.target, baseDryMass: engine.baseDryMass, engineMass: engine.engineMass, dryMass: this.dryMass,
+        power: 0, temperature: 293, demand: 0, valve: 0, oxygenValve: 0, pump: false, oxygenPump: false, cooling: false, autoProtection: true });
       engine.events = []; engine.log(TYPES[type].title + ' · 冷态准备');
       engine.log('装载锁定 ' + engine.prop.symbol + ' ' + this.initialFuel.toLocaleString('en-US') + ' kg / LOX ' + oxygenLoad.toLocaleString('en-US') + ' kg');
       engine.log('干重 ' + this.dryMass.toLocaleString('en-US') + ' kg / 容积 ' + tank.usedVolume.toFixed(2) + ' m³');
       engine.history = []; engine.recordSample();
     }
-    get mass() { return this.dryMass + this.engine.fuel + this.engine.oxygen; }
+    get dryMass() { return this.engine.dryMass; }
+    get mass() { return this.engine.mass; }
     get complete() { return this.state === 'COMPLETE'; }
     get remainingError() { return this.target === null ? null : this.target - this.deltaV; }
     get canSettle() { return this.started && !this.complete && this.engine.coreTemperature < 800; }
     get liveScore() { return calculateScore({ type: this.type, deltaV: this.deltaV, target: this.target, propellant: this.propellant, initialFuel: this.initialFuel, fuel: this.engine.fuel, initialOxygen: this.initialOxygen, oxygen: this.engine.oxygen, payload: this.payload, elapsed: this.elapsed, integrity: this.engine.integrity }); }
 
-    startEngine() {
+    startEngine(source = 'operator') {
       if (this.complete) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
       if (this.autoReason) return { ok: false, message: '任务正在自动冷却结算，请保持冷却回路开启' };
       if (this.engine.demand <= 0) return { ok: false, message: '冷启动：请先设定大于 0% 的反应堆功率' };
-      const result = this.engine.start();
+      const result = this.engine.start(source);
       if (result.ok && !this.started) {
         this.launchDemand = this.engine.demand; this.launchValve = this.engine.valve; this.launchOxygenValve = this.engine.oxygenValve;
         this.started = true; this.state = 'ACTIVE'; this.engine.diameterLocked = true;
@@ -125,21 +130,27 @@
       if (!this.started) return { ok: false, message: '请先完成冷启动，开始本次挑战' };
       if (this.engine.coreTemperature >= 800) return { ok: false, message: '结算联锁：堆芯需低于 800 K；请先停机并保持冷却' };
       const score = this.liveScore;
+      this.engine.flight.operation('settle', reason);
+      if (this.engine.isActive) this.engine.shutdown();
+      this.engine.log('挑战完成 · 最终得分 ' + score.total.toLocaleString('en-US'));
+      const flightReport = this.engine.flight.snapshot(this.engine, { version: release.version, scoreSchema: release.scoreSchema, type: this.type, reason, target: this.target, score });
+      this.engine.flight.finished = true;
+      const stats = flightReport.stats;
       this.result = Object.freeze({ ...score, id: Date.now().toString(36) + '-' + (++resultSequence), version: release.version, scoreSchema: release.scoreSchema, type: this.type, propellant: this.propellant, diameter: this.engine.diameter, reason,
         target: this.target, deltaV: this.deltaV, distance: this.distance, elapsed: this.elapsed,
         fuel: this.engine.fuel, initialFuel: this.initialFuel, integrity: this.engine.integrity,
         temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration,
-        engineModel: this.engine.engineModel, ratedPower: this.engine.ratedPower,
+        engineModel: this.engine.engineModel, ratedPower: this.engine.ratedPower, engineMass: this.engine.engineMass,
+        flightId: flightReport.id, flightReport, meanThrust: stats.meanThrust, burnMeanThrust: stats.burnMeanThrust, totalImpulse: stats.totalImpulse,
+        burnTime: stats.burnTime, effectiveIsp: stats.effectiveIsp, peakShipThrustWeight: stats.peakShipThrustWeight, peakEngineThrustWeight: stats.peakEngineThrustWeight,
         baseDryMass: this.baseDryMass, payload: this.payload, dryMass: this.dryMass, initialMass: this.dryMass + this.initialFuel + this.initialOxygen, finalMass: this.mass,
         initialOxygen: this.initialOxygen, oxygen: this.engine.oxygen, consumedOxygen: this.initialOxygen - this.engine.oxygen, initialVolume: this.initialVolume, dividerVolume: this.initialOxygen > 0 ? TANK.divider : 0,
         consumedFuel: this.initialFuel - this.engine.fuel, launchDemand: this.launchDemand, launchValve: this.launchValve, launchOxygenValve: this.launchOxygenValve,
-        peakThrust: this.peaks.thrust, peakPower: this.peaks.power, peakIsp: this.peaks.isp,
+        peakThrust: stats.peakThrust, peakPower: this.peaks.power, peakIsp: this.peaks.isp,
         peakTemperature: this.peaks.temperature, peakPressure: this.peaks.pressure, peakFlow: this.peaks.flow,
         peakAfterburnerPower: this.peaks.afterburnerPower, peakTotalPower: this.peaks.totalPower, peakOxygenFlow: this.peaks.oxygenFlow, peakNozzleTemperature: this.peaks.nozzleTemperature,
         peakWallTemperature: this.peaks.nozzleWallTemperature, peakHeatLoad: this.peaks.nozzleHeatLoad, peakDissociationPower: this.peaks.dissociationPower });
-      if (this.engine.isActive) this.engine.shutdown();
       this.engine.controlsLocked = true; this.state = 'COMPLETE'; this.acceleration = 0;
-      this.engine.log('挑战完成 · 最终得分 ' + score.total.toLocaleString('en-US'));
       return { ok: true, message: '挑战已结算', result: this.result };
     }
   }

@@ -76,11 +76,11 @@ test('cold flow, shutdown, main depletion and empty oxygen tanks cannot burn pha
 });
 test('payload, oxygen and main propellant all affect flight mass and are locked after loading', () => {
   const e = new NTRSimulation(), m = new NTRChallenge(e, { type: 'lunar', fuelLoad: 5000, oxygenLoad: 20000, payload: 50000 });
-  assert.equal(m.target, 2000); assert.equal(m.dryMass, 60000); assert.equal(m.mass, 85000);
+  assert.equal(m.target, 2000); assert.equal(m.dryMass, 55000 + e.engineMass); assert.equal(m.mass, 80000 + e.engineMass);
   assert.equal(e.setLoadout(5000, 0).ok, false);
   Object.assign(e, { pump: true, cooling: true, demand: 60, valve: 70, oxygenPump: true, oxygenValve: 30 });
   m.startEngine(); advance(m, 30); assert.ok(e.oxygenConsumed > 0);
-  near(m.mass, 85000 - e.consumed - e.oxygenConsumed);
+  near(m.mass, 80000 + e.engineMass - e.consumed - e.oxygenConsumed);
   near(m.acceleration, e.thrust * 1000 / m.mass); assert.ok(m.deltaV > 0);
   e.shutdown(); e.valve = 0; advance(m, 100); assert.equal(m.settle().ok, true);
   const r = m.result; assert.equal(r.payload, 50000); assert.equal(r.launchOxygenValve, 30);

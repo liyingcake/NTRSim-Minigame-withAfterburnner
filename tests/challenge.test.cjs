@@ -10,10 +10,10 @@ function ignite(mission, demand = 60, valve = 70) {
   assert.equal(mission.startEngine().ok, true);
 }
 
-test('challenge starts cold with exact fuel loads and a fixed 10-tonne dry spacecraft', () => {
+test('challenge starts cold with exact fuel loads and 5-tonne base dry mass plus the actual engine', () => {
   for (const [propellant, fuel] of [['hydrogen', 10000], ['water', 30000]]) {
     const m = make({ propellant });
-    assert.equal(m.mass, 10000 + fuel); assert.equal(m.engine.fuelCapacity, fuel);
+    assert.equal(m.mass, 5000 + m.engine.engineMass + fuel); assert.equal(m.engine.fuelCapacity, fuel);
     assert.equal(m.engine.fuelPercent, 100); assert.equal(m.engine.coreTemperature, 293);
     for (const key of ['power', 'flow', 'pressure', 'thrust', 'exhaustVelocity']) assert.equal(m.engine[key], 0, key);
     assert.equal(m.engine.demand, 0); assert.equal(m.engine.valve, 0);
@@ -62,7 +62,7 @@ test('unused hydrogen returns only one point per kilogram rather than its ten-po
 test('custom precision loads update the actual tank, starting mass, and cold-start consumption', () => {
   for (const [propellant, fuelLoad] of [['hydrogen', 777], ['water', 2345]]) {
     const m = make({ type: 'precision', propellant, fuelLoad });
-    assert.equal(m.initialFuel, fuelLoad); assert.equal(m.mass, 10000 + fuelLoad);
+    assert.equal(m.initialFuel, fuelLoad); assert.equal(m.mass, 5000 + m.engine.engineMass + fuelLoad);
     assert.equal(m.engine.fuel, fuelLoad); assert.equal(m.engine.fuelPercent, 100);
     ignite(m); advance(m, 5); assert.ok(m.engine.fuel < fuelLoad);
     assert.ok(Math.abs(m.engine.fuel + m.engine.consumed - fuelLoad) < 1e-8);
@@ -100,7 +100,7 @@ test('fractional penalties are continuous, symmetric, and never generate negativ
 test('flight acceleration uses total spacecraft mass and integrates delta-v and distance', () => {
   const m = make(); ignite(m); advance(m, 25);
   assert.ok(m.engine.thrust > 50); assert.ok(m.deltaV > 50); assert.ok(m.distance > 100);
-  assert.ok(m.mass < 20000 && m.mass > 19000);
+  assert.ok(m.mass < m.dryMass + 10000 && m.mass > m.dryMass + 9000);
   assert.ok(Math.abs(m.acceleration - m.engine.thrust * 1000 / m.mass) < 1e-10);
   assert.ok(Math.abs(m.engine.consumed + m.engine.fuel - m.initialFuel) < 1e-6);
 });
@@ -144,7 +144,7 @@ test('both full-propellant challenges can reach an automatic end with zero mass 
     const m = make({ propellant, diameter: 2.4 }); ignite(m);
     for (let i = 0; i < 700 && !m.complete; i++) m.tick(1);
     assert.equal(m.complete, true, propellant); assert.equal(m.engine.fuel, m.initialFuel * .005);
-    assert.equal(m.mass, 10000 + m.engine.fuel); assert.ok(m.result.deltaV > 2800);
+    assert.equal(m.mass, 5000 + m.engine.engineMass + m.engine.fuel); assert.ok(m.result.deltaV > 2800);
     assert.ok(Math.abs(m.engine.consumed + m.engine.fuel - m.initialFuel) < 1e-5);
   }
 });

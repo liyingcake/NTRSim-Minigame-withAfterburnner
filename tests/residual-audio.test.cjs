@@ -53,7 +53,7 @@ test('a full burn reaches the finite reserve and auto-settles while preserving i
   Object.assign(e, { demand: 20, valve: 70, pump: true, cooling: true, autoProtection: false });
   assert.ok(m.startEngine().ok); run(m, 200);
   assert.ok(m.complete); near(m.result.fuel, 2.5); near(m.result.fuelPoints, 2.5);
-  near(m.result.finalMass, 10002.5); near(e.consumed + e.fuel, 500); assert.match(m.result.reason, /残气/);
+  near(m.result.finalMass, 5000 + e.engineMass + 2.5); near(e.consumed + e.fuel, 500); assert.match(m.result.reason, /残气/);
 });
 
 test('ACK silences current alarms and a newly appearing warning re-arms them', () => {

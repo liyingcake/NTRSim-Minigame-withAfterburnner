@@ -4,6 +4,7 @@
   'use strict';
   const { TANK, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust } = typeof module !== 'undefined' && module.exports ? require('./systems.js') : root.NTR_SYSTEMS;
   const thermo = typeof module !== 'undefined' && module.exports ? require('./thermochemistry.js') : root.NTR_THERMO;
+  const flight = typeof module !== 'undefined' && module.exports ? require('./flight-recorder.js') : root.NTR_FLIGHT;
   const PROPELLANTS = {
     hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, ratedFlow: thermo.metadata.model.hydrogenRatedFlow, capacity: 6000 },
     water: { label: '水', symbol: 'H₂O', inlet: 293, ratedFlow: 45, capacity: 14000 }
@@ -27,7 +28,11 @@
     get scale() { return (this.diameter / 1.4) ** 2; }
     get ratedPower() { return 600 * this.scale; }
     get ratedFlow() { return this.prop.ratedFlow * this.scale; }
-    get engineMass() { return 3800 * (this.diameter / 1.4) ** 2.6; }
+    get engineMass() { return flight.engineMass(this.diameter); }
+    get baseDryMass() { return flight.BASE_DRY_MASS; }
+    get dryMass() { return this.baseDryMass + this.engineMass + this.payload; }
+    get mass() { return this.dryMass + this.fuel + this.oxygen; }
+    get acceleration() { return this.thrust * 1000 / this.mass; }
     get engineModel() { return (this.oxygenTankInstalled ? 'LANTR-' : 'NTR-II-') + String(Math.round(this.diameter * 100)).padStart(3, '0') + (this.propellant === 'hydrogen' ? 'H' : 'W'); }
     get fuelCapacity() { return this.tankCapacity || this.prop.capacity; }
     get fuelPercent() { return this.fuel / this.fuelCapacity * 100; }
@@ -55,7 +60,7 @@
     get tankState() { return loadout(this.propellant, this.fuel, this.oxygen, this.oxygenTankInstalled); }
 
     reset(cold = true) {
-      this.time = 0; this.propellant = 'hydrogen'; this.diameter = 1.4;
+      this.time = 0; this.propellant = 'hydrogen'; this.diameter = 1.4; this.payload = 0;
       this.demand = 60; this.valve = 70; this.pump = true; this.cooling = true; this.autoProtection = true;
       this.tankCapacity = null; this.propellantLocked = false; this.diameterLocked = false; this.controlsLocked = false;
       this.oxygen = 0; this.initialOxygen = 0; this.oxygenConsumed = 0; this.oxygenTankInstalled = false;
@@ -69,11 +74,13 @@
       this.faults = new Set(); this.acknowledged = false; this.integrity = 100; this.previousAlarms = new Map();
       this.fuel = this.prop.capacity; this.mode = cold ? 'STANDBY' : 'RUNNING';
       this.power = cold ? 0 : 360; this.flow = cold ? 0 : this.ratedFlow * .7;
-      this.feedFlow = this.flow; this.feedNominal = this.flow; this.coreTemperature = cold ? 293 : this.equilibriumTemperature();
+      this.feedFlow = this.flow; this.feedNominal = this.flow; this.commandedFlow = this.flow; this.coreTemperature = cold ? 293 : this.equilibriumTemperature();
       this.pressure = 0; this.exhaustVelocity = 0; this.thrust = 0; this.isp = 0;
       this.coolantTemperature = cold ? 293 : 475; this.decayPower = 0; this.protectionTimer = 0;
       this.totalImpulse = 0; this.consumed = 0; this.history = []; this.sampleTimer = 0;
       this.events = []; this.eventId = 0; this.updatePerformance(); this.recordSample();
+      this.flight = new flight.FlightRecorder();
+      if (!cold) this.flight.begin(this);
       this.log(cold ? '试验复位 · 待机就绪' : '试验开始 · 60% 额定功率');
       this.log('冷却回路 / 推进剂泵 已上线');
       this.log('遥测连接已建立 · 系统自检通过');
@@ -82,6 +89,15 @@
     log(message, severity = 'info') {
       this.events.unshift({ id: ++this.eventId, time: this.time, message, severity });
       this.events = this.events.slice(0, 80);
+      this.flight?.operation('event', message, 'system', severity);
+    }
+
+    setControl(key, value, source = 'panel') {
+      if (this.controlsLocked || !['demand', 'valve', 'oxygenValve'].includes(key) || !Number.isFinite(value)) return;
+      value = clamp(value, 0, 100);
+      if (this[key] === value) return;
+      this[key] = value;
+      this.flight.operation(key, value, source);
     }
 
     equilibriumTemperature() {
@@ -94,7 +110,7 @@
       return clamp(gasTemp + (this.power > .1 ? this.gasFilmDrop : 0), 293, 4900);
     }
 
-    start() {
+    start(source = 'operator') {
       if (this.controlsLocked) return { ok: false, message: '本次挑战已结算，请开始新挑战' };
       if (this.isActive) return { ok: false, message: '发动机已在运行' };
       if (this.integrity <= 0) return { ok: false, message: '堆芯受损，请重置试验' };
@@ -102,15 +118,17 @@
       if (!this.pump || !this.cooling) return { ok: false, message: '启动联锁：请开启推进剂泵和冷却回路' };
       if (this.fuelExhausted) return { ok: false, message: '已达到不可泵送残留量，请重新加注' };
       if (this.valve < 15) return { ok: false, message: '启动联锁：主阀开度至少需要 15%' };
-      if (this.demand === 0) this.demand = 30;
+      if (this.demand === 0) this.setControl('demand', 30, 'startup');
       this.mode = 'STARTING'; this.acknowledged = false; this.protectionTimer = 0;
+      this.flight.begin(this); this.flight.operation('start', true, source);
       this.log('启动序列执行 · 供液 / 功率爬升');
       return { ok: true, message: '启动序列已执行' };
     }
 
-    shutdown() {
+    shutdown(source = 'operator') {
       if (!this.isActive) return { ok: false, message: '发动机已处于停堆状态' };
       this.mode = 'SHUTDOWN'; this.decayPower = this.power * .015;
+      this.flight.operation('shutdown', true, source);
       this.closeOxygen();
       this.log('正常停机 · 保持供液与余热冷却', 'warning');
       return { ok: true, message: '正常停机中，正在带走余热' };
@@ -120,6 +138,7 @@
       if (this.mode === 'SCRAM' || this.mode === 'DAMAGED') return { ok: false, message: '紧急停堆已执行' };
       this.decayPower = Math.max(this.decayPower, this.power * .025);
       this.mode = 'SCRAM'; this.acknowledged = false;
+      this.flight.operation('scram', reason, reason === '操作员执行紧急停堆' ? 'operator' : 'system');
       this.closeOxygen();
       this.log(reason + ' · SCRAM', 'danger');
       return { ok: true, message: '紧急停堆已执行，冷却回路保持当前状态' };
@@ -140,6 +159,7 @@
         this.diameter = clamp(diameter, .8, 2.4);
         this.log('堆芯直径设定 ' + this.diameter.toFixed(2) + ' m');
       }
+      this.flight.operation('configure', { propellant: this.propellant, diameter: this.diameter });
       return { ok: true, message: '发动机配置已更新' };
     }
 
@@ -157,18 +177,21 @@
       this.consumed = this.oxygenConsumed = 0; this.feedFlow = this.feedNominal = this.flow = 0; this.closeOxygen();
       this.oxygenInterlock = oxygen > 0 ? '液氧泵关闭' : '未安装液氧舱';
       this.updatePerformance(); this.log('储罐已装载 · ' + tank.usedVolume.toFixed(2) + ' / 150 m³');
+      this.flight.operation('loadout', { fuel, oxygen });
       return { ok: true, message: '储罐配置已更新' };
     }
 
     injectFault(key) {
       if (!FAULTS[key] || this.faults.has(key)) return false;
       this.faults.add(key); this.acknowledged = false;
+      this.flight.operation('injectFault', key);
       this.log(FAULTS[key].code + ' ' + FAULTS[key].title, 'danger');
       return true;
     }
 
     repairFault(key) {
       if (!this.faults.delete(key)) return false;
+      this.flight.operation('repairFault', key);
       this.log(FAULTS[key].title + ' · 已修复');
       if (!this.faults.size) this.acknowledged = false;
       return true;
@@ -177,21 +200,24 @@
     repairAll() {
       if (!this.faults.size) return false;
       this.faults.clear(); this.acknowledged = false; this.protectionTimer = 0;
+      this.flight.operation('repairAll', true);
       this.log('全部故障已修复 · 检修完成');
       return true;
     }
 
-    setSwitch(key, value) {
+    setSwitch(key, value, source = 'panel') {
       if (!['pump', 'oxygenPump', 'cooling', 'autoProtection'].includes(key) || this.controlsLocked) return;
       if (key === 'oxygenPump' && value && (!this.oxygenTankInstalled || this.propellant !== 'hydrogen' || this.usableOxygen <= 0)) return;
       this[key] = Boolean(value);
+      this.flight.operation(key, this[key], source);
       const labels = { pump: '推进剂泵', oxygenPump: '液氧泵', cooling: '冷却回路', autoProtection: '自动保护' };
       this.log(labels[key] + (value ? ' · 开启' : ' · 关闭'), value ? 'info' : 'warning');
     }
 
-    acknowledge() {
+    acknowledge(source = 'operator') {
       this.refreshAlarms();
       this.acknowledged = true;
+      this.flight.operation('acknowledge', true, source);
       this.log('操作员确认告警 · 故障状态保留', 'warning');
     }
 
@@ -246,6 +272,7 @@
     }
 
     step(dt) {
+      const beforeMass = this.mass;
       this.time += dt;
       if (this.mode === 'DAMAGED') { this.power = approach(this.power, 0, dt, .4); }
       else {
@@ -285,7 +312,7 @@
       const coolantConductance = this.cooling && !this.faults.has('cooling') ? 16000 : 400;
       this.nozzleCoolingPower = coolantConductance * this.scale * Math.max(0, wall - this.coolantTemperature) / 1e6;
       this.nozzleRadiationPower = .8 * 5.670374419e-8 * 2.4 * this.scale * Math.max(0, wall ** 4 - 293 ** 4) / 1e6;
-      this.updatePerformance(); this.stepThrust = this.thrust; this.totalImpulse += this.stepThrust * dt;
+      this.updatePerformance(); this.stepThrust = this.thrust; this.stepTotalFlow = this.totalFlow; this.totalImpulse += this.stepThrust * dt;
       this.wallEnergyRate = this.nozzleHeatLoad - this.nozzleCoolingPower - this.nozzleRadiationPower;
       this.nozzleWallTemperature += this.wallEnergyRate * 1e6 * dt / this.wallHeatCapacity;
       if (this.mode === 'STARTING' && Math.abs(this.power - this.ratedPower * this.demand / 100) < Math.max(2, this.ratedPower * .02)) {
@@ -306,6 +333,7 @@
       this.sampleTimer += dt;
       if (this.sampleTimer >= .5) { this.sampleTimer -= .5; this.recordSample(); }
       this.refreshAlarms();
+      this.flight.step(this, beforeMass, dt);
     }
 
     recordSample() {
