@@ -1,6 +1,6 @@
 <!doctype html><meta charset="utf-8"><title>NERVA audio QA</title>
 <button id="run">运行声学检查</button><pre id="result">等待测试</pre>
-<script src="../systems.js"></script><script src="../simulation.js"></script><script src="../audio.js"></script>
+<script src="../thermo-table.js"></script><script src="../thermochemistry.js"></script><script src="../systems.js"></script><script src="../simulation.js"></script><script src="../audio.js"></script>
 <script>
 const stats = (buffer, from=.8, to=1.8) => {
   const data=buffer.getChannelData(0), start=Math.floor(from*buffer.sampleRate), end=Math.min(data.length,Math.floor(to*buffer.sampleRate));
@@ -21,11 +21,12 @@ document.getElementById('run').onclick=async()=>{
       const buffer=await context.startRendering();results.push({mode,...stats(buffer)});
     }
     const context=new OfflineAudioContext(2,96000,48000), sound=new NTRSound({context,offline:true}), sim=new NTRSimulation();
-    sim.flow=sim.power=0;sim.injectFault('pump');await sound.enable();sound.setVolume(.5);sound.update(sim);
+    sim.flow=sim.power=0;sim.injectFault('pump');sim.injectFault('cooling');sim.injectFault('leak');sim.scram();sim.coreTemperature=3260;
+    await sound.enable();sound.setVolume(.5);sound.update(sim);const chord=[...sound.lastChord];
     const change=context.suspend(.4).then(()=>{sim.acknowledge();sound.update(sim);return context.resume();});
     const buffer=await context.startRendering();await change;
-    results.push({mode:'ACK',before:stats(buffer,.08,.36),after:stats(buffer,.8,1.6),acknowledged:sim.acknowledged,voices:sound.voices.size});
-    const passed=results.slice(0,4).every(x=>x.rms>0&&x.peak<1)&&results[4].rms===0&&results[5].after.rms<results[5].before.rms*.2&&results[5].voices===0;
+    results.push({mode:'four-voice chord / ACK',chord,before:stats(buffer,.08,.36),after:stats(buffer,.8,1.6),acknowledged:sim.acknowledged,voices:sound.voices.size});
+    const passed=results.slice(0,4).every(x=>x.rms>0&&x.peak<1)&&results[4].rms===0&&results[5].after.rms<results[5].before.rms*.2&&results[5].voices===0&&chord.length===4&&results[5].before.stereo>.001;
     output.textContent=JSON.stringify({passed,results},null,2);
   }catch(error){output.textContent=JSON.stringify({passed:false,error:error.stack});}
 };

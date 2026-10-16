@@ -23,14 +23,15 @@ test('150 m³ tank uses density and charges a persistent ten-m³ divider for dua
   assert.equal(loadout('hydrogen', 5000, dual.maxOxygen + 1).valid, false);
 });
 test('hydrogen oxygen products conserve mass, release heat, raise thrust and reduce Isp', () => {
-  const pure = mixExhaust(10, 0, 8000, 2500), mixed = mixExhaust(10, 20, 8000, 2500);
-  near(mixed.steam + mixed.hydrogen + mixed.oxygen, 30);
-  near(mixed.steam, 22.5); near(mixed.hydrogen, 7.5); near(mixed.chemicalPower, 300);
+  const pure = mixExhaust(10, 0, 2500, 4), mixed = mixExhaust(10, 20, 2500, 4);
+  near(mixed.steam + mixed.hydrogen + mixed.oxygen + mixed.radicals, 30);
+  assert.ok(mixed.steam > 0 && mixed.steam < 30); assert.ok(mixed.hydrogen > 0 && mixed.radicals > 0);
+  assert.ok(mixed.chemicalPower > 0 && mixed.chemicalPower < 20 / 7.936 * 120);
   assert.equal(mixed.mixtureRatio, 2); assert.ok(mixed.temperature > 2500);
   assert.ok(mixed.velocity < pure.velocity); assert.ok(mixed.velocity * mixed.flow > pure.velocity * pure.flow);
-  const stoich = mixExhaust(10, 80, 8000, 2500); near(stoich.steam, 90); near(stoich.hydrogen, 0);
-  const rich = mixExhaust(10, 100, 8000, 2500); near(rich.oxygen, 20); near(rich.steam + rich.oxygen, 110);
-  near(mixed.kineticPower, .5 * 10 * 8000 ** 2 / 1e6 + 300 * .85);
+  const rich = mixExhaust(10, 100, 2500, 4); assert.ok(rich.oxygen > 0); near(rich.steam + rich.hydrogen + rich.oxygen + rich.radicals, 110);
+  near(mixed.kineticPower, .5 * mixed.flow * mixed.jetVelocity ** 2 / 1e6);
+  near(mixed.energy.input, mixed.energy.kinetic + mixed.energy.wall + mixed.energy.exhaust);
 });
 test('pump ripple is deterministic, has both signs and remains within ±0.100 kg/s per ten', () => {
   assert.equal(PUMP_WAVE.interval, 1); assert.equal(PUMP_WAVE.amplitude, .01);
@@ -60,7 +61,7 @@ test('LANTR consumes oxygen independently, conserves both tanks and leaves the r
   assert.ok(Math.abs(e.coreTemperature - pureCore) < 30);
   near(e.fuel + e.consumed, 5000); near(e.oxygen + e.oxygenConsumed, 20000);
   near(e.thrust, e.totalFlow * e.exhaustVelocity / 1000);
-  near(e.products.steam + e.products.hydrogen + e.products.oxygen, e.totalFlow);
+  near(e.products.steam + e.products.hydrogen + e.products.oxygen + e.products.radicals, e.totalFlow);
   assert.ok(e.mixtureRatio <= 8); assert.equal(e.engineModel, 'LANTR-140H');
 });
 test('cold flow, shutdown, main depletion and empty oxygen tanks cannot burn phantom oxygen', () => {

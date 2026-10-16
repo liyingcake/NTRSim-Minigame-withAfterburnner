@@ -3,9 +3,10 @@
 (function (root) {
   'use strict';
   const { TANK, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust } = typeof module !== 'undefined' && module.exports ? require('./systems.js') : root.NTR_SYSTEMS;
+  const thermo = typeof module !== 'undefined' && module.exports ? require('./thermochemistry.js') : root.NTR_THERMO;
   const PROPELLANTS = {
-    hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, cp: 12000, latent: 0, gasConstant: 4124, gamma: 1.4, ratedFlow: 16, capacity: 6000 },
-    water: { label: '水', symbol: 'H₂O', inlet: 293, cp: 4600, latent: 2300000, gasConstant: 461.5, gamma: 1.27, ratedFlow: 45, capacity: 14000 }
+    hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, ratedFlow: 16, capacity: 6000 },
+    water: { label: '水', symbol: 'H₂O', inlet: 293, ratedFlow: 45, capacity: 14000 }
   };
   const FAULTS = {
     pump: { title: '推进剂泵失速', code: 'P–021', description: '泵转速下降，供液与压力衰减，堆芯冷却不足。', remedy: '紧急停堆并修复推进剂泵；保持冷却回路运行。' },
@@ -17,6 +18,8 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const approach = (a, b, dt, tau) => a + (b - a) * (1 - Math.exp(-dt / tau));
   const TELEMETRY_LIMITS = Object.freeze({ temperature: 4000, pressure: 8, isp: 1000 });
+  const grade = (value, thresholds) => thresholds.reduce((level, threshold, i) => value >= threshold ? i + 1 : level, 0);
+  const warningColor = level => ['green', 'yellow', 'orange', 'red'][level];
 
   class NTRSimulation {
     constructor() { this.events = []; this.eventId = 0; this.reset(false); }
@@ -43,6 +46,12 @@
     get ratedOxygenFlow() { return 80 * this.scale; }
     get totalFlow() { return this.flow + this.oxygenFlow; }
     get totalPower() { return this.power + this.afterburnerPower; }
+    get gasFilmDrop() {
+      const base = this.propellant === 'water' ? 50 : 180;
+      return base + ((!this.cooling || this.faults.has('cooling')) ? 600 * Math.min(1, this.power / Math.max(1, this.ratedPower * .2)) : 0);
+    }
+    get wallHeatCapacity() { return 700000 * this.scale; }
+    get dissociationPower() { return this.thermoState?.dissociationPower || 0; }
     get tankState() { return loadout(this.propellant, this.fuel, this.oxygen, this.oxygenTankInstalled); }
 
     reset(cold = true) {
@@ -53,8 +62,10 @@
       this.oxygenPump = false; this.oxygenValve = 0; this.oxygenFeedFlow = 0; this.oxygenFlow = 0;
       this.commandedFlow = 0; this.commandedOxygenFlow = 0; this.flowRipple = 0; this.oxygenRipple = 0;
       this.afterburnerPower = 0; this.nozzleTemperature = 293; this.mixtureRatio = 0;
+      this.nozzleWallTemperature = cold ? 293 : 650; this.nozzleHeatLoad = this.nozzleCoolingPower = this.nozzleRadiationPower = 0;
+      this.wallEnergyRate = 0; this.nozzleEnergy = null; this.thermoState = null;
       this.products = { steam: 0, hydrogen: 0, oxygen: 0 }; this.oxygenInterlock = '未安装液氧舱';
-      this.faults = new Set(); this.acknowledged = false; this.integrity = 100; this.previousAlarms = new Set();
+      this.faults = new Set(); this.acknowledged = false; this.integrity = 100; this.previousAlarms = new Map();
       this.fuel = this.prop.capacity; this.mode = cold ? 'STANDBY' : 'RUNNING';
       this.power = cold ? 0 : 360; this.flow = cold ? 0 : this.ratedFlow * .7;
       this.feedFlow = this.flow; this.feedNominal = this.flow; this.coreTemperature = cold ? 293 : this.equilibriumTemperature();
@@ -77,10 +88,9 @@
       if (!this.isActive && this.flow < this.ratedFlow * .01 && this.cooling && !this.faults.has('cooling')) {
         return clamp(293 + this.power / this.ratedPower * 2200, 293, 4900);
       }
-      const available = this.power * 1e6 / Math.max(this.flow, .05);
-      const gasTemp = this.prop.inlet + Math.max(0, available - this.prop.latent) / this.prop.cp;
-      const coolingPenalty = (!this.cooling || this.faults.has('cooling')) ? 600 * Math.min(1, this.power / Math.max(1, this.ratedPower * .2)) : 0;
-      return clamp(gasTemp + (this.power > .1 ? 180 : 0) + coolingPenalty, 293, 4900);
+      const available = thermo.metadata.feedEnthalpy[this.propellant] + this.power * 1e6 / Math.max(this.flow, .05);
+      const gasTemp = thermo.fromEnthalpy(available, Math.max(1e3, (this.pressure || 4) * 1e6), this.propellant === 'water' ? thermo.metadata.waterRatio : 0).temperature;
+      return clamp(gasTemp + (this.power > .1 ? this.gasFilmDrop : 0), 293, 4900);
     }
 
     start() {
@@ -185,30 +195,38 @@
     }
 
     get alarms() {
-      const ids = this.lamps.filter(l => l[4] && ['red', 'yellow', 'amber'].includes(l[3]) && l[0] !== 'decay').map(l => l[0]);
-      if (this.fuelPercent < 2) ids.push('fuelResidual');
-      if (this.oxygenTankInstalled && this.oxygenPercent < 2) ids.push('oxygenResidual');
-      return ids;
+      return Object.keys(this.alarmLevels);
+    }
+
+    get alarmLevels() {
+      const aliases = { reactor: 'tempHigh', pump: 'pumpOff', cooling: 'coolingOff', auto: 'protectionOff', oxygenPump: 'oxygenPumpOff' }, levels = {};
+      for (const [id, , , , active, level = 0] of this.lamps) if (active && level > 0) {
+        const key = aliases[id] || id; levels[key] = Math.max(levels[key] || 0, level);
+      }
+      if (this.fuelPercent < 2) levels.fuelResidual = this.fuelExhausted ? 3 : 2;
+      if (this.oxygenTankInstalled && this.oxygenPercent < 2) levels.oxygenResidual = this.usableOxygen <= 0 ? 3 : 2;
+      return levels;
     }
 
     refreshAlarms() {
-      const active = new Set(this.alarms);
-      if ([...active].some(id => !this.previousAlarms.has(id))) this.acknowledged = false;
+      const active = new Map(Object.entries(this.alarmLevels));
+      if ([...active].some(([id, level]) => level > (this.previousAlarms.get(id) || 0))) this.acknowledged = false;
       this.previousAlarms = active;
     }
 
     updatePerformance() {
-      const gasTemp = Math.max(this.prop.inlet, this.coreTemperature - 180);
+      const gasTemp = Math.max(this.prop.inlet, this.coreTemperature - this.gasFilmDrop);
       const targetPressure = this.flow / this.ratedFlow * Math.sqrt(gasTemp / 2600) * 5.8;
       this.pressure = Math.max(0, targetPressure);
-      const expansion = this.pressure > .005 ? 1 - (.002 / this.pressure) ** ((this.prop.gamma - 1) / this.prop.gamma) : 0;
-      const baseVelocity = this.flow > .01 ? Math.sqrt(Math.max(0, 2 * this.prop.gamma / (this.prop.gamma - 1) * this.prop.gasConstant * gasTemp * expansion)) * .96 : 0;
-      const mixture = mixExhaust(this.flow, this.oxygenFlow, baseVelocity, gasTemp);
+      const mixture = mixExhaust(this.flow, this.oxygenFlow, gasTemp, this.pressure, this.nozzleWallTemperature, this.scale, this.propellant);
       this.afterburnerPower = this.propellant === 'hydrogen' ? mixture.chemicalPower : 0;
-      this.mixtureRatio = mixture.mixtureRatio; this.nozzleTemperature = this.totalFlow > 0 ? (this.oxygenFlow > 0 ? mixture.temperature : gasTemp) : this.coreTemperature;
-      this.products = this.propellant === 'water' ? { steam: this.flow, hydrogen: 0, oxygen: 0 } : { steam: mixture.steam, hydrogen: mixture.hydrogen, oxygen: mixture.oxygen };
-      this.exhaustVelocity = this.oxygenFlow > 0 ? mixture.velocity : baseVelocity;
-      this.kineticPower = .5 * this.totalFlow * this.exhaustVelocity ** 2 / 1e6;
+      this.thermoState = mixture; this.nozzleEnergy = mixture.energy; this.nozzleHeatLoad = mixture.heatLoad;
+      this.mixtureRatio = mixture.mixtureRatio; this.nozzleTemperature = this.totalFlow > 0 ? mixture.temperature : this.nozzleWallTemperature;
+      this.products = { steam: mixture.steam, hydrogen: mixture.hydrogen, oxygen: mixture.oxygen, radicals: mixture.radicals,
+        atomicHydrogen: mixture.atomicHydrogen, atomicOxygen: mixture.atomicOxygen, hydroxyl: mixture.hydroxyl, hydroperoxyl: mixture.hydroperoxyl, peroxide: mixture.peroxide };
+      this.exhaustVelocity = mixture.velocity;
+      this.jetVelocity = mixture.jetVelocity; this.pressureThrust = mixture.pressureThrust;
+      this.kineticPower = mixture.kineticPower;
       this.thrust = this.totalFlow * this.exhaustVelocity / 1000;
       this.isp = this.exhaustVelocity / 9.80665;
     }
@@ -257,13 +275,19 @@
       const oxygenUsed = Math.min(this.oxygen, this.oxygenFlow * dt);
       this.oxygen = Math.max(0, this.oxygen - oxygenUsed); this.oxygenConsumed += oxygenUsed;
       this.updatePerformance(); this.stepThrust = this.thrust; this.totalImpulse += this.stepThrust * dt;
+      const wall = this.nozzleWallTemperature;
+      const coolantConductance = this.cooling && !this.faults.has('cooling') ? 16000 : 400;
+      this.nozzleCoolingPower = coolantConductance * this.scale * Math.max(0, wall - this.coolantTemperature) / 1e6;
+      this.nozzleRadiationPower = .8 * 5.670374419e-8 * 2.4 * this.scale * Math.max(0, wall ** 4 - 293 ** 4) / 1e6;
+      this.wallEnergyRate = this.nozzleHeatLoad - this.nozzleCoolingPower - this.nozzleRadiationPower;
+      this.nozzleWallTemperature += this.wallEnergyRate * 1e6 * dt / this.wallHeatCapacity;
       if (this.mode === 'STARTING' && Math.abs(this.power - this.ratedPower * this.demand / 100) < Math.max(2, this.ratedPower * .02)) {
         this.mode = 'RUNNING'; this.log('启动序列完成 · 进入稳定运行');
       }
       if (this.mode === 'SHUTDOWN' && this.power < 1 && this.coreTemperature < 500) {
         this.mode = 'STANDBY'; this.log('停机完成 · 系统待机');
       }
-      const danger = this.coreTemperature > 3200 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuelExhausted ? '自动保护：可用推进剂耗尽，保留残气' : null;
+      const danger = this.coreTemperature > 3250 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.nozzleWallTemperature > 1750 ? '自动保护：喷管壁温超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuelExhausted ? '自动保护：可用推进剂耗尽，保留残气' : null;
       this.protectionTimer = danger ? this.protectionTimer + dt : 0;
       if (this.autoProtection && this.isActive && this.protectionTimer > .75) this.scram(danger);
       if (this.coreTemperature > 3400) this.integrity = Math.max(0, this.integrity - (this.coreTemperature - 3400) / 75 * dt);
@@ -278,33 +302,40 @@
     }
 
     recordSample() {
-      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.totalFlow, isp: this.isp, oxygenFlow: this.oxygenFlow, afterburnerPower: this.afterburnerPower });
+      this.history.push({ time: this.time, temperature: this.measuredTemperature, power: this.power, pressure: this.pressure, thrust: this.thrust, flow: this.totalFlow, isp: this.isp, oxygenFlow: this.oxygenFlow, afterburnerPower: this.afterburnerPower, nozzleWallTemperature: this.nozzleWallTemperature, nozzleHeatLoad: this.nozzleHeatLoad, dissociationPower: this.dissociationPower });
       if (this.history.length > 240) this.history.shift();
     }
 
     get lamps() {
-      const hot = this.measuredTemperature > 3050;
+      const temperature = grade(this.measuredTemperature, [3050, 3150, 3250]);
+      const pressure = grade(this.pressure, [6.5, 7, 7.5]);
+      const nozzle = Math.max(grade(this.nozzleTemperature, [4000, 4500, 5000]), grade(this.nozzleWallTemperature, [1250, 1450, 1650]));
+      const needsFeed = this.isActive, needsCooling = this.isActive || this.coreTemperature > 650 || this.nozzleWallTemperature > 650;
+      const needsOxygen = this.isActive && this.oxygenTankInstalled && this.oxygenValve > 0 && this.usableOxygen > 0;
+      const pumpFault = this.faults.has('pump') ? (this.feedFlow / this.ratedFlow < .25 ? 3 : 2) : 0;
+      const lineFault = this.faults.has('leak') ? 3 : this.faults.has('valve') ? 1 : 0;
+      const thermalFault = this.faults.has('cooling') ? 3 : this.faults.has('sensor') ? 1 : 0;
       return [
-        ['reactor', '反应堆', 'REACTOR', 'green', this.isActive && this.power > 10],
-        ['pump', '供液泵', 'FEED PUMP', 'green', this.pump && !this.faults.has('pump')],
-        ['cooling', '冷却回路', 'COOLANT', 'green', this.cooling && !this.faults.has('cooling')],
+        ['reactor', '反应堆', 'REACTOR', warningColor(temperature), this.isActive && this.power > 10, this.isActive ? temperature : 0],
+        ['pump', '供液泵', 'FEED PUMP', needsFeed && !this.pump ? 'amber' : pumpFault ? warningColor(pumpFault) : 'green', this.pump || needsFeed, needsFeed && !this.pump ? 1 : 0],
+        ['cooling', '冷却回路', 'COOLANT', needsCooling && !this.cooling ? 'amber' : this.faults.has('cooling') ? 'red' : 'green', this.cooling || needsCooling, needsCooling && !this.cooling ? 1 : 0],
         ['telemetry', '遥测在线', 'TELEMETRY', 'green', true],
         ['hydrogen', '液氢模式', 'LH2 CYCLE', 'blue', this.propellant === 'hydrogen'],
         ['water', '水汽模式', 'H2O CYCLE', 'blue', this.propellant === 'water'],
-        ['auto', '自动保护', 'AUTO TRIP', 'blue', this.autoProtection],
+        ['auto', '自动保护', 'AUTO TRIP', this.isActive && !this.autoProtection ? 'amber' : 'blue', this.autoProtection || this.isActive, this.isActive && !this.autoProtection ? 1 : 0],
         ['ready', '启动就绪', 'SYS READY', 'blue', this.integrity > 0 && !this.faults.size && this.pump && this.cooling && !this.fuelExhausted],
-        ['tempHigh', '温度过高', 'TEMP HIGH', 'yellow', hot],
-        ['pressureHigh', '压力过高', 'PRES HIGH', 'yellow', this.pressure > 6.5],
-        ['fuelLow', '储量不足', 'TANK LOW', 'amber', this.fuelPercent < 20],
+        ['tempHigh', '温度过高', 'TEMP HIGH', warningColor(temperature), temperature > 0, temperature],
+        ['pressureHigh', '压力过高', 'PRES HIGH', warningColor(pressure), pressure > 0, pressure],
+        ['fuelLow', '储量不足', 'TANK LOW', this.fuelPercent < 2 ? 'red' : this.fuelPercent < 5 ? 'orange' : 'amber', this.fuelPercent < 20, this.fuelPercent < 2 ? 3 : this.fuelPercent < 5 ? 2 : this.fuelPercent < 20 ? 1 : 0],
         ['decay', '余热冷却', 'DECAY HEAT', 'amber', !this.isActive && this.coreTemperature > 500],
-        ['pumpFault', '泵组故障', 'PUMP FAIL', 'red', this.faults.has('pump')],
-        ['leakFault', '管路泄漏', 'LINE LEAK', 'red', this.faults.has('leak') || this.faults.has('valve')],
-        ['thermalFault', '热控故障', 'THERM FAIL', 'red', this.faults.has('cooling') || this.faults.has('sensor')],
-        ['scram', '紧急停堆', 'SCRAM', 'red', this.mode === 'SCRAM' || this.mode === 'DAMAGED'],
-        ['oxygenPump', '液氧泵', 'LOX PUMP', 'blue', this.oxygenPump],
-        ['afterburner', '液氧补燃', 'AFTERBURN', 'green', this.afterburnerPower > 0],
-        ['oxygenLow', '液氧不足', 'LOX LOW', 'amber', this.oxygenTankInstalled && this.oxygen < this.initialOxygen * .1],
-        ['nozzleHot', '喷管高温', 'NOZZLE HOT', 'yellow', this.nozzleTemperature > 4300]
+        ['pumpFault', '泵组状态', 'PUMP HEALTH', warningColor(pumpFault), true, pumpFault],
+        ['leakFault', '管路状态', 'LINE HEALTH', warningColor(lineFault), true, lineFault],
+        ['thermalFault', '热控状态', 'THERM HEALTH', warningColor(thermalFault), true, thermalFault],
+        ['scram', '紧急停堆', 'SCRAM', 'red', this.mode === 'SCRAM' || this.mode === 'DAMAGED', this.mode === 'SCRAM' || this.mode === 'DAMAGED' ? 3 : 0],
+        ['oxygenPump', '液氧泵', 'LOX PUMP', needsOxygen && !this.oxygenPump ? 'amber' : 'blue', this.oxygenPump || needsOxygen, needsOxygen && !this.oxygenPump ? 1 : 0],
+        ['afterburner', '液氧补燃', 'AFTERBURN', 'green', this.oxygenFlow > 0],
+        ['oxygenLow', '液氧不足', 'LOX LOW', this.oxygenPercent < 2 ? 'red' : 'amber', this.oxygenTankInstalled && this.oxygenPercent < 10, this.oxygenTankInstalled && this.oxygenPercent < 10 ? this.oxygenPercent < 2 ? 3 : 1 : 0],
+        ['nozzleHot', '喷管热负荷', 'NOZZLE HEAT', warningColor(nozzle), nozzle > 0, nozzle]
       ];
     }
   }

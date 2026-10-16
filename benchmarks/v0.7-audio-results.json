@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "mode": "hydrogen",
+      "rms": 0.01751850981892616,
+      "peak": 0.057251859456300735,
+      "crossings": 2230,
+      "stereo": 0.0011991316443479433
+    },
+    {
+      "mode": "lantr",
+      "rms": 0.03751865098815668,
+      "peak": 0.10640134662389755,
+      "crossings": 932,
+      "stereo": 0.004018288728049174
+    },
+    {
+      "mode": "water",
+      "rms": 0.025007998506678418,
+      "peak": 0.07451602816581726,
+      "crossings": 639,
+      "stereo": 0.0007048949918639368
+    },
+    {
+      "mode": "standby",
+      "rms": 0.0029351377992951205,
+      "peak": 0.0047613028436899185,
+      "crossings": 120,
+      "stereo": 0
+    },
+    {
+      "mode": "mute",
+      "rms": 0,
+      "peak": 0,
+      "crossings": 0,
+      "stereo": 0
+    },
+    {
+      "mode": "four-voice chord / ACK",
+      "chord": [
+        "scram",
+        "thermalFault",
+        "leakFault",
+        "tempHigh"
+      ],
+      "before": {
+        "rms": 0.021514639586097763,
+        "peak": 0.07601413875818253,
+        "crossings": 535,
+        "stereo": 0.019141168204159995
+      },
+      "after": {
+        "rms": 0.002935137798481159,
+        "peak": 0.004761300049722195,
+        "crossings": 96,
+        "stereo": 0
+      },
+      "acknowledged": true,
+      "voices": 0
+    }
+  ]
+}

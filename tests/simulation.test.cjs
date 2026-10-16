@@ -39,8 +39,9 @@ test('cold startup respects pump, cooling and valve interlocks', () => {
 });
 test('water mode produces lower exhaust velocity and higher flow than hydrogen', () => {
   const h = new NTRSimulation(); const w = new NTRSimulation();
-  w.reset(true); w.configure('water', 1.4); w.start(); advance(w, 60);
-  assert.equal(w.mode, 'RUNNING'); assert.ok(w.exhaustVelocity < h.exhaustVelocity * .5);
+  w.reset(true); w.configure('water', 1.4); w.start(); advance(w, 60); advance(h, 60);
+  assert.equal(w.mode, 'RUNNING'); assert.ok(w.isp > 250 && w.isp < 450);
+  assert.ok(w.exhaustVelocity < h.exhaustVelocity * .6);
   assert.ok(w.flow > h.flow * 2); assert.ok(w.thrust > 0);
 });
 test('pump failure triggers automatic shutdown and can be repaired', () => {

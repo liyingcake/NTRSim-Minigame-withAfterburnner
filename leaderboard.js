@@ -6,7 +6,7 @@
     'diameter', 'engineModel', 'ratedPower', 'dryMass', 'initialMass', 'finalMass', 'consumedFuel', 'launchDemand', 'launchValve',
     'target', 'distance', 'integrity', 'temperature', 'peakAcceleration', 'peakThrust', 'peakPower', 'peakIsp', 'peakTemperature', 'peakPressure', 'peakFlow', 'reason',
     'base', 'basePoints', 'dvPoints', 'fuelPoints', 'fuelUnitCost', 'loadingCost', 'error', 'errorPenalty', 'timePenalty', 'durabilityPenalty', 'errorDeduction', 'timeDeduction', 'durabilityDeduction',
-    'baseDryMass', 'payload', 'payloadPoints', 'payloadUnitReward', 'initialOxygen', 'oxygen', 'consumedOxygen', 'initialVolume', 'dividerVolume', 'primaryLoadingCost', 'oxygenLoadingCost', 'launchOxygenValve', 'peakAfterburnerPower', 'peakTotalPower', 'peakOxygenFlow', 'peakNozzleTemperature'];
+    'baseDryMass', 'payload', 'payloadPoints', 'payloadUnitReward', 'initialOxygen', 'oxygen', 'consumedOxygen', 'initialVolume', 'dividerVolume', 'primaryLoadingCost', 'oxygenLoadingCost', 'launchOxygenValve', 'peakAfterburnerPower', 'peakTotalPower', 'peakOxygenFlow', 'peakNozzleTemperature', 'peakWallTemperature', 'peakHeatLoad', 'peakDissociationPower'];
   const NUMERIC_FIELDS = FIELDS.filter(key => !['id', 'version', 'scoreSchema', 'type', 'propellant', 'engineModel', 'target', 'reason'].includes(key));
   const snapshot = record => Object.freeze(Object.fromEntries(FIELDS.map(key => [key, record[key]])));
   const compare = (a, b) => b.total - a.total || a.elapsed - b.elapsed || a.id.localeCompare(b.id);

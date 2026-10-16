@@ -2,9 +2,10 @@
    Densities are fixed storage values, not an equation of state. */
 (function (root) {
   'use strict';
+  const thermo = typeof module !== 'undefined' && module.exports ? require('./thermochemistry.js') : root.NTR_THERMO;
   const TANK = Object.freeze({ volume: 150, divider: 10, hydrogen: 70.8, oxygen: 1138, water: 1000 });
   const PRICES = Object.freeze({ hydrogen: 10, oxygen: 3, water: 2 });
-  const OXIDIZER_RATIO = 8; // Approximate O2:H2 stoichiometric mass ratio.
+  const OXIDIZER_RATIO = thermo.metadata.waterRatio;
   const PUMP_WAVE = Object.freeze({ interval: 1, amplitude: .01 });
   const RESIDUAL = Object.freeze({ fadeStart: .02, cutoff: .005 });
   // Game approximation of loss of liquid pickup near an empty tank. The square
@@ -36,20 +37,7 @@
     const target = step => .65 * Math.sin(step * .73 + phase) + .25 * Math.sin(step * 1.31 + phase * 1.7) + .1 * Math.sin(step * 2.11 + phase * .6);
     return command * PUMP_WAVE.amplitude * (target(index) * (1 - blend) + target(index + 1) * blend);
   }
-  function mixExhaust(hydrogen, oxygen, baseVelocity, gasTemperature) {
-    const reactedHydrogen = Math.min(hydrogen, oxygen / OXIDIZER_RATIO);
-    const steam = reactedHydrogen * 9, unburnedHydrogen = Math.max(0, hydrogen - reactedHydrogen);
-    const unburnedOxygen = Math.max(0, oxygen - reactedHydrogen * OXIDIZER_RATIO);
-    const flow = hydrogen + oxygen;
-    const chemicalPower = reactedHydrogen * 120; // MW; ~120 MJ/kg H2, water vapor products.
-    const kineticPower = .5 * hydrogen * baseVelocity ** 2 / 1e6 + chemicalPower * .85;
-    const velocity = flow > 0 ? Math.sqrt(Math.max(0, 2 * kineticPower * 1e6 / flow)) : 0;
-    const heatCapacity = unburnedHydrogen * 14000 + steam * 2700 + unburnedOxygen * 1100;
-    const temperature = heatCapacity > 0 ? Math.min(4800, Math.max(gasTemperature,
-      (hydrogen * 14000 * gasTemperature + oxygen * 1100 * 90 + chemicalPower * 1e6) / heatCapacity)) : gasTemperature;
-    return { flow, chemicalPower, kineticPower, velocity, temperature, steam, hydrogen: unburnedHydrogen, oxygen: unburnedOxygen,
-      mixtureRatio: hydrogen > 0 ? oxygen / hydrogen : 0 };
-  }
+  const mixExhaust = thermo.exhaust;
   const api = { TANK, PRICES, OXIDIZER_RATIO, PUMP_WAVE, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NTR_SYSTEMS = api;
 })(typeof window !== 'undefined' ? window : globalThis);

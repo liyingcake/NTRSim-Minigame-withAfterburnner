@@ -15,7 +15,7 @@ const ctx = canvas.getContext('2d');
 const profiler = NTRPerformance.create();
 const sound = new NTRSound();
 const mono = '"IBM Plex Mono", Consolas, "Microsoft YaHei", monospace';
-const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835', amber: '#d3b372', blue: '#8abcc1', red: '#db8e70', bg: '#111d18' };
+const C = { green: '#a2c493', bright: '#c1dca4', dim: '#55714e', faint: '#2e4835', amber: '#d3b372', yellow: '#e4d86e', orange: '#eea14f', blue: '#8abcc1', red: '#f07860', bg: '#111d18' };
 let page = 'overview', paused = false, speed = 1, lampTest = false, lastLogId = -1;
 let lastFrame = performance.now(), lastRender = 0, toastTimeout, lampTimeout;
 let motionTime = 0;
@@ -58,7 +58,7 @@ function gaugeMarkup(max, major, label, danger) {
   }
   return `<path d="${arc(0, max, 96)}" stroke="#56634c" fill="none" stroke-width="1"/><path d="${arc(danger, max, 92)}" stroke="#b27b5d" fill="none" stroke-width="3" opacity=".7"/>${ticks}<text x="120" y="67" text-anchor="middle" fill="#7e8d70" font-size="8" font-family="Consolas">${label}</text><g class="needle" style="transform-origin:120px 110px"><path d="M 117 119 L 120 29 L 123 119 Z" fill="#dac897"/><circle cx="120" cy="110" r="8" fill="#68725a" stroke="#20291f" stroke-width="3"/><circle cx="120" cy="110" r="3" fill="#b5b99a"/></g><rect x="87" y="132" width="66" height="20" rx="1" fill="#182319" stroke="#4c5c40"/><text class="gauge-reading" x="120" y="146" text-anchor="middle" fill="#c3cf9f" font-size="12" font-family="Consolas">0.00</text>`;
 }
-$('temperatureGauge').innerHTML = gaugeMarkup(4, 4, 'CORE / K', 3.2);
+$('temperatureGauge').innerHTML = gaugeMarkup(4, 4, 'CORE / K', 3.25);
 $('pressureGauge').innerHTML = gaugeMarkup(8, 4, 'CHAMBER / MPa', 6.5);
 $('tankSegments').innerHTML = '<i></i>'.repeat(20);
 $('lampMatrix').innerHTML = sim.lamps.map(([id, label, english, color]) => `<div class="status-lamp ${color}" id="lamp-${id}" aria-label="${label}"><span>${label}</span><small>${english}</small></div>`).join('');
@@ -69,6 +69,9 @@ function drawGauge(id, value, maximum, places) {
   const transform = `rotate(${-120 + Math.min(1, Math.max(0, value / maximum)) * 240}deg)`, label = num(value, places);
   if (needle.style.transform !== transform) needle.style.transform = transform;
   if (reading.textContent !== label) reading.textContent = label;
+  const level = sim.lamps.find(lamp => lamp[0] === (id === 'temperatureGauge' ? 'tempHigh' : 'pressureHigh'))[5];
+  const color = level > 0 ? [null, C.yellow, C.orange, C.red][level] : '';
+  if (reading.style.fill !== color) { reading.style.fill = color; svg.querySelector('.needle path').style.fill = color; }
 }
 
 function updateSliders() {
@@ -103,6 +106,10 @@ function render() {
   setUnit('nozzleTemperatureValue', num(sim.nozzleTemperature));
   setUnit('oxygenFlowValue', num(sim.oxygenFlow, 3));
   setUnit('tankVolumeValue', num(sim.tankState.usedVolume, 2));
+  setUnit('nozzleWallValue', num(sim.nozzleWallTemperature));
+  setUnit('nozzleHeatValue', num(sim.nozzleHeatLoad, 2));
+  setUnit('dissociationValue', num(sim.thermoState.dissociationPower, 2));
+  setText('molecularValue', num(sim.thermoState.molarMass, 2) + ' g/mol · γ ' + num(sim.thermoState.gamma, 3));
   setText('tankVolumeDetail', num(sim.tankState.usedVolume, 2) + ' / ' + num(sim.tankState.freeVolume, 2) + ' m³');
   setText('oxygenTankMass', points(sim.oxygen, 1) + ' kg');
   $('oxygenValveSlider').value = sim.oxygenValve; $('oxygenValveSlider').style.setProperty('--range', sim.oxygenValve + '%');
@@ -111,13 +118,15 @@ function render() {
   setText('oxygenStatus', sim.oxygenInterlock);
   setText('pumpFlowDetail', '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3) + ' · 供液效率 ' + num(sim.fuelPumpEfficiency * 100, 1) + '%');
   setText('oxygenPumpDetail', '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3) + ' · 残气系数 ' + num(sim.oxygenSupplyFactor * 100, 1) + '%');
-  setText('exhaustProducts', '尾流 / kg/s：H₂O 蒸气 ' + num(sim.products.steam, 3) + ' · 未反应 H₂ ' + num(sim.products.hydrogen, 3) + ' · 未反应 O₂ ' + num(sim.products.oxygen, 3) + ' ｜ 总推进功率 = 核热 + 化学放热');
+  setText('exhaustProducts', '出口尾流 / kg/s：H₂O ' + num(sim.products.steam, 3) + ' · H₂ ' + num(sim.products.hydrogen, 3) + ' · O₂ ' + num(sim.products.oxygen, 3) + ' · H ' + num(sim.products.atomicHydrogen, 3) + ' · O ' + num(sim.products.atomicOxygen, 3) + ' · OH ' + num(sim.products.hydroxyl, 3) + ' · HO₂ ' + num(sim.products.hydroperoxyl, 4) + ' · H₂O₂ ' + num(sim.products.peroxide, 4) + '\n平衡混合站 ' + num(sim.thermoState.pressure, 3) + ' MPa · 出口气温 ' + num(sim.thermoState.exitTemperature) + ' K · 实际喷速 ' + num(sim.jetVelocity / 1000, 2) + ' km/s · 压力推力 ' + num(sim.pressureThrust, 2) + ' kN · 喷流动能 ' + num(sim.kineticPower, 2) + ' MW' + (sim.thermoState.outside ? ' · 低温/边界延拓' : ''));
   const oxygenDisabled = !sim.oxygenTankInstalled || sim.propellant !== 'hydrogen' || Boolean(mission?.complete);
   $('oxygenPumpToggle').disabled = $('oxygenValveSlider').disabled = oxygenDisabled;
   $('tankConfigButton').disabled = Boolean(mission);
   setText('tankConfigButton', mission ? '本局储罐已锁定 / ' + num(mission.initialVolume, 2) + ' m³' : '储罐加注 / 150 m³ ↗');
   if (page === 'lantr') setAttr(canvas, 'aria-label', 'LANTR 补燃与储罐：液氧 ' + num(sim.oxygen, 2) + ' kg，补燃功率 ' + num(sim.afterburnerPower, 2) + ' MW，混合比 ' + num(sim.mixtureRatio, 3) + '，喷管 ' + num(sim.nozzleTemperature) + ' K');
-  $('temperatureValue').style.color = sim.measuredTemperature > 3050 ? '#e0a17a' : '';
+  const temperatureLevel = sim.lamps.find(lamp => lamp[0] === 'tempHigh')[5], pressureLevel = sim.lamps.find(lamp => lamp[0] === 'pressureHigh')[5];
+  $('temperatureValue').style.color = [null, C.yellow, C.orange, C.red][temperatureLevel] || '';
+  $('pressureValue').style.color = [null, C.yellow, C.orange, C.red][pressureLevel] || '';
   const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / 8, flow: sim.totalFlow / (sim.ratedFlow + (sim.oxygenTankInstalled ? sim.ratedOxygenFlow : 0)), velocity: sim.exhaustVelocity / 10000 };
   for (const [key, value] of Object.entries(bars)) $(key + 'Bar').style.width = `${Math.min(100, Math.max(0, value * 100))}%`;
   drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, 8, 2);
@@ -128,10 +137,12 @@ function render() {
   $('residualStatus').classList.toggle('low', sim.fuelPercent < 2 || sim.oxygenTankInstalled && sim.oxygenPercent < 2);
   setText('tankMass', Math.round(sim.fuel).toLocaleString('en-US') + ' kg');
   [...$('tankSegments').children].forEach((segment, i) => segment.classList.toggle('empty', i >= Math.ceil(sim.fuelPercent / 5)));
-  for (const [id, label, , color, active] of sim.lamps) {
+  for (const [id, label, , color, active, level = 0] of sim.lamps) {
     const el = $('lamp-' + id); const on = lampTest || active;
-    el.classList.toggle('on', on); el.classList.toggle('flashing', active && (color === 'red' || color === 'yellow') && !sim.acknowledged && !lampTest);
-    setAttr(el, 'aria-label', label + (on ? '：亮' : '：灭'));
+    const flashing = active && level > 0 && color !== 'amber' && !sim.acknowledged && !lampTest;
+    setAttr(el, 'class', 'status-lamp ' + color + (on ? ' on' : '') + (flashing ? ' flashing' : '') + (active && level > 0 && color === 'amber' && !lampTest ? ' cycling' : ''));
+    setAttr(el, 'data-level', level); setAttr(el, 'data-color', color);
+    setAttr(el, 'aria-label', label + (on ? '：亮' : '：灭') + ' / ' + ({ green: '绿色', blue: '蓝色', amber: '琥珀', yellow: '黄色', orange: '橙色', red: '红色' }[color]) + (level ? ' / ' + ['正常', '注意', '警告', '危险'][level] : ''));
   }
   const alarms = sim.alarms;
   setText('healthText', sim.mode === 'DAMAGED' ? '堆芯受损 · 试验终止' : alarms.length ? `${alarms.length} 项告警 ${sim.acknowledged ? '· 已确认' : '· 待处理'}` : sim.isActive ? '所有子系统正常' : sim.coreTemperature > 500 ? '余热冷却进行中' : '所有子系统就绪');
@@ -377,7 +388,7 @@ function showResult(result = mission?.result) {
   const settledTemperature = r.temperature < 800 && Math.round(r.temperature * 100) / 100 >= 800 ? '＜800' : num(r.temperature, 2);
   const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target, 2) + ' / ' + num(r.error, 2) + ' m/s'], ['主剂 / 液氧剩余', points(r.fuel, 2) + ' / ' + points(r.oxygen, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 2) + ' s'], ['剩余耐久', num(r.integrity, 2) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
   $('resultMetrics').innerHTML = metrics.map(entry).join('');
-  const stats = [['干重＋载荷', points(r.dryMass, 2) + ' kg'], ['结算总质量', points(r.finalMass, 2) + ' kg'], ['实际消耗推进剂', points(r.consumedFuel, 2) + ' kg'], ['飞行距离', points(r.distance / 1000, 2) + ' km'], ['峰值加速度', num(r.peakAcceleration, 2) + ' m/s²'], ['峰值推力', num(r.peakThrust, 2) + ' kN'], ['峰值热功率', points(r.peakPower, 2) + ' MW'], ['峰值比冲', points(r.peakIsp, 2) + ' s'], ['峰值堆芯温度', points(r.peakTemperature, 2) + ' K'], ['峰值腔室压力', num(r.peakPressure, 2) + ' MPa'], ['峰值推进剂流量', num(r.peakFlow, 2) + ' kg/s'], ['首次点火功率 / 主阀', num(r.launchDemand, 2) + '% / ' + num(r.launchValve, 2) + '%'], ['消耗液氧', points(r.consumedOxygen, 2) + ' kg'], ['峰值补燃功率', points(r.peakAfterburnerPower, 2) + ' MW'], ['峰值总推进功率', points(r.peakTotalPower, 2) + ' MW'], ['峰值液氧流量', num(r.peakOxygenFlow, 3) + ' kg/s'], ['峰值喷管温度', points(r.peakNozzleTemperature, 2) + ' K'], ['初始液氧阀', num(r.launchOxygenValve, 2) + '%']];
+  const stats = [['干重＋载荷', points(r.dryMass, 2) + ' kg'], ['结算总质量', points(r.finalMass, 2) + ' kg'], ['实际消耗推进剂', points(r.consumedFuel, 2) + ' kg'], ['飞行距离', points(r.distance / 1000, 2) + ' km'], ['峰值加速度', num(r.peakAcceleration, 2) + ' m/s²'], ['峰值推力', num(r.peakThrust, 2) + ' kN'], ['峰值热功率', points(r.peakPower, 2) + ' MW'], ['峰值比冲', points(r.peakIsp, 2) + ' s'], ['峰值堆芯温度', points(r.peakTemperature, 2) + ' K'], ['峰值腔室压力', num(r.peakPressure, 2) + ' MPa'], ['峰值推进剂流量', num(r.peakFlow, 2) + ' kg/s'], ['首次点火功率 / 主阀', num(r.launchDemand, 2) + '% / ' + num(r.launchValve, 2) + '%'], ['消耗液氧', points(r.consumedOxygen, 2) + ' kg'], ['峰值补燃功率', points(r.peakAfterburnerPower, 2) + ' MW'], ['峰值总推进功率', points(r.peakTotalPower, 2) + ' MW'], ['峰值液氧流量', num(r.peakOxygenFlow, 3) + ' kg/s'], ['峰值混合气温', points(r.peakNozzleTemperature, 2) + ' K'], ['初始液氧阀', num(r.launchOxygenValve, 2) + '%'], ['峰值喷管壁温', points(r.peakWallTemperature, 2) + ' K'], ['峰值壁面热负荷', points(r.peakHeatLoad, 2) + ' MW'], ['峰值解离携能', points(r.peakDissociationPower, 2) + ' MW']];
   $('resultFlightStats').innerHTML = stats.map(entry).join(''); $('resultFlightDetails').open = false;
   const row = (label, detail, value, penalty = false) => `<div class="score-row ${penalty ? 'penalty' : ''}"><span>${label}<small>${detail}</small></span><b>${value}</b></div>`;
   let rows = r.type === 'endurance' ? row('Δv 得分', '10 分 / m/s', '+' + points(r.dvPoints, 2))
@@ -522,7 +533,7 @@ function drawOverview() {
   line([[32, 325], [648, 325]], C.faint);
   miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 40, 347);
   miniMetric('CORE INTEGRITY', num(sim.integrity, 1), '%', 260, 347, sim.integrity < 90 ? C.amber : C.bright);
-  miniMetric('EXHAUST TEMPERATURE', num(sim.nozzleTemperature), 'K', 464, 347, C.amber);
+  miniMetric('GAS / WALL', num(sim.nozzleTemperature) + ' / ' + num(sim.nozzleWallTemperature), 'K', 464, 347, C.amber);
 }
 
 function drawOverviewOxygen() {
@@ -563,7 +574,7 @@ function drawThermal() {
   arrow(348, 276, 'left', coolingColor); arrow(93, 245, 'up', coolingColor);
   rect(42, 117, 111, 104, C.blue, '#142820', 4); text('PROPELLANT', 98, 143, 9, C.blue, 'center'); text(sim.prop.symbol, 98, 176, 23, C.bright, 'center'); text(num(sim.prop.inlet) + ' K INLET', 98, 201, 8, C.dim, 'center');
   rect(255, 111, 142, 118, C.amber, '#302c1e44', 4); text('REACTOR', 326, 136, 10, C.amber, 'center'); text(num(sim.measuredTemperature) + ' K', 326, 174, 25, C.amber, 'center'); text(num(sim.power) + ' MW THERMAL', 326, 207, 9, C.green, 'center');
-  rect(518, 117, 115, 104, C.green, '#192b1d', 4); text('NOZZLE', 575, 143, 10, C.green, 'center'); text(num(sim.exhaustVelocity / 1000, 2), 575, 177, 26, C.bright, 'center'); text('km/s EXHAUST', 575, 201, 8, C.dim, 'center');
+  rect(518, 117, 115, 104, C.green, '#192b1d', 4); text('NOZZLE', 575, 143, 10, C.green, 'center'); text(num(sim.exhaustVelocity / 1000, 2), 575, 177, 26, C.bright, 'center'); text('km/s EFFECTIVE', 575, 201, 8, C.dim, 'center');
   text(num(sim.flow, 2) + ' kg/s', 205, 155, 9, C.blue, 'center'); text(num(sim.pressure, 2) + ' MPa', 456, 155, 9, C.amber, 'center');
   rect(265, 255, 125, 43, coolingColor, C.bg, 4); text('COOLANT LOOP', 327, 272, 8, coolingColor, 'center'); text(num(sim.coolantTemperature) + ' K', 327, 289, 12, coolingColor, 'center');
   line([[33, 326], [647, 326]], C.faint);
@@ -578,7 +589,7 @@ function drawPropulsion() {
   miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 252, 108);
   miniMetric('TOTAL IMPULSE', num(sim.totalImpulse / 1000, 2), 'MN·s', 462, 108);
   line([[33, 159], [647, 159]], C.faint);
-  text('EXHAUST VELOCITY / CORE TEMPERATURE', 42, 184, 8, C.dim);
+  text('EFFECTIVE VELOCITY / CORE TEMPERATURE', 42, 184, 8, C.dim);
   const x0 = 62, y0 = 299, width = 548, height = 91;
   for (let i = 0; i <= 4; i++) { const y = y0 - i * height / 4; line([[x0, y], [x0 + width, y]], C.faint, .7); text(String(i * 2.5), x0 - 9, y + 3, 7, C.dim, 'right'); }
   for (let i = 0; i <= 5; i++) { const x = x0 + i * width / 5; text(String(500 + i * 600), x, y0 + 15, 7, C.dim, 'center'); }
@@ -627,8 +638,9 @@ function drawLantr() {
   miniMetric('NUCLEAR + CHEM', num(sim.totalPower, 1), 'MW', 43, 300);
   miniMetric('AFTERBURNER', num(sim.afterburnerPower, 1), 'MW', 252, 300, C.amber);
   miniMetric('O₂ / H₂ MASS RATIO', num(sim.mixtureRatio, 3), '', 462, 300, C.blue);
-  text('H₂O ' + num(sim.products.steam, 2) + '  /  H₂ ' + num(sim.products.hydrogen, 2) + '  /  O₂ ' + num(sim.products.oxygen, 2) + ' kg/s', 43, 371, 10, C.bright);
-  text('2H₂ + O₂ → 2H₂O · HOT STEAM / RESIDUAL HYDROGEN', 43, 390, 8, C.dim);
+  const fractions = sim.thermoState.fractions;
+  text('H₂O ' + num(fractions.H2O * 100, 1) + '%  H₂ ' + num(fractions.H2 * 100, 1) + '%  O₂ ' + num(fractions.O2 * 100, 1) + '%  OH ' + num(fractions.OH * 100, 1) + '%  H/O ' + num((fractions.H + fractions.O) * 100, 1) + '%', 43, 371, 9, C.bright);
+  text('WALL ' + num(sim.nozzleWallTemperature) + ' K · HEAT ' + num(sim.nozzleHeatLoad, 2) + ' MW · EQ-8 / EQUILIBRIUM NOZZLE', 43, 390, 8, C.amber);
 }
 
 function drawTrend() {
@@ -654,29 +666,31 @@ function drawTrend() {
 }
 
 function drawDiagnostics() {
+  const lampColor = id => C[sim.lamps.find(l => l[0] === id)[3]] || C.bright;
   text('BUILT-IN TEST / SUBSYSTEM HEALTH', 34, 72, 9, C.dim);
   const faults = [...sim.faults];
   if (!faults.length) {
     rect(34, 95, 612, 54, C.dim, '#24432a44', 2);
     circle(59, 122, 11, C.green); text('✓', 59, 126, 14, C.bright, 'center');
-    text('ALL SYSTEMS NOMINAL', 82, 118, 13, C.bright); text('系统自检通过 · 未检测到子系统故障', 82, 137, 10, C.green);
+    text(sim.alarms.length ? 'SYSTEM ALERT / CHECK ANNUNCIATORS' : 'ALL SYSTEMS NOMINAL', 82, 118, 13, sim.alarms.length ? C.amber : C.bright); text(sim.alarms.length ? '存在运行告警 · 检查温压、热负荷与所需系统开关' : '系统自检通过 · 未检测到子系统故障', 82, 137, 10, C.green);
   } else {
     const fault = NTR_FAULTS[faults[0]];
-    rect(34, 94, 612, 66, C.red, '#5d34232f', 2);
-    text(fault.code + ' / ' + fault.title, 50, 117, 13, C.red);
+    const faultColor = lampColor({ pump: 'pumpFault', cooling: 'thermalFault', sensor: 'thermalFault', leak: 'leakFault', valve: 'leakFault' }[faults[0]]);
+    rect(34, 94, 612, 66, faultColor, '#5d34232f', 2);
+    text(fault.code + ' / ' + fault.title, 50, 117, 13, faultColor);
     text(fault.remedy, 50, 140, 9, C.amber);
   }
   const checks = [
-    ['REACTOR / 反应堆', sim.mode === 'DAMAGED' ? 'FAILED' : sim.mode === 'SCRAM' ? 'TRIPPED' : 'NOMINAL', sim.mode === 'DAMAGED' || sim.mode === 'SCRAM'],
-    ['FEED PUMP / 供液泵', sim.faults.has('pump') ? 'FAULT P–021' : sim.pump ? 'ONLINE' : 'OFFLINE', sim.faults.has('pump')],
-    ['COOLANT / 冷却系统', sim.faults.has('cooling') ? 'FAULT T–014' : sim.cooling ? 'ONLINE' : 'OFFLINE', sim.faults.has('cooling')],
-    ['MAIN LINE / 主供液管路', sim.faults.has('leak') ? 'LEAK F–032' : sim.faults.has('valve') ? 'JAM V–008' : 'NOMINAL', sim.faults.has('leak') || sim.faults.has('valve')],
-    ['TEMP. SENSOR / 温度传感器', sim.faults.has('sensor') ? 'DRIFT +280K' : 'CALIBRATED', sim.faults.has('sensor')]
+    ['REACTOR / 反应堆', sim.mode === 'DAMAGED' ? 'FAILED' : sim.mode === 'SCRAM' ? 'TRIPPED' : 'NOMINAL', sim.mode === 'DAMAGED' || sim.mode === 'SCRAM' ? C.red : lampColor('reactor')],
+    ['FEED PUMP / 供液泵', sim.faults.has('pump') ? 'FAULT P–021' : sim.pump ? 'ONLINE' : 'OFFLINE', sim.faults.has('pump') ? lampColor('pumpFault') : lampColor('pump')],
+    ['COOLANT / 冷却系统', sim.faults.has('cooling') ? 'FAULT T–014' : sim.cooling ? 'ONLINE' : 'OFFLINE', lampColor('cooling')],
+    ['MAIN LINE / 主供液管路', sim.faults.has('leak') ? 'LEAK F–032' : sim.faults.has('valve') ? 'JAM V–008' : 'NOMINAL', lampColor('leakFault')],
+    ['TEMP. SENSOR / 温度传感器', sim.faults.has('sensor') ? 'DRIFT +280K' : 'CALIBRATED', sim.faults.has('sensor') ? C.yellow : C.bright]
   ];
-  checks.forEach(([label, value, error], i) => { const y = 185 + i * 29; text(label, 44, y, 10, C.green); text(value, 633, y, 10, error ? C.red : C.bright, 'right'); line([[43, y + 11], [637, y + 11]], C.faint, .5); });
+  checks.forEach(([label, value, color], i) => { const y = 185 + i * 29; text(label, 44, y, 10, C.green); text(value, 633, y, 10, color, 'right'); line([[43, y + 11], [637, y + 11]], C.faint, .5); });
   text('INDEPENDENT TEMP: ' + num(sim.coreTemperature) + ' K', 44, 359, 9, C.amber);
   text('INTEGRITY: ' + num(sim.integrity, 1) + '%', 633, 359, 9, sim.integrity < 90 ? C.red : C.bright, 'right');
-  text(faults.length ? `${faults.length} 项注入故障 · 打开「故障注入」进行检修` : 'NO ACTIVE FAULTS / READY FOR TEST', 44, 382, 9, faults.length ? C.amber : C.dim);
+  text(faults.length ? `${faults.length} 项注入故障 · 打开「故障注入」进行检修` : sim.alarms.length ? 'ACTIVE ALERTS / CHECK REQUIRED SYSTEMS' : 'NO ACTIVE FAULTS / READY FOR TEST', 44, 382, 9, faults.length ? C.amber : C.dim);
 }
 
 function drawMFD(now = performance.now()) {

@@ -60,7 +60,7 @@
       this.initialFuel = initialFuel; this.initialOxygen = oxygenLoad; this.initialVolume = tank.usedVolume; this.target = info.target ?? null;
       this.state = 'PREPARING'; this.started = false; this.elapsed = 0; this.deltaV = 0;
       this.distance = 0; this.acceleration = 0; this.peakAcceleration = 0; this.result = null; this.autoReason = null;
-      this.peaks = { thrust: 0, power: 0, isp: 0, temperature: 293, pressure: 0, flow: 0, afterburnerPower: 0, totalPower: 0, oxygenFlow: 0, nozzleTemperature: 293 };
+      this.peaks = { thrust: 0, power: 0, isp: 0, temperature: 293, pressure: 0, flow: 0, afterburnerPower: 0, totalPower: 0, oxygenFlow: 0, nozzleTemperature: 293, nozzleWallTemperature: 293, nozzleHeatLoad: 0, dissociationPower: 0 };
       this.launchDemand = 0; this.launchValve = 0;
       engine.reset(true); engine.configure(propellant, diameter);
       engine.tankCapacity = this.initialFuel; engine.fuel = this.initialFuel;
@@ -99,7 +99,7 @@
       while (remaining > 1e-8 && !this.complete) {
         const dt = Math.min(.05, remaining), beforeMass = this.mass, previousVelocity = this.deltaV;
         this.engine.tick(dt);
-        for (const key of ['thrust', 'power', 'isp', 'pressure', 'afterburnerPower', 'totalPower', 'oxygenFlow', 'nozzleTemperature']) this.peaks[key] = Math.max(this.peaks[key], this.engine[key]);
+        for (const key of ['thrust', 'power', 'isp', 'pressure', 'afterburnerPower', 'totalPower', 'oxygenFlow', 'nozzleTemperature', 'nozzleWallTemperature', 'nozzleHeatLoad', 'dissociationPower']) this.peaks[key] = Math.max(this.peaks[key], this.engine[key]);
         this.peaks.flow = Math.max(this.peaks.flow, this.engine.totalFlow);
         this.peaks.temperature = Math.max(this.peaks.temperature, this.engine.coreTemperature);
         // Preserve impulse already delivered during this step if a trip cuts oxygen at its end.
@@ -135,7 +135,8 @@
         consumedFuel: this.initialFuel - this.engine.fuel, launchDemand: this.launchDemand, launchValve: this.launchValve, launchOxygenValve: this.launchOxygenValve,
         peakThrust: this.peaks.thrust, peakPower: this.peaks.power, peakIsp: this.peaks.isp,
         peakTemperature: this.peaks.temperature, peakPressure: this.peaks.pressure, peakFlow: this.peaks.flow,
-        peakAfterburnerPower: this.peaks.afterburnerPower, peakTotalPower: this.peaks.totalPower, peakOxygenFlow: this.peaks.oxygenFlow, peakNozzleTemperature: this.peaks.nozzleTemperature });
+        peakAfterburnerPower: this.peaks.afterburnerPower, peakTotalPower: this.peaks.totalPower, peakOxygenFlow: this.peaks.oxygenFlow, peakNozzleTemperature: this.peaks.nozzleTemperature,
+        peakWallTemperature: this.peaks.nozzleWallTemperature, peakHeatLoad: this.peaks.nozzleHeatLoad, peakDissociationPower: this.peaks.dissociationPower });
       if (this.engine.isActive) this.engine.shutdown();
       this.engine.controlsLocked = true; this.state = 'COMPLETE'; this.acceleration = 0;
       this.engine.log('挑战完成 · 最终得分 ' + score.total.toLocaleString('en-US'));
