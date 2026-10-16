@@ -1,0 +1,89 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "mode": "hydrogen",
+      "rms": 0.017518509820711566,
+      "peak": 0.057251859456300735,
+      "crossings": 2230,
+      "stereo": 0.0011991316470548177
+    },
+    {
+      "mode": "lantr",
+      "rms": 0.042593083141329174,
+      "peak": 0.13785867393016815,
+      "crossings": 868,
+      "stereo": 0.004864087736561629
+    },
+    {
+      "mode": "water",
+      "rms": 0.025007998506678418,
+      "peak": 0.07451602816581726,
+      "crossings": 639,
+      "stereo": 0.0007048949918639368
+    },
+    {
+      "mode": "standby",
+      "rms": 0.0029351377992951205,
+      "peak": 0.0047613028436899185,
+      "crossings": 120,
+      "stereo": 0
+    },
+    {
+      "mode": "mute",
+      "rms": 0,
+      "peak": 0,
+      "crossings": 0,
+      "stereo": 0
+    },
+    {
+      "mode": "four-voice chord / ACK",
+      "chord": [
+        "scram",
+        "thermalFault",
+        "leakFault",
+        "tempHigh"
+      ],
+      "before": {
+        "rms": 0.021521637320131452,
+        "peak": 0.07601413875818253,
+        "crossings": 535,
+        "stereo": 0.019149807657133276
+      },
+      "after": {
+        "rms": 0.002935137798481159,
+        "peak": 0.004761300049722195,
+        "crossings": 96,
+        "stereo": 0
+      },
+      "acknowledged": true,
+      "voices": 0
+    }
+  ],
+  "split": [
+    {
+      "environmentVolume": 0,
+      "alarmVolume": 0.5,
+      "rms": 0.018647573497605697,
+      "peak": 0.07159291207790375,
+      "crossings": 357,
+      "stereo": 0.014938672663935514
+    },
+    {
+      "environmentVolume": 0.5,
+      "alarmVolume": 0,
+      "rms": 0.016095432380639776,
+      "peak": 0.056074678897857666,
+      "crossings": 1242,
+      "stereo": 0.0011219042380642649
+    },
+    {
+      "environmentVolume": 0,
+      "alarmVolume": 0,
+      "rms": 0,
+      "peak": 0,
+      "crossings": 0,
+      "stereo": 0
+    }
+  ]
+}

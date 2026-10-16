@@ -5,7 +5,7 @@
   const { TANK, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust } = typeof module !== 'undefined' && module.exports ? require('./systems.js') : root.NTR_SYSTEMS;
   const thermo = typeof module !== 'undefined' && module.exports ? require('./thermochemistry.js') : root.NTR_THERMO;
   const PROPELLANTS = {
-    hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, ratedFlow: 16, capacity: 6000 },
+    hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, ratedFlow: thermo.metadata.model.hydrogenRatedFlow, capacity: 6000 },
     water: { label: '水', symbol: 'H₂O', inlet: 293, ratedFlow: 45, capacity: 14000 }
   };
   const FAULTS = {
@@ -43,7 +43,7 @@
     get measuredTemperature() { return this.coreTemperature + (this.faults.has('sensor') ? 280 : 0); }
     get isActive() { return this.mode === 'RUNNING' || this.mode === 'STARTING'; }
     get canConfigure() { return !this.isActive && this.power < 5; }
-    get ratedOxygenFlow() { return 80 * this.scale; }
+    get ratedOxygenFlow() { return thermo.metadata.model.oxygenRatedFlow * this.scale; }
     get totalFlow() { return this.flow + this.oxygenFlow; }
     get totalPower() { return this.power + this.afterburnerPower; }
     get gasFilmDrop() {
@@ -63,6 +63,7 @@
       this.commandedFlow = 0; this.commandedOxygenFlow = 0; this.flowRipple = 0; this.oxygenRipple = 0;
       this.afterburnerPower = 0; this.nozzleTemperature = 293; this.mixtureRatio = 0;
       this.nozzleWallTemperature = cold ? 293 : 650; this.nozzleHeatLoad = this.nozzleCoolingPower = this.nozzleRadiationPower = 0;
+      this.regenerativePower = this.externalCoolingPower = 0;
       this.wallEnergyRate = 0; this.nozzleEnergy = null; this.thermoState = null;
       this.products = { steam: 0, hydrogen: 0, oxygen: 0 }; this.oxygenInterlock = '未安装液氧舱';
       this.faults = new Set(); this.acknowledged = false; this.integrity = 100; this.previousAlarms = new Map();
@@ -218,9 +219,15 @@
       const gasTemp = Math.max(this.prop.inlet, this.coreTemperature - this.gasFilmDrop);
       const targetPressure = this.flow / this.ratedFlow * Math.sqrt(gasTemp / 2600) * 5.8;
       this.pressure = Math.max(0, targetPressure);
-      const mixture = mixExhaust(this.flow, this.oxygenFlow, gasTemp, this.pressure, this.nozzleWallTemperature, this.scale, this.propellant);
+      const coolingReturn = this.cooling && this.pump && !this.faults.has('cooling') ? this.nozzleCoolingPower * thermo.metadata.model.regenerativeRecovery : 0;
+      const mixture = mixExhaust(this.flow, this.oxygenFlow, gasTemp, this.pressure, this.nozzleWallTemperature, this.scale, this.propellant, 'equilibrium', coolingReturn);
+      this.regenerativePower = mixture.regenerativePower;
+      this.externalCoolingPower = this.nozzleCoolingPower - this.regenerativePower;
       this.afterburnerPower = this.propellant === 'hydrogen' ? mixture.chemicalPower : 0;
       this.thermoState = mixture; this.nozzleEnergy = mixture.energy; this.nozzleHeatLoad = mixture.heatLoad;
+      const balance = mixture.energy, wallRate = this.nozzleHeatLoad - this.nozzleCoolingPower - this.nozzleRadiationPower;
+      balance.cycleResidual = balance.nuclearTransported + balance.idealChemical - balance.feedConditioning - balance.kinetic
+        - balance.exhaustThermal - balance.dissociation - wallRate - this.externalCoolingPower - this.nozzleRadiationPower;
       this.mixtureRatio = mixture.mixtureRatio; this.nozzleTemperature = this.totalFlow > 0 ? mixture.temperature : this.nozzleWallTemperature;
       this.products = { steam: mixture.steam, hydrogen: mixture.hydrogen, oxygen: mixture.oxygen, radicals: mixture.radicals,
         atomicHydrogen: mixture.atomicHydrogen, atomicOxygen: mixture.atomicOxygen, hydroxyl: mixture.hydroxyl, hydroperoxyl: mixture.hydroperoxyl, peroxide: mixture.peroxide };
@@ -274,11 +281,11 @@
       if (oxygenTarget > this.flow * 8 && oxygenTarget > 0) this.oxygenInterlock = '补燃运行 · O/H = 8 供氧限幅';
       const oxygenUsed = Math.min(this.oxygen, this.oxygenFlow * dt);
       this.oxygen = Math.max(0, this.oxygen - oxygenUsed); this.oxygenConsumed += oxygenUsed;
-      this.updatePerformance(); this.stepThrust = this.thrust; this.totalImpulse += this.stepThrust * dt;
       const wall = this.nozzleWallTemperature;
       const coolantConductance = this.cooling && !this.faults.has('cooling') ? 16000 : 400;
       this.nozzleCoolingPower = coolantConductance * this.scale * Math.max(0, wall - this.coolantTemperature) / 1e6;
       this.nozzleRadiationPower = .8 * 5.670374419e-8 * 2.4 * this.scale * Math.max(0, wall ** 4 - 293 ** 4) / 1e6;
+      this.updatePerformance(); this.stepThrust = this.thrust; this.totalImpulse += this.stepThrust * dt;
       this.wallEnergyRate = this.nozzleHeatLoad - this.nozzleCoolingPower - this.nozzleRadiationPower;
       this.nozzleWallTemperature += this.wallEnergyRate * 1e6 * dt / this.wallHeatCapacity;
       if (this.mode === 'STARTING' && Math.abs(this.power - this.ratedPower * this.demand / 100) < Math.max(2, this.ratedPower * .02)) {

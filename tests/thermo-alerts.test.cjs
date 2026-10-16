@@ -48,12 +48,37 @@ test('equilibrium expansion recovers recombination energy; pressure thrust is se
 });
 
 test('complete LANTR pipeline agrees with independent Cantera HP/SP calculations', () => {
-  assert.equal(oracle.lantr.length, 4);
+  assert.equal(oracle.lantr.length, 5);
   for (const c of oracle.lantr) {
-    const s = thermo.exhaust(10, 10 * c.ratio, 2500, 4, 650);
+    const s = thermo.exhaust(10, 10 * c.ratio, 2500, 4, 650, 1, 'hydrogen', 'equilibrium', c.regenerativeMW);
     assert.ok(Math.abs(s.temperature - c.mixK) < 15);
     assert.ok(Math.abs(s.velocity / 9.80665 / c.ispS - 1) < .005);
     Object.values(s.fractions).forEach((y, i) => assert.ok(Math.abs(y - c.exitY[i]) < .003));
+  }
+});
+
+test('regenerative heat returns once, and the gas plus wall plus external cooling budget closes', () => {
+  const e = new NTRSimulation(); e.reset(true); e.setLoadout(5000, 20000); e.oxygenPump = true; e.oxygenValve = 60; e.start();
+  for (let i = 0; i < 2000; i++) {
+    e.tick(.05); const b = e.nozzleEnergy;
+    near(b.available, b.nuclearTransported + b.regenerativeReturn + b.idealChemical - b.feedConditioning, 1e-6);
+    near(b.cycleResidual, 0, 1e-6); assert.ok(e.regenerativePower <= e.nozzleCoolingPower && e.externalCoolingPower >= 0);
+  }
+  assert.ok(e.regenerativePower > 5);
+  e.cooling = false; e.tick(.05); near(e.regenerativePower, 0);
+  const noReturn = thermo.exhaust(10, 30, 2500, 4, 650), recovered = thermo.exhaust(10, 30, 2500, 4, 650, 1, 'hydrogen', 'equilibrium', 10);
+  near(recovered.energy.input - noReturn.energy.input, 10, 1e-6); assert.ok(recovered.velocity > noReturn.velocity);
+});
+
+test('v0.8 reaches the calibrated v0.6 Isp envelope at equal power and control settings', () => {
+  const audit = require('../benchmarks/v0.8-lantr-audit.json');
+  for (const c of audit.controls) {
+    const e = new NTRSimulation(); e.reset(true); e.setLoadout(5000, 20000); e.demand = 60; e.valve = 70; e.start();
+    for (let i = 0; i < 1200; i++) e.tick(.05);
+    e.oxygenPump = c.oxygenValvePercent > 0; e.oxygenValve = c.oxygenValvePercent;
+    for (let i = 0; i < 400; i++) e.tick(.05);
+    near(e.power, c.v06.powerMW, 1e-6); assert.ok(e.isp >= c.v06.ispS * .97);
+    near(e.nozzleEnergy.cycleResidual, 0, 1e-6);
   }
 });
 

@@ -19,16 +19,17 @@ import cantera as ct
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
+config = json.loads((ROOT / 'propulsion-config.json').read_text(encoding='utf-8'))
 NAMES = ['H2', 'H', 'O2', 'O', 'OH', 'H2O', 'HO2', 'H2O2']
 species = {s.name: s for s in ct.Species.list_from_file('nasa_gas.yaml')}
 gas = ct.Solution(thermo='ideal-gas', species=[species[n] for n in NAMES])
 water_ratio = gas.molecular_weights[2] / (2 * gas.molecular_weights[0])
 ratios = [0, .025, .05, .1, .2, .35, .5, .75, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, float(water_ratio), 8, 10, 12, 16]
-pressures = [1e3, 2e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 3e6, 1e7, 3e7]
+pressures = [100, 200, 300, 1e3, 2e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 2e6, 3e6, 1e7, 3e7]
 temperatures = sorted(set([200, 250, 293.15, 350] + list(range(400, 6001, 100))))
 fields = ['h', 'cp', 'gamma', 'molarMass', 'formation', 'exitDrop', 'exitTemperature', 'injectionDrop', 'injectionTemperature'] + NAMES + ['equilibriumExitDrop', 'equilibriumExitTemperature']
 formation = np.array([s.thermo.h(298.15) / mw for s, mw in zip(gas.species(), gas.molecular_weights)])
-exit_pressure = 2000.0
+exit_pressure = config['exitPressure']
 
 def frozen_expansion(y, entropy, enthalpy, pressure):
     """Frozen composition, constant entropy. Below 200 K continue cp(200 K)."""
@@ -56,6 +57,11 @@ feeds = {
     'oxygen': feed_enthalpy(ct.Oxygen(), 'O2', 90),
     'water': feed_enthalpy(ct.Water(), 'H2O', 293.15)
 }
+cold_exits = {}
+for ratio in ratios:
+    gas.TPY = 200, exit_pressure, {'H2': 1, 'O2': ratio}
+    gas.equilibrate('TP', solver='auto', rtol=1e-9, max_steps=5000)
+    cold_exits[ratio] = (gas.Y.copy(), gas.entropy_mass, gas.enthalpy_mass, gas.cp_mass)
 values = []
 for pressure in pressures:
     for ratio in ratios:
@@ -71,15 +77,31 @@ for pressure in pressures:
             h, entropy = gas.enthalpy_mass, gas.entropy_mass
             cp, gamma, molar = gas.cp_mass, gas.cp_mass / gas.cv_mass, gas.mean_molecular_weight
             exit_drop, exit_t = frozen_expansion(y, entropy, h, min(pressure, exit_pressure))
-            injection_drop, injection_t = frozen_expansion(y, entropy, h, pressure * .18)
+            injection_drop, injection_t = frozen_expansion(y, entropy, h, pressure * config['injectionPressureRatio'])
             # Equilibrium nozzle is a separate upper-performance reference. At
             # low T, radicals are negligible and the frozen continuation suffices.
-            if temperature < 800 or exit_t < 200:
-                equilibrium_drop, equilibrium_t = exit_drop, exit_t
+            cold_y, cold_s, cold_h, cold_cp = cold_exits[ratio]
+            if entropy <= cold_s:
+                equilibrium_t = 200 * np.exp((entropy - cold_s) / cold_cp)
+                equilibrium_drop = max(0, h - cold_h - cold_cp * (equilibrium_t - 200))
             else:
-                gas.TPY = max(200, exit_t), min(pressure, exit_pressure), y
-                gas.SP = entropy, min(pressure, exit_pressure)
-                gas.equilibrate('SP', solver='auto', rtol=1e-8, max_steps=5000)
+                gas.TPY = 200, min(pressure, exit_pressure), y
+                if entropy < gas.entropy_mass:
+                    gas.TPY = 200, min(pressure, exit_pressure), cold_y
+                try:
+                    gas.SP = entropy, min(pressure, exit_pressure)
+                    gas.equilibrate('SP', solver='auto', rtol=1e-8, max_steps=5000)
+                except ct.CanteraError:
+                    # Robust entropy root, always inside the polynomial domain.
+                    low, high = 200.0, 6000.0
+                    for _ in range(22):
+                        mid = (low + high) / 2
+                        gas.TPY = mid, min(pressure, exit_pressure), initial
+                        gas.equilibrate('TP', solver='auto', rtol=1e-9, max_steps=5000)
+                        if gas.entropy_mass > entropy:
+                            high = mid
+                        else:
+                            low = mid
                 equilibrium_drop, equilibrium_t = max(0, h - gas.enthalpy_mass), gas.T
             values.extend([h, cp, gamma, molar, float(y @ formation), exit_drop, exit_t, injection_drop, injection_t, *y.tolist(), equilibrium_drop, equilibrium_t])
     print(f'Generated equilibrium and frozen expansion: {pressure / 1e6:g} MPa', flush=True)
@@ -93,7 +115,7 @@ metadata = {
     'temperatures': temperatures, 'waterRatio': float(water_ratio),
     'molecularWeights': gas.molecular_weights.tolist(), 'formationEnthalpies': formation.tolist(),
     'speciesThermo': [s.thermo.coeffs.tolist() for s in gas.species()],
-    'exitPressure': exit_pressure, 'injectionPressureRatio': .18, 'feedEnthalpy': feeds,
+    'exitPressure': exit_pressure, 'injectionPressureRatio': config['injectionPressureRatio'], 'model': config, 'feedEnthalpy': feeds,
     'units': 'Pa, K, J/kg, J/(kg K), kg/kmol, species mass fractions',
     'assumptions': '8 neutral ideal-gas H/O species; TP equilibrium; frozen and equilibrium isentropic nozzle references; cp(200 K) continuation below 200 K; no ions or finite-rate kinetics',
     'sources': ['https://cantera.org/stable/python/thermo.html', 'https://cantera.org/stable/examples/python/thermo/isentropic.html', 'https://ntrs.nasa.gov/citations/19940013151']

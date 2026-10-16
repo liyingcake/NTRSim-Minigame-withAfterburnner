@@ -42,7 +42,7 @@ test('oxygen has an independent initial percentage and reserve; it cannot consum
   const e = new NTRSimulation(); e.reset(true); e.setLoadout(5000, 1000); e.start(); run(e, 30);
   e.oxygen = 12.5; e.oxygenPump = true; e.oxygenValve = 50;
   near(e.oxygenPercent, 1.25); near(e.oxygenSupplyFactor, Math.sqrt(.5)); assert.equal(e.fuelSupplyFactor, 1);
-  e.tick(.05); near(e.commandedOxygenFlow, 40 * Math.sqrt(.5)); assert.ok(e.afterburnerPower > 0);
+  e.tick(.05); near(e.commandedOxygenFlow, e.ratedOxygenFlow * .5 * Math.sqrt(.5)); assert.ok(e.afterburnerPower > 0);
   e.oxygen = e.oxygenReserve + .01; e.oxygenFeedFlow = 100; e.tick(.05);
   near(e.oxygen, e.oxygenReserve); e.tick(.05); near(e.oxygenFlow, 0); near(e.afterburnerPower, 0);
   assert.match(e.oxygenInterlock, /残留/); assert.ok(e.thrust > 0); assert.ok(e.isActive);

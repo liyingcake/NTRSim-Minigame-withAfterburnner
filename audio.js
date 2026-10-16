@@ -34,6 +34,7 @@
   class NTRSound {
     constructor({ context = null, offline = false } = {}) {
       this.context = context; this.offline = offline; this.enabled = false; this.volume = .35;
+      this.environmentVolume = .35; this.alarmVolume = .55;
       this.graph = null; this.timer = null; this.voices = new Set(); this.parameters = new Map();
       this.state = null; this.nextAlarm = 0; this.alarmIndex = 0; this.alarmSignature = ''; this.lastAlarm = null;
       this.lastChord = [];
@@ -48,7 +49,8 @@
       }
       if (!this.graph) this.buildGraph();
       if (!this.offline) await this.context.resume();
-      this.enabled = true; this.setVolume(this.volume);
+      this.enabled = true; this.graph.master.gain.setTargetAtTime(.8, this.context.currentTime, .025);
+      this.setEnvironmentVolume(this.environmentVolume); this.setAlarmVolume(this.alarmVolume);
       if (this.state) this.applyState();
       if (!this.offline && !this.timer) this.timer = setInterval(() => this.schedule(), 125);
     }
@@ -58,14 +60,23 @@
       if (this.context && !this.offline) this.context.suspend().catch(() => {});
     }
     setVolume(value) {
-      this.volume = clamp(value);
-      if (this.graph) this.graph.master.gain.setTargetAtTime(this.enabled ? this.volume * .8 : 0, this.context.currentTime, .025);
+      this.volume = clamp(value); this.setEnvironmentVolume(value); this.setAlarmVolume(value);
+    }
+    setEnvironmentVolume(value) {
+      this.environmentVolume = clamp(value);
+      if (this.graph) this.graph.environment.gain.setTargetAtTime(this.environmentVolume, this.context.currentTime, .025);
+    }
+    setAlarmVolume(value) {
+      this.alarmVolume = clamp(value);
+      if (this.graph) this.graph.alarmLevel.gain.setTargetAtTime(this.alarmVolume, this.context.currentTime, .025);
     }
     buildGraph() {
       const ctx = this.context, gain = value => { const node = ctx.createGain(); node.gain.value = value; return node; };
       const mix = gain(1), master = gain(0), limiter = ctx.createDynamicsCompressor();
       limiter.threshold.value = -12; limiter.knee.value = 12; limiter.ratio.value = 5; limiter.attack.value = .006; limiter.release.value = .18;
       mix.connect(limiter); limiter.connect(master); master.connect(ctx.destination);
+      const environment = gain(this.environmentVolume), alarmLevel = gain(this.alarmVolume);
+      environment.connect(mix); alarmLevel.connect(mix);
       const engine = gain(1), dry = gain(.8), wet = gain(.25), reverb = ctx.createConvolver();
       const impulse = ctx.createBuffer(2, Math.round(ctx.sampleRate * .75), ctx.sampleRate);
       let seed = 1963;
@@ -74,7 +85,7 @@
         const data = impulse.getChannelData(channel);
         for (let i = 0; i < data.length; i++) data[i] = random() * (1 - i / data.length) ** 3;
       }
-      reverb.buffer = impulse; engine.connect(dry); dry.connect(mix); engine.connect(reverb); reverb.connect(wet); wet.connect(mix);
+      reverb.buffer = impulse; engine.connect(dry); dry.connect(environment); engine.connect(reverb); reverb.connect(wet); wet.connect(environment);
       const noise = ctx.createBufferSource(), noiseBuffer = ctx.createBuffer(1, Math.round(ctx.sampleRate * 2), ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0); for (let i = 0; i < data.length; i++) data[i] = random();
       noise.buffer = noiseBuffer; noise.loop = true;
@@ -86,12 +97,12 @@
         const node = ctx.createOscillator(); node.type = type; node.frequency.value = frequency; node.connect(destination); node.start(); return node;
       };
       const rumble = gain(0), pump = gain(0), instrument = gain(0), cabin = gain(.007);
-      rumble.connect(engine); pump.connect(mix); instrument.connect(mix); cabin.connect(instrument);
+      rumble.connect(engine); pump.connect(environment); instrument.connect(environment); cabin.connect(instrument);
       const core = oscillator('triangle', 52, rumble), pumpTone = oscillator('sine', 190, pump);
       oscillator('sine', 60, cabin); const overtone = gain(.002); overtone.connect(instrument); oscillator('sine', 420, overtone);
-      const alarm = gain(0); alarm.connect(mix);
+      const alarm = gain(0); alarm.connect(alarmLevel);
       noise.start();
-      this.graph = { mix, master, engine, dry, wet, filter, hiss, burn, rumble, pump, instrument, core, pumpTone, alarm };
+      this.graph = { mix, master, environment, alarmLevel, engine, dry, wet, filter, hiss, burn, rumble, pump, instrument, core, pumpTone, alarm };
     }
     target(parameter, value, tau = .12) {
       if (Math.abs((this.parameters.get(parameter) ?? Infinity) - value) < .0001) return;
@@ -161,7 +172,7 @@
       const now = this.context.currentTime, oscillator = this.context.createOscillator(), envelope = this.context.createGain();
       oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(ack ? 1040 : 1450, now); oscillator.frequency.exponentialRampToValueAtTime(ack ? 720 : 820, now + .035);
       envelope.gain.setValueAtTime(.024, now); envelope.gain.exponentialRampToValueAtTime(.0001, now + .05);
-      oscillator.connect(envelope); envelope.connect(this.graph.mix); oscillator.start(); oscillator.stop(now + .06);
+      oscillator.connect(envelope); envelope.connect(this.graph.environment); oscillator.start(); oscillator.stop(now + .06);
       oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
     }
   }

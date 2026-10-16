@@ -86,22 +86,27 @@
     for (let i = 0; i < 26; i++) { const mid = (low + high) / 2; if (frozenProperties(mid, y).h > h) high = mid; else low = mid; }
     return frozenProperties((low + high) / 2, y);
   }
-  function exhaust(mainFlow, oxygenFlow, gasTemperature, pressureMPa = 4, wallTemperature = 650, scale = 1, propellant = 'hydrogen', expansion = 'equilibrium') {
+  function exhaust(mainFlow, oxygenFlow, gasTemperature, pressureMPa = 4, wallTemperature = 650, scale = 1, propellant = 'hydrogen', expansion = 'equilibrium', regenerativeMW = 0) {
     const flow = mainFlow + oxygenFlow, water = propellant === 'water';
     const ratio = water ? M.waterRatio : mainFlow > 0 ? oxygenFlow / mainFlow : 0;
-    const pressure = Math.max(1e3, pressureMPa * 1e6), primary = atTemperature(gasTemperature, pressure, water ? M.waterRatio : 0);
+    const pressure = Math.max(1e3, pressureMPa * 1e6), base = atTemperature(gasTemperature, pressure, water ? M.waterRatio : 0);
+    // Wall coolant returns energy to the main stream. This is internal heat
+    // recovery, counted once in gas input and subtracted from external cooling.
+    const regenerativePower = Math.min(Math.max(0, regenerativeMW), mainFlow * base.cp * M.model[water ? 'waterRegenerativeRise' : 'hydrogenRegenerativeRise'] / 1e6);
+    const primary = regenerativePower > 0 && mainFlow > 0 ? fromEnthalpy(base.h + regenerativePower * 1e6 / mainFlow, pressure, water ? M.waterRatio : 0) : base;
     const input = mainFlow * primary.h + oxygenFlow * M.feedEnthalpy.oxygen;
     const preDrop = pressure * M.injectionPressureRatio >= M.exitPressure ? primary.injectionDrop : primary.exitDrop;
-    const retainedKinetic = flow > 0 ? .96 * preDrop * (mainFlow / flow) ** 2 : 0;
+    const efficiency = M.model.kineticEfficiency;
+    const retainedKinetic = flow > 0 ? efficiency * preDrop * (mainFlow / flow) ** 2 : 0;
     const mixPressure = Math.max(Math.min(M.exitPressure, pressure), pressure * M.injectionPressureRatio);
     // Use the same downstream station at zero oxygen: no discontinuous jump in
     // temperature, composition or velocity when the injection valve closes.
     const mixed = flow > 0 ? fromEnthalpy(input / flow - retainedKinetic, mixPressure, ratio) : primary;
-    const heat = wallTransfer(mixed, flow, wallTemperature, scale, (water ? 45 : 16) * scale);
+    const heat = wallTransfer(mixed, flow, wallTemperature, scale, (water ? 45 : M.model.hydrogenRatedFlow) * scale);
     const final = flow > 0 && heat > 0 ? fromEnthalpy(mixed.h - heat / flow, mixPressure, ratio) : mixed;
     const drop = expansion === 'frozen' ? final.exitDrop : final.equilibriumExitDrop;
-    const kinetic = Math.max(0, retainedKinetic + .96 * drop), jetVelocity = flow > .001 ? Math.sqrt(2 * kinetic) : 0;
-    const exitEnthalpy = final.h - .96 * drop;
+    const kinetic = Math.max(0, retainedKinetic + efficiency * drop), jetVelocity = flow > .001 ? Math.sqrt(2 * kinetic) : 0;
+    const exitEnthalpy = final.h - efficiency * drop;
     const exit = expansion === 'frozen' ? frozenFromEnthalpy(exitEnthalpy, final.y) : fromEnthalpy(exitEnthalpy, Math.min(pressure, M.exitPressure), ratio);
     // Vacuum pressure thrust. The fixed-Pe approximation implies an equivalent
     // exit area from continuity; it does not solve a fixed nozzle geometry.
@@ -117,7 +122,7 @@
     const feedFormation = water ? mainFlow * M.formationEnthalpies[5] : 0;
     const feedInput = mainFlow * M.feedEnthalpy[water ? 'water' : 'hydrogen'] + oxygenFlow * M.feedEnthalpy.oxygen;
     return { flow, velocity, jetVelocity, pressureThrust, equivalentExitArea: pressureThrust * 1000 / Math.min(pressure, M.exitPressure),
-      exitTemperature: exit.temperature, expansion, temperature: final.temperature, chemicalPower, kineticPower: kinetic * flow / 1e6,
+      exitTemperature: exit.temperature, expansion, regenerativePower, primaryTemperature: primary.temperature, temperature: final.temperature, chemicalPower, kineticPower: kinetic * flow / 1e6,
       heatLoad: heat / 1e6, mixtureRatio: water ? 0 : ratio, pressure: mixPressure / 1e6, molarMass: exit.molarMass, gamma: exit.gamma,
       steam: masses[5], hydrogen: masses[0], oxygen: masses[2], atomicHydrogen: masses[1], atomicOxygen: masses[3], hydroxyl: masses[4],
       hydroperoxyl: masses[6], peroxide: masses[7], radicals: masses[1] + masses[3] + masses[4] + masses[6] + masses[7],
@@ -127,7 +132,7 @@
       mixDissociationPower: Math.max(0, final.formation - completeFormation) * flow / 1e6,
       outside: primary.outside || final.outside || exit.outside,
       energy: { input: input / 1e6, wall: heat / 1e6, kinetic: kinetic * flow / 1e6, exhaust: exitEnthalpy * flow / 1e6,
-        available: (input - reference) / 1e6, nuclearTransported: mainFlow * (primary.h - M.feedEnthalpy[water ? 'water' : 'hydrogen']) / 1e6,
+        available: (input - reference) / 1e6, nuclearTransported: mainFlow * (base.h - M.feedEnthalpy[water ? 'water' : 'hydrogen']) / 1e6, regenerativeReturn: regenerativePower,
         idealChemical: (feedFormation - reference) / 1e6, feedConditioning: (feedFormation - feedInput) / 1e6,
         exhaustThermal: (flow * exitEnthalpy - exitFormation) / 1e6, dissociation: (exitFormation - reference) / 1e6,
         residual: (input - heat - flow * kinetic - flow * exitEnthalpy) / 1e6 } };

@@ -27,6 +27,9 @@ let selectedOxygenLoad = 0, selectedOxygenEnabled = false, selectedPayload = 0;
 let scoreStorage;
 try { scoreStorage = window.localStorage; } catch { /* Private/file contexts may disallow browser storage. */ }
 const leaderboard = new NTRLeaderboard(scoreStorage);
+const preferences = new NTR_PREFERENCES.NTRSettings(scoreStorage);
+let pendingBinding = null;
+sound.setEnvironmentVolume(preferences.environmentVolume); sound.setAlarmVolume(preferences.alarmVolume);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let mfdBounds = null, mfdVisible = true, mfdDirty = true, lastMfdDraw = -Infinity;
 const mfdResize = new ResizeObserver(entries => {
@@ -118,7 +121,7 @@ function render() {
   setText('oxygenStatus', sim.oxygenInterlock);
   setText('pumpFlowDetail', '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3) + ' · 供液效率 ' + num(sim.fuelPumpEfficiency * 100, 1) + '%');
   setText('oxygenPumpDetail', '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3) + ' · 残气系数 ' + num(sim.oxygenSupplyFactor * 100, 1) + '%');
-  setText('exhaustProducts', '出口尾流 / kg/s：H₂O ' + num(sim.products.steam, 3) + ' · H₂ ' + num(sim.products.hydrogen, 3) + ' · O₂ ' + num(sim.products.oxygen, 3) + ' · H ' + num(sim.products.atomicHydrogen, 3) + ' · O ' + num(sim.products.atomicOxygen, 3) + ' · OH ' + num(sim.products.hydroxyl, 3) + ' · HO₂ ' + num(sim.products.hydroperoxyl, 4) + ' · H₂O₂ ' + num(sim.products.peroxide, 4) + '\n平衡混合站 ' + num(sim.thermoState.pressure, 3) + ' MPa · 出口气温 ' + num(sim.thermoState.exitTemperature) + ' K · 实际喷速 ' + num(sim.jetVelocity / 1000, 2) + ' km/s · 压力推力 ' + num(sim.pressureThrust, 2) + ' kN · 喷流动能 ' + num(sim.kineticPower, 2) + ' MW' + (sim.thermoState.outside ? ' · 低温/边界延拓' : ''));
+  setText('exhaustProducts', '出口尾流 / kg/s：H₂O ' + num(sim.products.steam, 3) + ' · H₂ ' + num(sim.products.hydrogen, 3) + ' · O₂ ' + num(sim.products.oxygen, 3) + ' · H ' + num(sim.products.atomicHydrogen, 3) + ' · O ' + num(sim.products.atomicOxygen, 3) + ' · OH ' + num(sim.products.hydroxyl, 3) + ' · HO₂ ' + num(sim.products.hydroperoxyl, 4) + ' · H₂O₂ ' + num(sim.products.peroxide, 4) + '\n平衡混合站 ' + num(sim.thermoState.pressure, 3) + ' MPa · 出口气温 ' + num(sim.thermoState.exitTemperature) + ' K · 实际喷速 ' + num(sim.jetVelocity / 1000, 2) + ' km/s · 压力推力 ' + num(sim.pressureThrust, 2) + ' kN · 喷流动能 ' + num(sim.kineticPower, 2) + ' MW · 再生回热 ' + num(sim.regenerativePower, 2) + ' MW · 外排冷却 ' + num(sim.externalCoolingPower, 2) + ' MW' + (sim.thermoState.outside ? ' · 低温/边界延拓' : ''));
   const oxygenDisabled = !sim.oxygenTankInstalled || sim.propellant !== 'hydrogen' || Boolean(mission?.complete);
   $('oxygenPumpToggle').disabled = $('oxygenValveSlider').disabled = oxygenDisabled;
   $('tankConfigButton').disabled = Boolean(mission);
@@ -737,7 +740,40 @@ $('soundToggle').addEventListener('click', async () => {
   button.disabled = false; button.setAttribute('aria-pressed', String(sound.enabled));
   button.textContent = sound.enabled ? '关闭音效 ♫' : '开启音效 ♪'; render();
 });
-$('soundVolume').addEventListener('input', event => { sound.setVolume(Number(event.target.value) / 100); setText('soundVolumeOutput', event.target.value + '%'); });
+function syncAudioControls() {
+  for (const channel of ['environment', 'alarm']) {
+    const value = Math.round(preferences[channel + 'Volume'] * 100), title = channel === 'environment' ? 'Environment' : 'Alarm';
+    $(channel + 'Volume').value = value; $('settings' + title + 'Volume').value = value;
+    setText(channel + 'VolumeOutput', value + '%'); setText('settings' + title + 'Output', value + '%');
+  }
+}
+for (const channel of ['environment', 'alarm']) {
+  const title = channel === 'environment' ? 'Environment' : 'Alarm';
+  for (const id of [channel + 'Volume', 'settings' + title + 'Volume']) $(id).addEventListener('input', event => {
+    preferences.setVolume(channel, Number(event.target.value) / 100);
+    sound['set' + title + 'Volume'](preferences[channel + 'Volume']); syncAudioControls();
+  });
+}
+function updateShortcutHints() {
+  for (const [action, [label, , target]] of Object.entries(NTR_PREFERENCES.ACTIONS)) {
+    if (target) $(target).title = label + ' · 快捷键 ' + NTR_PREFERENCES.keyLabel(preferences.bindings[action]);
+  }
+  for (const el of document.querySelectorAll('[data-shortcut]')) el.textContent = NTR_PREFERENCES.keyLabel(preferences.bindings[el.dataset.shortcut]);
+}
+function renderBindings() {
+  $('keyBindings').innerHTML = Object.entries(NTR_PREFERENCES.ACTIONS).map(([id, [label]]) => '<div class="key-binding-row"><span>' + label + '</span><button data-bind="' + id + '" class="' + (pendingBinding === id ? 'listening' : '') + '" aria-label="修改' + label + '快捷键" aria-pressed="' + (pendingBinding === id) + '">' + (pendingBinding === id ? '请按键…' : safe(NTR_PREFERENCES.keyLabel(preferences.bindings[id]))) + '</button></div>').join('');
+}
+$('settingsButton').addEventListener('click', () => { pendingBinding = null; renderBindings(); syncAudioControls(); setText('bindingStatus', preferences.persistent ? '快捷键与音量自动保存在此浏览器。' : '当前浏览器无法持久保存，设置在本次会话中有效。'); $('settingsDialog').showModal(); });
+$('settingsDialog').addEventListener('close', () => { pendingBinding = null; });
+$('keyBindings').addEventListener('click', event => {
+  const button = event.target.closest('[data-bind]'); if (!button) return;
+  pendingBinding = button.dataset.bind; renderBindings(); setText('bindingStatus', '正在设置「' + NTR_PREFERENCES.ACTIONS[pendingBinding][0] + '」：按下一个新键，Esc 取消。');
+});
+$('resetBindingsButton').addEventListener('click', () => { pendingBinding = null; preferences.resetBindings(); renderBindings(); updateShortcutHints(); setText('bindingStatus', '已恢复默认快捷键：Q / W / E / R 控制四组开关。'); });
+for (const [action, id] of [['pump', 'pumpToggle'], ['cooling', 'coolingToggle'], ['protection', 'autoToggle'], ['oxygenPump', 'oxygenPumpToggle']]) {
+  const hint = document.createElement('kbd'); hint.className = 'shortcut-hint'; hint.dataset.shortcut = action; $(id).querySelector('span').append(' ', hint);
+}
+syncAudioControls(); updateShortcutHints();
 document.addEventListener('visibilitychange', () => render());
 $('lampTestButton').addEventListener('click', () => { lampTest = true; $('lampTestButton').classList.add('testing'); render(); clearTimeout(lampTimeout); lampTimeout = setTimeout(() => { lampTest = false; $('lampTestButton').classList.remove('testing'); render(); }, 2200); });
 function updatePauseButton() { $('pauseButton').textContent = paused ? '▶' : 'Ⅱ'; $('pauseButton').setAttribute('aria-label', paused ? '继续模拟' : '暂停模拟'); }
@@ -794,12 +830,26 @@ for (const id of ['leaderboardTable', 'resultLeaderboard']) $(id).addEventListen
 });
 document.querySelectorAll('[data-release]').forEach(element => { element.textContent = NTR_RELEASE.label; });
 document.addEventListener('keydown', event => {
-  if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
-  if (event.code === 'Space' && document.activeElement.tagName !== 'BUTTON') { event.preventDefault(); togglePause(); }
-  const index = Number(event.key) - 1;
-  if (index >= 0 && index < 6) setPage(Object.keys(pageNames)[index]);
+  if (pendingBinding && $('settingsDialog').open) {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.repeat) return;
+    event.preventDefault();
+    if (event.code === 'Escape') { pendingBinding = null; renderBindings(); setText('bindingStatus', '已取消按键录入。'); return; }
+    const result = preferences.bind(pendingBinding, event.code); setText('bindingStatus', result.message);
+    if (result.ok) { pendingBinding = null; renderBindings(); updateShortcutHints(); }
+    return;
+  }
+  if (document.querySelector('dialog[open]')) return;
+  const action = preferences.actionFor(event);
+  if (action) {
+    event.preventDefault();
+    const target = NTR_PREFERENCES.ACTIONS[action][2];
+    if (target) { if (!$(target).disabled) $(target).click(); }
+    else setPage(action);
+    return;
+  }
+  const active = document.activeElement;
+  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.isComposing || active.isContentEditable || /TEXTAREA|SELECT/.test(active.tagName) || active.tagName === 'INPUT' && active.type !== 'range') return;
   if (/^F[1-6]$/.test(event.key)) { event.preventDefault(); setPage(Object.keys(pageNames)[Number(event.key.slice(1)) - 1]); }
-  if (event.key === '?') $('manualDialog').showModal();
 });
 function frame(now) {
   const begin = profiler.enabled ? performance.now() : 0, interval = now - lastFrame;

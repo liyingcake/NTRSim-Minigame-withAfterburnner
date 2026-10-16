@@ -26,8 +26,14 @@ document.getElementById('run').onclick=async()=>{
     const change=context.suspend(.4).then(()=>{sim.acknowledge();sound.update(sim);return context.resume();});
     const buffer=await context.startRendering();await change;
     results.push({mode:'four-voice chord / ACK',chord,before:stats(buffer,.08,.36),after:stats(buffer,.8,1.6),acknowledged:sim.acknowledged,voices:sound.voices.size});
-    const passed=results.slice(0,4).every(x=>x.rms>0&&x.peak<1)&&results[4].rms===0&&results[5].after.rms<results[5].before.rms*.2&&results[5].voices===0&&chord.length===4&&results[5].before.stereo>.001;
-    output.textContent=JSON.stringify({passed,results},null,2);
+    const split=[];
+    for(const [environmentVolume,alarmVolume] of [[0,.5],[.5,0],[0,0]]){
+      const ctx=new OfflineAudioContext(2,96000,48000),snd=new NTRSound({context:ctx,offline:true}),e=new NTRSimulation();
+      e.coreTemperature=3300;await snd.enable();snd.setEnvironmentVolume(environmentVolume);snd.setAlarmVolume(alarmVolume);snd.update(e);
+      const rendered=await ctx.startRendering(),bothMuted=environmentVolume===0&&alarmVolume===0;split.push({environmentVolume,alarmVolume,...stats(rendered,bothMuted ? .8 : .1,bothMuted ? 1.8 : .7)});
+    }
+    const passed=results.slice(0,4).every(x=>x.rms>0&&x.peak<1)&&results[4].rms===0&&results[5].after.rms<results[5].before.rms*.2&&results[5].voices===0&&chord.length===4&&results[5].before.stereo>.001&&split[0].rms>0&&split[1].rms>0&&split[2].rms<1e-6;
+    output.textContent=JSON.stringify({passed,results,split},null,2);
   }catch(error){output.textContent=JSON.stringify({passed:false,error:error.stack});}
 };
 </script>

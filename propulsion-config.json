@@ -1,0 +1,11 @@
+{
+  "description": "v0.8 idealized regenerative vacuum engine; game calibration, not fixed-geometry CFD",
+  "exitPressure": 100,
+  "injectionPressureRatio": 0.45,
+  "kineticEfficiency": 0.99,
+  "hydrogenRatedFlow": 14.8,
+  "oxygenRatedFlow": 74,
+  "regenerativeRecovery": 0.94,
+  "hydrogenRegenerativeRise": 120,
+  "waterRegenerativeRise": 30
+}

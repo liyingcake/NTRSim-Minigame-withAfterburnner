@@ -36,6 +36,9 @@
     "equilibriumExitTemperature"
   ],
   "pressures": [
+    100,
+    200,
+    300,
     1000.0,
     2000.0,
     3000.0,
@@ -44,6 +47,7 @@
     100000.0,
     300000.0,
     1000000.0,
+    2000000.0,
     3000000.0,
     10000000.0,
     30000000.0
@@ -294,8 +298,19 @@
       3.43505074
     ]
   ],
-  "exitPressure": 2000.0,
-  "injectionPressureRatio": 0.18,
+  "exitPressure": 100,
+  "injectionPressureRatio": 0.45,
+  "model": {
+    "description": "v0.8 idealized regenerative vacuum engine; game calibration, not fixed-geometry CFD",
+    "exitPressure": 100,
+    "injectionPressureRatio": 0.45,
+    "kineticEfficiency": 0.99,
+    "hydrogenRatedFlow": 14.8,
+    "oxygenRatedFlow": 74,
+    "regenerativeRecovery": 0.94,
+    "hydrogenRegenerativeRise": 120,
+    "waterRegenerativeRise": 30
+  },
   "feedEnthalpy": {
     "hydrogen": -4456415.063827378,
     "oxygen": -405429.92239603645,
