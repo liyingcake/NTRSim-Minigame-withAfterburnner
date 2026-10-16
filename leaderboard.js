@@ -5,6 +5,7 @@
   const FIELDS = ['id', 'version', 'scoreSchema', 'type', 'propellant', 'total', 'deltaV', 'elapsed', 'initialFuel', 'fuel',
     'diameter', 'engineModel', 'ratedPower', 'dryMass', 'initialMass', 'finalMass', 'consumedFuel', 'launchDemand', 'launchValve',
     'flightId', 'engineMass', 'meanThrust', 'burnMeanThrust', 'totalImpulse', 'burnTime', 'effectiveIsp', 'peakShipThrustWeight', 'peakEngineThrustWeight',
+    'baseEngineMass', 'nozzleMass', 'nozzleThroatScale', 'nozzleThroatArea', 'nozzleBaseExpansion', 'nozzleHalfAngle', 'nozzleExtension', 'nozzleLength', 'nozzleExpansion', 'nozzleExitArea',
     'target', 'distance', 'integrity', 'temperature', 'peakAcceleration', 'peakThrust', 'peakPower', 'peakIsp', 'peakTemperature', 'peakPressure', 'peakFlow', 'reason',
     'base', 'basePoints', 'dvPoints', 'fuelPoints', 'fuelUnitCost', 'loadingCost', 'error', 'errorPenalty', 'timePenalty', 'durabilityPenalty', 'errorDeduction', 'timeDeduction', 'durabilityDeduction',
     'baseDryMass', 'payload', 'payloadPoints', 'payloadUnitReward', 'initialOxygen', 'oxygen', 'consumedOxygen', 'initialVolume', 'dividerVolume', 'primaryLoadingCost', 'oxygenLoadingCost', 'launchOxygenValve', 'peakAfterburnerPower', 'peakTotalPower', 'peakOxygenFlow', 'peakNozzleTemperature', 'peakWallTemperature', 'peakHeatLoad', 'peakDissociationPower'];

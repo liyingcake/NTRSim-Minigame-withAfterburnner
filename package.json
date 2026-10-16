@@ -1,8 +1,8 @@
 {
   "name": "nerva-simulator",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "nerva": {
-    "scoreSchema": 8
+    "scoreSchema": 9
   },
   "private": true,
   "description": "Retro interactive nuclear thermal propulsion console",
@@ -12,7 +12,7 @@
     "version:sync": "node build-version.cjs",
     "test": "node --test tests/*.test.cjs",
     "benchmark": "node benchmarks/physics.cjs",
-    "check": "node --check version.js && node --check thermo-table.js && node --check thermochemistry.js && node --check systems.js && node --check flight-recorder.js && node --check flight-archive.js && node --check flight-view.js && node --check simulation.js && node --check challenge.js && node --check leaderboard.js && node --check audio.js && node --check settings.js && node --check performance.js && node --check app.js && node --check server.cjs && node --check build-version.cjs && node --check build-standalone.cjs && node --check build-texture.cjs",
+    "check": "node --check version.js && node --check thermo-table.js && node --check nozzle.js && node --check thermochemistry.js && node --check systems.js && node --check flight-recorder.js && node --check flight-archive.js && node --check flight-view.js && node --check simulation.js && node --check challenge.js && node --check leaderboard.js && node --check audio.js && node --check settings.js && node --check performance.js && node --check app.js && node --check server.cjs && node --check build-version.cjs && node --check build-standalone.cjs && node --check build-texture.cjs",
     "thermo:build": "python scripts/build_thermo.py"
   }
 }

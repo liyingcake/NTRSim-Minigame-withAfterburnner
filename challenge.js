@@ -50,7 +50,7 @@
   }
 
   class NTRChallenge {
-    constructor(engine, { type = 'endurance', propellant = 'hydrogen', diameter = 1.4, fuelLoad, oxygenLoad = 0, payload = type === 'lunar' ? 5000 : 0 } = {}) {
+    constructor(engine, { type = 'endurance', propellant = 'hydrogen', diameter = 1.4, fuelLoad, oxygenLoad = 0, payload = type === 'lunar' ? 5000 : 0, nozzle: nozzleSettings } = {}) {
       if (!TYPES[type] || !CAPACITIES[propellant] || !Number.isFinite(diameter) || diameter < .8 || diameter > 2.4) throw new TypeError('Invalid challenge configuration');
       const initialFuel = fuelLoad ?? (type === 'endurance' ? ENDURANCE_LOADS[propellant] : type === 'lunar' ? (propellant === 'hydrogen' ? 9000 : 60000) : DEFAULT_LOADS[propellant]);
       const tank = loadout(propellant, initialFuel, oxygenLoad), info = TYPES[type];
@@ -63,6 +63,7 @@
       this.peaks = { thrust: 0, power: 0, isp: 0, temperature: 293, pressure: 0, flow: 0, afterburnerPower: 0, totalPower: 0, oxygenFlow: 0, nozzleTemperature: 293, nozzleWallTemperature: 293, nozzleHeatLoad: 0, dissociationPower: 0 };
       this.launchDemand = 0; this.launchValve = 0;
       engine.reset(true); engine.flight.operations = []; engine.configure(propellant, diameter);
+      if (nozzleSettings && !engine.configureNozzle(nozzleSettings).ok) throw new TypeError('Invalid nozzle configuration');
       engine.payload = payload;
       engine.tankCapacity = this.initialFuel; engine.fuel = this.initialFuel;
       engine.oxygen = engine.initialOxygen = oxygenLoad; engine.oxygenTankInstalled = oxygenLoad > 0;
@@ -70,7 +71,7 @@
       engine.propellantLocked = true; engine.demand = 0; engine.valve = 0;
       engine.pump = false; engine.cooling = false;
       engine.flight.operation('missionSetup', { type, propellant, diameter, initialFuel, oxygenLoad, payload,
-        target: this.target, baseDryMass: engine.baseDryMass, engineMass: engine.engineMass, dryMass: this.dryMass,
+        target: this.target, baseDryMass: engine.baseDryMass, engineMass: engine.engineMass, nozzle: { ...engine.nozzleSettings }, dryMass: this.dryMass,
         power: 0, temperature: 293, demand: 0, valve: 0, oxygenValve: 0, pump: false, oxygenPump: false, cooling: false, autoProtection: true });
       engine.events = []; engine.log(TYPES[type].title + ' · 冷态准备');
       engine.log('装载锁定 ' + engine.prop.symbol + ' ' + this.initialFuel.toLocaleString('en-US') + ' kg / LOX ' + oxygenLoad.toLocaleString('en-US') + ' kg');
@@ -92,6 +93,7 @@
       if (result.ok && !this.started) {
         this.launchDemand = this.engine.demand; this.launchValve = this.engine.valve; this.launchOxygenValve = this.engine.oxygenValve;
         this.started = true; this.state = 'ACTIVE'; this.engine.diameterLocked = true;
+        this.engine.nozzleLocked = true;
         this.engine.time = 0; this.engine.history = []; this.engine.sampleTimer = 0; this.engine.recordSample();
         this.engine.log('首次点火 · 航行计时开始 / 发动机尺寸锁定');
       }
@@ -141,6 +143,9 @@
         fuel: this.engine.fuel, initialFuel: this.initialFuel, integrity: this.engine.integrity,
         temperature: this.engine.coreTemperature, peakAcceleration: this.peakAcceleration,
         engineModel: this.engine.engineModel, ratedPower: this.engine.ratedPower, engineMass: this.engine.engineMass,
+        baseEngineMass: this.engine.baseEngineMass, nozzleMass: this.engine.nozzleMass, nozzleThroatScale: this.engine.nozzleSettings.throatScale,
+        nozzleThroatArea: this.engine.nozzle.throatArea, nozzleBaseExpansion: this.engine.nozzleSettings.expansionRatio, nozzleHalfAngle: this.engine.nozzleSettings.halfAngle,
+        nozzleExtension: this.engine.nozzleSettings.extension, nozzleLength: this.engine.nozzle.length, nozzleExpansion: this.engine.nozzle.expansion, nozzleExitArea: this.engine.nozzle.exitArea,
         flightId: flightReport.id, flightReport, meanThrust: stats.meanThrust, burnMeanThrust: stats.burnMeanThrust, totalImpulse: stats.totalImpulse,
         burnTime: stats.burnTime, effectiveIsp: stats.effectiveIsp, peakShipThrustWeight: stats.peakShipThrustWeight, peakEngineThrustWeight: stats.peakEngineThrustWeight,
         baseDryMass: this.baseDryMass, payload: this.payload, dryMass: this.dryMass, initialMass: this.dryMass + this.initialFuel + this.initialOxygen, finalMass: this.mass,

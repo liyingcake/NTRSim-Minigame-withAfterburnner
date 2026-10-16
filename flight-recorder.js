@@ -7,13 +7,16 @@
   const COLUMNS = Object.freeze(['time_s', 'thrust_kN', 'power_MW', 'pressure_MPa', 'core_K', 'mix_K', 'wall_K', 'mainFlow_kg_s', 'oxygenFlow_kg_s',
     'isp_s', 'effectiveVelocity_m_s', 'acceleration_m_s2', 'deltaV_m_s', 'mass_kg', 'mainRemaining_kg', 'oxygenRemaining_kg',
     'powerCommand_pct', 'mainValve_pct', 'oxygenValve_pct', 'mainPump', 'oxygenPump', 'cooling', 'autoProtection', 'integrity_pct',
-    'regenerative_MW', 'pressureThrust_kN', 'hMassFraction', 'mainFlowCommand_kg_s', 'oxygenFlowCommand_kg_s', 'powerCommand_MW']);
+    'regenerative_MW', 'pressureThrust_kN', 'hMassFraction', 'mainFlowCommand_kg_s', 'oxygenFlowCommand_kg_s', 'powerCommand_MW',
+    'mixHMassFraction', 'exitHMassFraction', 'primaryH_kg_s', 'mixH_kg_s', 'exitH_kg_s', 'primaryGas_K', 'exit_K', 'exitPressure_Pa',
+    'throatArea_m2', 'exitArea_m2', 'expansionRatio', 'halfAngle_deg', 'extension_m', 'nozzleMass_kg', 'residence_ms', 'freezePressure_Pa',
+    'coreHeatToPropellant_MW', 'coreCooling_MW', 'coreStored_MW', 'coreHeatResidual_MW']);
   let sequence = 0;
   const clone = value => JSON.parse(JSON.stringify(value));
   function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(freeze); Object.freeze(value); } return value; }
   function configuration(e) {
     return { engineModel: e.engineModel, diameter: e.diameter, ratedPower: e.ratedPower, propellant: e.propellant,
-      baseDryMass: BASE_DRY_MASS, engineMass: e.engineMass, payload: e.payload, dryMass: e.dryMass, mass: e.mass,
+      baseDryMass: BASE_DRY_MASS, engineMass: e.engineMass, baseEngineMass: e.baseEngineMass, nozzleMass: e.nozzleMass, nozzle: { ...e.nozzle }, payload: e.payload, dryMass: e.dryMass, mass: e.mass,
       mainPropellant: e.fuel, oxygen: e.oxygen, mainTankInitial: e.fuelCapacity, oxygenTankInitial: e.initialOxygen,
       tankVolume: e.tankState.usedVolume, demand: e.demand, mainValve: e.valve, oxygenValve: e.oxygenValve,
       mainPump: e.pump, oxygenPump: e.oxygenPump, cooling: e.cooling, autoProtection: e.autoProtection,
@@ -38,7 +41,12 @@
       const row = [this.elapsed, e.thrust, e.power, e.pressure, e.measuredTemperature, e.nozzleTemperature, e.nozzleWallTemperature,
         e.flow, e.oxygenFlow, e.isp, e.exhaustVelocity, e.thrust * 1000 / e.mass, this.deltaV, e.mass, e.fuel, e.oxygen,
         e.demand, e.valve, e.oxygenValve, +e.pump, +e.oxygenPump, +e.cooling, +e.autoProtection, e.integrity,
-        e.regenerativePower, e.pressureThrust, e.thermoState?.primaryFractions?.H || 0, e.commandedFlow, e.commandedOxygenFlow, e.ratedPower * e.demand / 100];
+        e.regenerativePower, e.pressureThrust, e.thermoState?.primaryFractions?.H || 0, e.commandedFlow, e.commandedOxygenFlow, e.ratedPower * e.demand / 100,
+        e.thermoState?.mixFractions?.H || 0, e.thermoState?.fractions?.H || 0, (e.thermoState?.primaryFractions?.H || 0) * e.flow,
+        (e.thermoState?.mixFractions?.H || 0) * e.totalFlow, e.products.atomicHydrogen, e.thermoState?.primaryTemperature || 20,
+        e.thermoState?.exitTemperature || 20, e.thermoState?.exitPressure || 0, e.nozzle.throatArea, e.nozzle.exitArea, e.nozzle.expansion,
+        e.nozzle.halfAngle, e.nozzle.extension, e.nozzleMass, (e.thermoState?.residenceTime || 0) * 1000, e.thermoState?.freezePressure || 0,
+        e.coreHeatToPropellant, e.coreCoolingPower, e.coreStoredPower, e.coreOverflowPower];
       if (this.elapsed <= 60 + 1e-8 && this.first.at(-1)?.[0] !== this.elapsed) this.first.push(row);
       if (this.last.at(-1)?.[0] !== this.elapsed) this.last.push(row);
       while (this.last.length && this.last[0][0] < this.elapsed - 120 - 1e-8) this.last.shift();

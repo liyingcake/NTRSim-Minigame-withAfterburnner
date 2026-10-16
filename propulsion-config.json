@@ -1,5 +1,5 @@
 {
-  "description": "v0.8 idealized regenerative vacuum engine; game calibration, not fixed-geometry CFD",
+  "description": "v0.10 fixed conical geometry and chemistry-time sudden-freeze game model; legacy fixed-pressure references retained",
   "exitPressure": 100,
   "injectionPressureRatio": 0.45,
   "kineticEfficiency": 0.99,
@@ -7,5 +7,39 @@
   "oxygenRatedFlow": 74,
   "regenerativeRecovery": 0.94,
   "hydrogenRegenerativeRise": 120,
-  "waterRegenerativeRise": 30
+  "waterRegenerativeRise": 30,
+  "geometry": {
+    "referenceThroatArea": 0.0124,
+    "defaults": {
+      "throatScale": 1,
+      "expansionRatio": 240,
+      "halfAngle": 12,
+      "extension": 0
+    },
+    "limits": {
+      "throatScale": [
+        0.25,
+        4
+      ],
+      "expansionRatio": [
+        10,
+        500
+      ],
+      "halfAngle": [
+        8,
+        35
+      ],
+      "extension": [
+        0,
+        10
+      ]
+    },
+    "baseArealMass": 18,
+    "extensionArealMass": 9,
+    "baseHardwareMass": 40,
+    "extensionJointMass": 25,
+    "supportFactor": 1.15,
+    "baseRadiatingFraction": 0.17,
+    "throatCurvatureFactor": 2
+  }
 }

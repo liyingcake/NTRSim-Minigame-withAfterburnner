@@ -10,14 +10,14 @@ function prepare(fuelLoad = 1000) {
   e.setSwitch('pump', true, 'keyboard'); e.setSwitch('cooling', true); e.setControl('demand', 60); e.setControl('valve', 70);
   e.setSwitch('oxygenPump', true); e.setControl('oxygenValve', 30); return { e, m };
 }
-test('engine mass spans exactly 1–10 tonnes; base, engine and cargo are separate physical masses', () => {
+test('engine base spans 1–10 tonnes, with physical nozzle and cargo added separately', () => {
   near(engineMass(.8), 1000); near(engineMass(2.4), 10000); near(engineMass(1.4), 3320.3125);
   for (const diameter of [.8, 1.4, 2.4]) {
     const e = new NTRSimulation(); e.reset(true); e.configure('hydrogen', diameter);
-    assert.equal(e.baseDryMass, 5000); near(e.dryMass, 5000 + engineMass(diameter));
+    assert.equal(e.baseDryMass, 5000); near(e.dryMass, 5000 + engineMass(diameter) + e.nozzleMass);
     near(e.mass, e.dryMass + e.fuel);
     const m = new NTRChallenge(e, { type: 'lunar', diameter, payload: 20000, fuelLoad: 5000, oxygenLoad: 2000 });
-    near(m.dryMass, 25000 + engineMass(diameter)); near(m.mass, m.dryMass + 7000);
+    near(m.dryMass, 25000 + engineMass(diameter) + e.nozzleMass); near(m.mass, m.dryMass + 7000);
   }
 });
 test('sandbox acceleration and recorder integrate the same thrust and changing total mass as challenges', () => {

@@ -24,6 +24,7 @@ const missionWindow = { floating: false, collapsed: false, x: null, y: null, dra
 let selectedChallenge = 'endurance', selectedPropellant = 'hydrogen';
 const selectedFuelLoads = { hydrogen: 10000, water: 30000 };
 let selectedOxygenLoad = 0, selectedOxygenEnabled = false, selectedPayload = 0;
+let selectedNozzle = { ...sim.nozzleSettings }, nozzleDraft = { ...selectedNozzle }, nozzleTarget = 'live';
 let scoreStorage;
 try { scoreStorage = window.localStorage; } catch { /* Private/file contexts may disallow browser storage. */ }
 const leaderboard = new NTRLeaderboard(scoreStorage);
@@ -46,6 +47,26 @@ const num = (v, places = 0) => Number.isFinite(v) ? v.toFixed(places) : '—';
 const points = NTR_FORMAT_POINTS;
 const clock = t => [Math.floor(t / 3600), Math.floor(t / 60) % 60, Math.floor(t) % 60].map(n => String(n).padStart(2, '0')).join(':');
 const safe = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const massFlow = value => !(value > 0) ? '0' : value >= 1 ? num(value, 3) + ' kg/s' : value >= .001 ? num(value * 1000, 3) + ' g/s' : value >= 1e-6 ? num(value * 1e6, 3) + ' mg/s' : '＜0.001 mg/s';
+
+function nozzleDrawing(g) {
+  const k = Math.min(630 / Math.max(.1, g.length), 73 / g.exitRadius), x = 55, y = 94;
+  const bx = x + g.baseLength * k, ex = x + g.length * k, t = g.throatRadius * k, b = g.baseRadius * k, e = g.exitRadius * k;
+  return `<svg viewBox="0 0 720 210" role="img" aria-label="喷管纵剖面：总长 ${num(g.length, 2)} 米，出口直径 ${num(g.exitRadius * 2, 2)} 米"><path d="M20 ${y - t * 2}L${x} ${y - t}L${bx} ${y - b}M20 ${y + t * 2}L${x} ${y + t}L${bx} ${y + b}" stroke="#bdce9b" stroke-width="3" fill="none"/><path d="M${bx} ${y - b}L${ex} ${y - e}M${bx} ${y + b}L${ex} ${y + e}" stroke="#d8b774" stroke-width="3" fill="none"/><path d="M20 ${y}H${ex + 12}" stroke="#6b8656" stroke-dasharray="4 5"/><path d="M${x} 178H${ex}M${x} 173V183M${ex} 173V183" stroke="#81976a" fill="none"/><g fill="#b2c497" font-size="12" font-family="Consolas"><text x="22" y="18">CONICAL / ${num(g.halfAngle)}°</text><text x="${(x + ex) / 2}" y="200" text-anchor="middle">L ${num(g.length, 2)} m</text><text x="${Math.min(620, ex + 15)}" y="${Math.max(35, y - e - 10)}">Ø ${num(g.exitRadius * 2, 2)} m</text><text x="22" y="151">At ${num(g.throatArea, 5)} m²</text></g></svg>`;
+}
+function renderNozzleLive() {
+  const g = sim.nozzle, s = sim.thermoState;
+  setHtml('liveNozzleDrawing', nozzleDrawing(g));
+  setText('liveNozzleArea', num(g.throatArea, 5) + ' / ' + num(g.exitArea, 3) + ' m²');
+  setText('liveNozzleExpansion', num(g.expansion, 1) + ' : 1 / ' + num(g.halfAngle) + '°');
+  setText('liveNozzleLength', num(g.length, 2) + ' / ' + num(g.extension, 2) + ' m');
+  setText('liveNozzleMass', points(g.mass, 1) + ' / ' + points(sim.engineMass, 1) + ' kg');
+  for (const [prefix, temperature, h, flow] of [['Primary', s.primaryTemperature, s.primaryFractions.H, sim.flow], ['Mix', s.temperature, s.mixFractions.H, sim.totalFlow], ['Exit', s.exitTemperature, s.fractions.H, sim.totalFlow]]) {
+    setText('station' + prefix + 'T', num(temperature)); setText('station' + prefix + 'H', h * 100 > .0001 ? num(h * 100, 4) : h > 0 ? '＜0.0001' : '0'); setText('station' + prefix + 'Flow', massFlow(h * flow));
+  }
+  setText('nozzleLiveState', '出口压力 ' + points(s.exitPressure, 2) + ' Pa · 轴向系数 ' + num(g.divergenceEfficiency, 4) + (s.blocked ? ' · 流场超出可用出口截面' : ''));
+  setText('coreHeatBalance', '堆芯 → 主剂 ' + num(sim.coreHeatToPropellant, 2) + ' MW · 闭式冷却 ' + num(sim.coreCoolingPower, 2) + ' MW · 储热变化 ' + num(sim.coreStoredPower, 2) + ' MW');
+}
 
 function toast(message) {
   $('toast').textContent = message; $('toast').classList.add('visible');
@@ -100,6 +121,7 @@ function updateSliders() {
 
 function render() {
   mfdDirty = true;
+  renderNozzleLive();
   sim.refreshAlarms(); sound.update(sim, paused || Boolean(mission?.complete) || document.hidden);
   setText('soundStatus', sound.status);
   setText('soundAlarmStatus', sound.enabled && sound.state.alarms.length ? sim.acknowledged ? 'ACK 已确认 · 警音静音' : '警音 / ' + sound.state.alarms.map(id => NTR_AUDIO.ALARMS[id].label).join(' · ') : '警音随告警触发 · ACK 静音');
@@ -132,7 +154,7 @@ function render() {
   setText('oxygenStatus', sim.oxygenInterlock);
   setText('pumpFlowDetail', '主泵指令 ' + num(sim.commandedFlow, 3) + ' / 实际 ' + num(sim.feedFlow, 3) + ' kg/s · 波动 ' + num(sim.flowRipple, 3) + ' · 供液效率 ' + num(sim.fuelPumpEfficiency * 100, 1) + '%');
   setText('oxygenPumpDetail', '液氧指令 ' + num(sim.commandedOxygenFlow, 3) + ' / 实际 ' + num(sim.oxygenFlow, 3) + ' kg/s · 波动 ' + num(sim.oxygenRipple, 3) + ' · 残气系数 ' + num(sim.oxygenSupplyFactor * 100, 1) + '%');
-  setText('exhaustProducts', '出口尾流 / kg/s：H₂O ' + num(sim.products.steam, 3) + ' · H₂ ' + num(sim.products.hydrogen, 3) + ' · O₂ ' + num(sim.products.oxygen, 3) + ' · H ' + num(sim.products.atomicHydrogen, 3) + ' · O ' + num(sim.products.atomicOxygen, 3) + ' · OH ' + num(sim.products.hydroxyl, 3) + ' · HO₂ ' + num(sim.products.hydroperoxyl, 4) + ' · H₂O₂ ' + num(sim.products.peroxide, 4) + '\n平衡混合站 ' + num(sim.thermoState.pressure, 3) + ' MPa · 出口气温 ' + num(sim.thermoState.exitTemperature) + ' K · 实际喷速 ' + num(sim.jetVelocity / 1000, 2) + ' km/s · 压力推力 ' + num(sim.pressureThrust, 2) + ' kN · 喷流动能 ' + num(sim.kineticPower, 2) + ' MW · 再生回热 ' + num(sim.regenerativePower, 2) + ' MW · 外排冷却 ' + num(sim.externalCoolingPower, 2) + ' MW' + (sim.thermoState.outside ? ' · 低温/边界延拓' : ''));
+  setText('exhaustProducts', '出口尾流：H₂O ' + massFlow(sim.products.steam) + ' · H₂ ' + massFlow(sim.products.hydrogen) + ' · O₂ ' + massFlow(sim.products.oxygen) + ' · H ' + massFlow(sim.products.atomicHydrogen) + ' · O ' + massFlow(sim.products.atomicOxygen) + ' · OH ' + massFlow(sim.products.hydroxyl) + ' · HO₂ ' + massFlow(sim.products.hydroperoxyl) + ' · H₂O₂ ' + massFlow(sim.products.peroxide) + '\n平衡混合站 ' + num(sim.thermoState.pressure, 3) + ' MPa · 出口气温 ' + num(sim.thermoState.exitTemperature) + ' K · 实际喷速 ' + num(sim.jetVelocity / 1000, 2) + ' km/s · 压力推力 ' + num(sim.pressureThrust, 2) + ' kN · 喷流动能 ' + num(sim.kineticPower, 2) + ' MW · 再生回热 ' + num(sim.regenerativePower, 2) + ' MW · 外排冷却 ' + num(sim.externalCoolingPower, 2) + ' MW' + (sim.thermoState.outside ? ' · 低温/边界延拓' : ''));
   const oxygenDisabled = !sim.oxygenTankInstalled || sim.propellant !== 'hydrogen' || Boolean(mission?.complete);
   $('oxygenPumpToggle').disabled = $('oxygenValveSlider').disabled = oxygenDisabled;
   $('tankConfigButton').disabled = Boolean(mission);
@@ -261,9 +283,9 @@ function resetUIClock() {
   updatePauseButton(); $('speedButton').textContent = '1×'; lastLogId = -1; resultShown = false;
 }
 
-function beginMission(type, propellant, diameter, fuelLoad, oxygenLoad = 0, payload = type === 'lunar' ? 5000 : 0) {
+function beginMission(type, propellant, diameter, fuelLoad, oxygenLoad = 0, payload = type === 'lunar' ? 5000 : 0, nozzle = selectedNozzle) {
   preserveFlight('切换挑战');
-  mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad, oxygenLoad, payload });
+  mission = new NTRChallenge(sim, { type, propellant, diameter, fuelLoad, oxygenLoad, payload, nozzle });
   resetUIClock(); setPage('overview'); updateSliders(); render();
   $('challengeDialog').close();
   setMissionCollapsed(false);
@@ -285,6 +307,8 @@ function updateChallengeSetup() {
   $('challengeSizeSlider').style.setProperty('--range', `${(diameter - .8) / 1.6 * 100}%`);
   $('challengeSizeOutput').textContent = num(diameter, 2) + ' m';
   $('challengeRatedPower').textContent = num(600 * (diameter / 1.4) ** 2) + ' MW';
+  const nozzle = NTR_NOZZLE.geometry(diameter, selectedNozzle);
+  $('challengeNozzleSummary').textContent = '喷管 At ' + num(nozzle.throatArea, 5) + ' m² · 膨胀比 ' + num(nozzle.expansion, 1) + ' · ' + num(nozzle.halfAngle) + '° · 延长 ' + num(nozzle.extension, 2) + ' m · ' + points(nozzle.mass, 1) + ' kg';
   const maximum = NTR_CHALLENGE_CAPACITIES[selectedPropellant], load = selectedFuelLoads[selectedPropellant];
   const oxygen = selectedOxygenEnabled ? selectedOxygenLoad : 0;
   const tank = NTR_SYSTEMS.loadout(selectedPropellant, load, oxygen, selectedOxygenEnabled);
@@ -315,7 +339,7 @@ function updateChallengeSetup() {
   $('payloadBonusPreview').textContent = '+' + points(payload * (info.reward || 0)) + ' 分';
   const cost = load * NTR_FUEL_COSTS[selectedPropellant] + oxygen * NTR_FUEL_COSTS.oxygen;
   $('loadoutCost').textContent = (targeted ? '装载成本 −' : '参考成本 / 不计入任务 1：') + points(cost) + ' 分';
-  $('loadoutMass').textContent = num((NTR_FLIGHT.BASE_DRY_MASS + NTR_FLIGHT.engineMass(diameter) + payload + load + oxygen) / 1000, 2) + ' t';
+  $('loadoutMass').textContent = num((NTR_FLIGHT.BASE_DRY_MASS + NTR_FLIGHT.engineMass(diameter) + NTR_NOZZLE.geometry(diameter, selectedNozzle).mass + payload + load + oxygen) / 1000, 2) + ' t';
   paintTankBars('loadout', tank);
   $('loadoutVolumeDetail').textContent = '主剂 ' + num(tank.fuelVolume, 2) + ' + 液氧 ' + num(tank.oxygenVolume, 2) + ' + 隔断 ' + num(tank.dividerVolume, 2) + ' = ' + num(tank.usedVolume, 2) + ' / 150.00 m³ · 余 ' + num(tank.freeVolume, 2) + ' m³';
   const error = !validFuel || !validOxygen ? '加注量请输入有效整数；主剂至少 10 kg，启用的液氧舱至少 1 kg。' : !validPayload ? '载荷必须在本任务范围内，使用整数公斤。' : tank.message;
@@ -326,6 +350,33 @@ function updateChallengeSetup() {
 }
 
 function changeFuelLoad(value) { selectedFuelLoads[selectedPropellant] = value; updateChallengeSetup(); }
+
+const nozzleControls = { throatScale: 'nozzleThroat', expansionRatio: 'nozzleExpansion', halfAngle: 'nozzleAngle', extension: 'nozzleExtension' };
+for (const [key, id] of Object.entries(nozzleControls)) { $(id).min = NTR_NOZZLE.LIMITS[key][0]; $(id).max = NTR_NOZZLE.LIMITS[key][1]; }
+function updateNozzleDesign() {
+  const diameter = nozzleTarget === 'setup' ? Number($('challengeSizeSlider').value) : sim.diameter;
+  const g = NTR_NOZZLE.geometry(diameter, nozzleDraft), locked = nozzleTarget === 'live' && (!sim.canConfigure || sim.nozzleLocked || sim.controlsLocked);
+  setHtml('nozzleDesignDrawing', nozzleDrawing(g));
+  for (const [key, id] of Object.entries(nozzleControls)) { $(id).value = nozzleDraft[key]; $(id).disabled = locked; $(id).style.setProperty('--range', (nozzleDraft[key] - Number($(id).min)) / (Number($(id).max) - Number($(id).min)) * 100 + '%'); }
+  setText('nozzleThroatOutput', num(g.throatArea, 5) + ' m²'); setText('nozzleExpansionOutput', num(g.expansionRatio) + ' : 1'); setText('nozzleAngleOutput', num(g.halfAngle) + '°'); setText('nozzleExtensionOutput', num(g.extension, 2) + ' m');
+  $('nozzleDesignMetrics').innerHTML = [['总膨胀比', num(g.expansion, 1) + ' : 1'], ['出口直径', num(g.exitRadius * 2, 2) + ' m'], ['总长 / 基础段', num(g.length, 2) + ' / ' + num(g.baseLength, 2) + ' m'], ['总表面积', num(g.surface, 2) + ' m²'], ['基础段 / 延长段质量', points(g.baseMass * NTR_NOZZLE.CONFIG.supportFactor, 1) + ' / ' + points(g.extensionMass * NTR_NOZZLE.CONFIG.supportFactor, 1) + ' kg'], ['喷管总质量', points(g.mass, 1) + ' kg'], ['引擎基体＋喷管', points(NTR_FLIGHT.engineMass(diameter) + g.mass, 1) + ' kg'], ['轴向动量系数', num(g.divergenceEfficiency, 4)]].map(([label, value]) => '<div><span>' + label + '</span><strong>' + value + '</strong></div>').join('');
+  $('applyNozzleButton').disabled = locked; document.querySelectorAll('[data-nozzle-preset]').forEach(b => b.disabled = locked);
+  setText('nozzleDesignContext', (nozzleTarget === 'setup' ? '任务开局配置' : '当前试验配置') + ' / 引擎直径 ' + num(diameter, 2) + ' m');
+  setText('nozzleDesignStatus', locked ? '配置已锁定。沙盒需停机且核热功率低于 5 MW；挑战首次点火后锁定。' : '按当前几何计重。基础引擎 1–10 吨，喷管另计；挑战首次点火后固定。');
+}
+function openNozzleDesign(target) {
+  nozzleTarget = target; nozzleDraft = { ...(target === 'setup' ? selectedNozzle : sim.nozzleSettings) };
+  if (target === 'setup') $('challengeDialog').close(); updateNozzleDesign(); $('nozzleDialog').showModal();
+}
+$('nozzleDesignButton').addEventListener('click', () => openNozzleDesign('live'));
+$('challengeNozzleButton').addEventListener('click', () => openNozzleDesign('setup'));
+for (const [key, id] of Object.entries(nozzleControls)) $(id).addEventListener('input', e => { nozzleDraft[key] = Number(e.target.value); updateNozzleDesign(); });
+document.querySelectorAll('[data-nozzle-preset]').forEach(b => b.addEventListener('click', () => { nozzleDraft = b.dataset.nozzlePreset === 'compact' ? { throatScale: 1, expansionRatio: 60, halfAngle: 25, extension: 0 } : b.dataset.nozzlePreset === 'extended' ? { ...NTR_NOZZLE.DEFAULTS, extension: 4 } : { ...NTR_NOZZLE.DEFAULTS }; updateNozzleDesign(); }));
+$('applyNozzleButton').addEventListener('click', () => {
+  if (nozzleTarget === 'setup') { selectedNozzle = { ...nozzleDraft }; updateChallengeSetup(); $('nozzleDialog').close(); }
+  else { const result = sim.configureNozzle(nozzleDraft); toast(result.message); if (result.ok) { updateSliders(); render(); $('nozzleDialog').close(); } }
+});
+$('nozzleDialog').addEventListener('close', () => { if (nozzleTarget === 'setup' && !document.querySelector('dialog[open]')) { updateChallengeSetup(); $('challengeDialog').showModal(); } });
 
 function currentFlightReport(reason = '当前试飞快照') {
   return mission?.result?.flightReport || sim.flight.snapshot(sim, { version: NTR_RELEASE.version, scoreSchema: NTR_RELEASE.scoreSchema,
@@ -354,7 +405,7 @@ function openChallengeSetup() {
   selectedChallenge = mission?.type || selectedChallenge;
   selectedPropellant = mission?.propellant || sim.propellant;
   if (mission) { selectedFuelLoads[mission.propellant] = mission.initialFuel; selectedOxygenLoad = mission.initialOxygen; selectedOxygenEnabled = mission.initialOxygen > 0; selectedPayload = mission.payload; }
-  $('challengeSizeSlider').value = sim.diameter;
+  selectedNozzle = { ...sim.nozzleSettings }; $('challengeSizeSlider').value = sim.diameter;
   updateChallengeSetup(); $('challengeDialog').showModal();
 }
 
@@ -411,7 +462,7 @@ function showResult(result = mission?.result) {
   $('resultTitle').textContent = r.type !== 'endurance' && r.error < 1 ? '精确注入，任务完成。' : '本次变轨，已记录。';
   $('resultTotal').textContent = points(r.total);
   const entry = ([label, value]) => `<div><span>${safe(label)}</span><strong>${safe(value)}</strong></div>`;
-  const configuration = [['引擎型号', r.engineModel], ['基础船体干重', points(r.baseDryMass, 2) + ' kg'], ['引擎质量', points(r.engineMass, 2) + ' kg'], ['堆芯直径 / 引擎尺寸', num(r.diameter, 2) + ' m'], ['额定热功率', points(r.ratedPower, 2) + ' MW'], ['推进剂类型', NTR_PROPELLANTS[r.propellant].label + ' / ' + NTR_PROPELLANTS[r.propellant].symbol], ['起始加注量', points(r.initialFuel, 2) + ' kg'], ['起始飞船总质量', points(r.initialMass, 2) + ' kg'], ['液氧起始加注', points(r.initialOxygen, 2) + ' kg'], ['货运载荷', points(r.payload, 2) + ' kg'], ['初装罐容 / 隔断', num(r.initialVolume, 2) + ' / ' + num(r.dividerVolume, 2) + ' m³']];
+  const configuration = [['引擎型号', r.engineModel], ['基础船体干重', points(r.baseDryMass, 2) + ' kg'], ['引擎总质量', points(r.engineMass, 2) + ' kg'], ['引擎基体 / 喷管质量', points(r.baseEngineMass, 2) + ' / ' + points(r.nozzleMass, 2) + ' kg'], ['喉部 / 出口面积', num(r.nozzleThroatArea, 5) + ' / ' + num(r.nozzleExitArea, 3) + ' m²'], ['基础 / 总膨胀比', num(r.nozzleBaseExpansion, 1) + ' / ' + num(r.nozzleExpansion, 1)], ['扩散半角 / 延长段', num(r.nozzleHalfAngle) + '° / ' + num(r.nozzleExtension, 2) + ' m'], ['喷管总长', num(r.nozzleLength, 2) + ' m'], ['堆芯直径 / 引擎尺寸', num(r.diameter, 2) + ' m'], ['额定热功率', points(r.ratedPower, 2) + ' MW'], ['推进剂类型', NTR_PROPELLANTS[r.propellant].label + ' / ' + NTR_PROPELLANTS[r.propellant].symbol], ['起始加注量', points(r.initialFuel, 2) + ' kg'], ['起始飞船总质量', points(r.initialMass, 2) + ' kg'], ['液氧起始加注', points(r.initialOxygen, 2) + ' kg'], ['货运载荷', points(r.payload, 2) + ' kg'], ['初装罐容 / 隔断', num(r.initialVolume, 2) + ' / ' + num(r.dividerVolume, 2) + ' m³']];
   $('resultConfiguration').innerHTML = configuration.map(entry).join('');
   const settledTemperature = r.temperature < 800 && Math.round(r.temperature * 100) / 100 >= 800 ? '＜800' : num(r.temperature, 2);
   const metrics = [['最终 Δv', num(r.deltaV, 2) + ' m/s'], [r.target === null ? '飞行距离' : '目标 / 绝对误差', r.target === null ? num(r.distance / 1000, 2) + ' km' : num(r.target, 2) + ' / ' + num(r.error, 2) + ' m/s'], ['主剂 / 液氧剩余', points(r.fuel, 2) + ' / ' + points(r.oxygen, 2) + ' kg'], ['任务用时（含冷却）', num(r.elapsed, 2) + ' s'], ['剩余耐久', num(r.integrity, 2) + '%'], ['结算堆芯温度', settledTemperature + ' K']];
@@ -612,26 +663,27 @@ function drawThermal() {
   miniMetric('DECAY HEAT', num(sim.decayPower, 2), 'MW', 482, 347, C.amber);
 }
 
-let propulsionCurves = { pressure: null, values: null };
+let propulsionCurves = { key: null, values: null };
 function drawPropulsion() {
   text('VACUUM PERFORMANCE / ' + sim.prop.symbol, 34, 72, 9, C.dim);
   miniMetric('NET THRUST', num(sim.thrust, 1), 'kN', 42, 108);
   miniMetric('SPECIFIC IMPULSE', num(sim.isp), 's', 252, 108);
   miniMetric('TOTAL IMPULSE', num(sim.totalImpulse / 1000, 2), 'MN·s', 462, 108);
   line([[33, 159], [647, 159]], C.faint);
-  text('EFFECTIVE VELOCITY / CORE TEMPERATURE', 42, 184, 8, C.dim);
+  text('REFERENCE ENVELOPE / CORE TEMPERATURE', 42, 184, 8, C.dim);
   const x0 = 62, y0 = 299, width = 548, height = 91;
   for (let i = 0; i <= 4; i++) { const y = y0 - i * height / 4; line([[x0, y], [x0 + width, y]], C.faint, .7); text(String(i * 3), x0 - 9, y + 3, 7, C.dim, 'right'); }
   for (let i = 0; i <= 5; i++) { const x = x0 + i * width / 5; text(String(500 + i * 600), x, y0 + 15, 7, C.dim, 'center'); }
   text('km/s', 33, 202, 7, C.dim); text('K', 630, 314, 7, C.dim);
   const referencePressure = Math.max(.01, Math.round(sim.pressure * 10) / 10);
-  if (propulsionCurves.pressure !== referencePressure) {
-    propulsionCurves = { pressure: referencePressure, values: Object.fromEntries(['hydrogen', 'water'].map(type => [type, Array.from({ length: 41 }, (_, i) => {
-      const core = 500 + i / 40 * 3000;
-      return NTR_THERMO.exhaust(NTR_PROPELLANTS[type].ratedFlow * .7, 0, core - (type === 'water' ? 50 : 180), referencePressure, 650, 1, type).velocity;
+  const curveKey = referencePressure + ':' + sim.diameter + ':' + JSON.stringify(sim.nozzleSettings);
+  if (propulsionCurves.key !== curveKey) {
+    propulsionCurves = { key: curveKey, values: Object.fromEntries(['hydrogen', 'water'].map(type => [type, Array.from({ length: 21 }, (_, i) => {
+      const core = 500 + i / 20 * 3000;
+      return NTR_THERMO.exhaust(NTR_PROPELLANTS[type].ratedFlow * sim.scale * .7, 0, core - (type === 'water' ? 50 : 180), referencePressure, 650, sim.scale, type, 'finite', 0, sim.nozzle).velocity;
     })])) };
   }
-  for (const [type, color] of [['hydrogen', C.green], ['water', C.blue]]) line(propulsionCurves.values[type].map((v, i) => [x0 + i / 40 * width, y0 - v / 12000 * height]), color, type === sim.propellant ? 1.8 : .8, type === sim.propellant ? [] : [3, 4]);
+  for (const [type, color] of [['hydrogen', C.green], ['water', C.blue]]) line(propulsionCurves.values[type].map((v, i) => [x0 + i / 20 * width, y0 - v / 12000 * height]), color, type === sim.propellant ? 1.8 : .8, type === sim.propellant ? [] : [3, 4]);
   const px = x0 + Math.max(0, Math.min(1, (sim.coreTemperature - 500) / 3000)) * width;
   const py = y0 - sim.exhaustVelocity / 12000 * height; circle(px, py, 4, C.amber, C.bg);
   text('● LH₂', 450, 184, 8, C.green); text('● H₂O', 540, 184, 8, C.blue);
@@ -671,9 +723,10 @@ function drawLantr() {
   miniMetric('NUCLEAR + CHEM', num(sim.totalPower, 1), 'MW', 43, 300);
   miniMetric('AFTERBURNER', num(sim.afterburnerPower, 1), 'MW', 252, 300, C.amber);
   miniMetric('O₂ / H₂ MASS RATIO', num(sim.mixtureRatio, 3), '', 462, 300, C.blue);
+  text('H MASS / CORE ' + num(sim.thermoState.primaryFractions.H * 100, 3) + '%  MIX ' + num(sim.thermoState.mixFractions.H * 100, 3) + '%  EXIT ' + num(sim.thermoState.fractions.H * 100, 3) + '%', 43, 350, 9, C.blue);
   const fractions = sim.thermoState.fractions;
   text('H₂O ' + num(fractions.H2O * 100, 1) + '%  H₂ ' + num(fractions.H2 * 100, 1) + '%  O₂ ' + num(fractions.O2 * 100, 1) + '%  OH ' + num(fractions.OH * 100, 1) + '%  H/O ' + num((fractions.H + fractions.O) * 100, 1) + '%', 43, 371, 9, C.bright);
-  text('WALL ' + num(sim.nozzleWallTemperature) + ' K · HEAT ' + num(sim.nozzleHeatLoad, 2) + ' MW · EQ-8 / EQUILIBRIUM NOZZLE', 43, 390, 8, C.amber);
+  text('WALL ' + num(sim.nozzleWallTemperature) + ' K · Pe ' + points(sim.thermoState.exitPressure, 1) + ' Pa · ε ' + num(sim.nozzle.expansion, 1) + ' / ' + points(sim.nozzleMass) + ' kg', 43, 390, 8, C.amber);
 }
 
 function drawTrend() {
@@ -760,7 +813,7 @@ $('faultOptions').addEventListener('click', event => {
 $('repairButton').addEventListener('click', () => { toast(sim.repairAll() ? '全部故障已修复' : '当前没有需要修复的故障'); faultOptions(); render(); });
 $('runButton').addEventListener('click', () => { const result = sim.isActive ? sim.shutdown(controlSource) : mission ? mission.startEngine(controlSource) : sim.start(controlSource); toast(result.message); if (result.ok && paused) togglePause(); updateSliders(); render(); });
 $('scramButton').addEventListener('click', () => { const result = sim.scram(); toast(result.message); if (paused) togglePause(); render(); });
-$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter, mission.initialFuel, mission.initialOxygen, mission.payload); return; } preserveFlight('重置试验'); sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
+$('resetButton').addEventListener('click', () => { if (mission) { beginMission(mission.type, mission.propellant, sim.diameter, mission.initialFuel, mission.initialOxygen, mission.payload, sim.nozzleSettings); return; } preserveFlight('重置试验'); sim.reset(true); resetUIClock(); updateSliders(); render(); toast('试验已重置 · 设置功率并启动试车'); });
 $('ackButton').addEventListener('click', () => { sim.acknowledge(controlSource); toast('告警已确认；故障修复后指示灯将熄灭'); render(); });
 document.addEventListener('click', event => { if (event.target.closest('button')) sound.click(Boolean(event.target.closest('#ackButton'))); });
 $('soundToggle').addEventListener('click', async () => {
@@ -847,6 +900,7 @@ $('retryChallengeButton').addEventListener('click', () => {
   if (!r) { openChallengeSetup(); return; }
   selectedChallenge = r.type; selectedPropellant = r.propellant;
   selectedFuelLoads[r.propellant] = r.initialFuel; selectedOxygenLoad = r.initialOxygen; selectedOxygenEnabled = r.initialOxygen > 0; selectedPayload = r.payload;
+  selectedNozzle = { throatScale: r.nozzleThroatScale, expansionRatio: r.nozzleBaseExpansion, halfAngle: r.nozzleHalfAngle, extension: r.nozzleExtension };
   $('challengeSizeSlider').value = r.diameter; updateChallengeSetup(); $('challengeDialog').showModal();
 });
 $('reviewFlightButton').addEventListener('click', () => $('resultDialog').close());

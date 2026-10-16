@@ -61,7 +61,7 @@ test('complete flight configuration and scoring details survive reload and later
   new NTRChallenge(engine, { propellant: 'water', diameter: .8 });
   const archived = new NTRLeaderboard(db).get(flight.result.id);
   assert.equal(archived.engineModel, 'NTR-II-240H'); assert.equal(archived.diameter, 2.4);
-  assert.equal(archived.initialFuel, 595); assert.equal(archived.initialMass, 15595);
+  assert.equal(archived.initialFuel, 595); assert.ok(Math.abs(archived.initialMass - (15595 + archived.nozzleMass)) < 1e-8);
   assert.equal(archived.finalMass, archived.dryMass + 595 * .005); assert.equal(archived.consumedFuel, 595 * .995);
   assert.equal(archived.launchDemand, 60); assert.equal(archived.launchValve, 70);
   assert.ok(archived.peakThrust > 0 && archived.peakIsp > 0);

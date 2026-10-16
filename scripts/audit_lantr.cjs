@@ -3,8 +3,9 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
-const thermo = require('../thermochemistry.js');
-const { NTRSimulation } = require('../simulation.js');
+const release08 = vm.createContext({ Buffer });
+for (const file of ['thermo-table.js', 'thermochemistry.js', 'systems.js', 'simulation.js']) vm.runInContext(execFileSync('git', ['show', 'v0.8:' + file], { encoding: 'utf8', maxBuffer: 5e6 }), release08, { filename: 'v0.8/' + file });
+const thermo = release08.NTR_THERMO, NTRSimulation = release08.NTRSimulation;
 const old = vm.createContext({});
 for (const file of ['systems.js', 'simulation.js']) vm.runInContext(execFileSync('git', ['show', 'v0.6:' + file], { encoding: 'utf8' }), old, { filename: 'v0.6/' + file });
 const previous = vm.createContext({ Buffer });

@@ -5,6 +5,7 @@
   const { TANK, RESIDUAL, residualSupply, loadout, pumpRipple, mixExhaust } = typeof module !== 'undefined' && module.exports ? require('./systems.js') : root.NTR_SYSTEMS;
   const thermo = typeof module !== 'undefined' && module.exports ? require('./thermochemistry.js') : root.NTR_THERMO;
   const flight = typeof module !== 'undefined' && module.exports ? require('./flight-recorder.js') : root.NTR_FLIGHT;
+  const nozzle = typeof module !== 'undefined' && module.exports ? require('./nozzle.js') : root.NTR_NOZZLE;
   const PROPELLANTS = {
     hydrogen: { label: '液氢', symbol: 'LH₂', inlet: 20, ratedFlow: thermo.metadata.model.hydrogenRatedFlow, capacity: 6000 },
     water: { label: '水', symbol: 'H₂O', inlet: 293, ratedFlow: 45, capacity: 14000 }
@@ -28,7 +29,10 @@
     get scale() { return (this.diameter / 1.4) ** 2; }
     get ratedPower() { return 600 * this.scale; }
     get ratedFlow() { return this.prop.ratedFlow * this.scale; }
-    get engineMass() { return flight.engineMass(this.diameter); }
+    get baseEngineMass() { return flight.engineMass(this.diameter); }
+    get nozzle() { return nozzle.geometry(this.diameter, this.nozzleSettings); }
+    get nozzleMass() { return this.nozzle.mass; }
+    get engineMass() { return this.baseEngineMass + this.nozzleMass; }
     get baseDryMass() { return flight.BASE_DRY_MASS; }
     get dryMass() { return this.baseDryMass + this.engineMass + this.payload; }
     get mass() { return this.dryMass + this.fuel + this.oxygen; }
@@ -55,12 +59,14 @@
       const base = this.propellant === 'water' ? 50 : 180;
       return base + ((!this.cooling || this.faults.has('cooling')) ? 600 * Math.min(1, this.power / Math.max(1, this.ratedPower * .2)) : 0);
     }
-    get wallHeatCapacity() { return 700000 * this.scale; }
+    get wallHeatCapacity() { return this.nozzleMass * 700 + this.baseEngineMass * 150; }
+    get coreHeatCapacity() { return this.baseEngineMass * 390; }
     get dissociationPower() { return this.thermoState?.dissociationPower || 0; }
     get tankState() { return loadout(this.propellant, this.fuel, this.oxygen, this.oxygenTankInstalled); }
 
     reset(cold = true) {
       this.time = 0; this.propellant = 'hydrogen'; this.diameter = 1.4; this.payload = 0;
+      this.nozzleSettings = { ...nozzle.DEFAULTS }; this.nozzleLocked = false;
       this.demand = 60; this.valve = 70; this.pump = true; this.cooling = true; this.autoProtection = true;
       this.tankCapacity = null; this.propellantLocked = false; this.diameterLocked = false; this.controlsLocked = false;
       this.oxygen = 0; this.initialOxygen = 0; this.oxygenConsumed = 0; this.oxygenTankInstalled = false;
@@ -70,6 +76,9 @@
       this.nozzleWallTemperature = cold ? 293 : 650; this.nozzleHeatLoad = this.nozzleCoolingPower = this.nozzleRadiationPower = 0;
       this.regenerativePower = this.externalCoolingPower = 0;
       this.wallEnergyRate = 0; this.nozzleEnergy = null; this.thermoState = null;
+      this.coreHeatToPropellant = this.coreCoolingPower = this.coreStoredPower = 0;
+      this.coreGasEnthalpy = null; this.coreLeakHeat = this.coreOverflowPower = 0;
+      this.coreGasEnthalpyAtTemperature = null;
       this.products = { steam: 0, hydrogen: 0, oxygen: 0 }; this.oxygenInterlock = '未安装液氧舱';
       this.faults = new Set(); this.acknowledged = false; this.integrity = 100; this.previousAlarms = new Map();
       this.fuel = this.prop.capacity; this.mode = cold ? 'STANDBY' : 'RUNNING';
@@ -163,6 +172,16 @@
       return { ok: true, message: '发动机配置已更新' };
     }
 
+    configureNozzle(settings) {
+      if (this.controlsLocked || this.nozzleLocked) return { ok: false, message: '首次点火后喷管几何锁定，请开始新挑战' };
+      if (!this.canConfigure) return { ok: false, message: '喷管配置联锁：请先停机，等待核热功率低于 5 MW' };
+      const next = { ...this.nozzleSettings, ...settings };
+      if (!nozzle.valid(next)) return { ok: false, message: '喷管参数超出范围' };
+      this.nozzleSettings = next; this.flight.operation('nozzleConfigure', { ...next, ...this.nozzle });
+      this.updatePerformance(); this.log('喷管配置已更新 · 膨胀比 ' + this.nozzle.expansion.toFixed(1) + ' / ' + this.nozzleMass.toFixed(1) + ' kg');
+      return { ok: true, message: '喷管配置已更新，质量已计入干重' };
+    }
+
     closeOxygen() {
       this.oxygenPump = false; this.oxygenFeedFlow = 0; this.oxygenFlow = 0; this.afterburnerPower = 0;
       this.commandedOxygenFlow = this.oxygenRipple = 0;
@@ -243,10 +262,13 @@
 
     updatePerformance() {
       const gasTemp = Math.max(this.prop.inlet, this.coreTemperature - this.gasFilmDrop);
-      const targetPressure = this.flow / this.ratedFlow * Math.sqrt(gasTemp / 2600) * 5.8;
-      this.pressure = Math.max(0, targetPressure);
+      const g = this.nozzle;
+      let p = Math.max(100, this.pressure * 1e6 || 4e6);
+      for (let i = 0; i < 3; i++) p = nozzle.chamberPressure(this.flow, thermo.atTemperature(gasTemp, Math.max(100, p), this.propellant === 'water' ? thermo.metadata.waterRatio : 0), g);
+      this.pressure = Math.max(0, p / 1e6);
       const coolingReturn = this.cooling && this.pump && !this.faults.has('cooling') ? this.nozzleCoolingPower * thermo.metadata.model.regenerativeRecovery : 0;
-      const mixture = mixExhaust(this.flow, this.oxygenFlow, gasTemp, this.pressure, this.nozzleWallTemperature, this.scale, this.propellant, 'equilibrium', coolingReturn);
+      const coreH = this.coreGasEnthalpyAtTemperature === this.coreTemperature ? this.coreGasEnthalpy : null;
+      const mixture = mixExhaust(this.flow, this.oxygenFlow, gasTemp, this.pressure, this.nozzleWallTemperature, this.scale, this.propellant, 'finite', coolingReturn, g, coreH);
       this.regenerativePower = mixture.regenerativePower;
       this.externalCoolingPower = this.nozzleCoolingPower - this.regenerativePower;
       this.afterburnerPower = this.propellant === 'hydrogen' ? mixture.chemicalPower : 0;
@@ -291,8 +313,20 @@
       // No thrust or mass flow may be generated by propellant that does not exist.
       this.feedFlow = Math.min(this.feedFlow, this.usableFuel / dt);
       this.flow = this.feedFlow * (this.faults.has('leak') ? .57 : 1);
-      const desiredCore = this.equilibriumTemperature();
-      this.coreTemperature = approach(this.coreTemperature, desiredCore, dt, this.flow > .1 ? 7.5 : 18);
+      const beforeCore = this.coreTemperature, heatCapacity = this.coreHeatCapacity;
+      const gasTarget = thermo.atTemperature(Math.max(this.prop.inlet, beforeCore - this.gasFilmDrop), Math.max(100, this.pressure * 1e6 || 4e6), this.propellant === 'water' ? thermo.metadata.waterRatio : 0);
+      const desiredHeat = Math.max(0, this.feedFlow * (gasTarget.h - thermo.metadata.feedEnthalpy[this.propellant]) / 1e6);
+      const conductance = this.cooling && !this.faults.has('cooling') ? (this.isActive ? 1800 : 35000) : 80;
+      this.coreCoolingPower = (conductance * this.scale * Math.max(0, beforeCore - 293) + .15 * this.scale * 5.670374419e-8 * Math.max(0, beforeCore ** 4 - 293 ** 4)) / 1e6;
+      const available = Math.max(0, (beforeCore - this.prop.inlet) * heatCapacity / dt / 1e6 + this.power - this.coreCoolingPower);
+      this.coreHeatToPropellant = Math.min(desiredHeat, available);
+      this.coreGasEnthalpy = this.feedFlow > 0 ? thermo.metadata.feedEnthalpy[this.propellant] + this.coreHeatToPropellant * 1e6 / this.feedFlow : null;
+      const nextCore = beforeCore + (this.power - this.coreHeatToPropellant - this.coreCoolingPower) * 1e6 * dt / heatCapacity;
+      this.coreTemperature = clamp(nextCore, this.prop.inlet, 4900);
+      this.coreGasEnthalpyAtTemperature = this.coreTemperature;
+      this.coreStoredPower = (this.coreTemperature - beforeCore) * heatCapacity / dt / 1e6;
+      this.coreOverflowPower = this.power - this.coreHeatToPropellant - this.coreCoolingPower - this.coreStoredPower;
+      this.coreLeakHeat = this.coreHeatToPropellant * (this.faults.has('leak') ? .43 : 0);
       this.coolantTemperature = approach(this.coolantTemperature, 293 + (this.coreTemperature - 293) * ((!this.cooling || this.faults.has('cooling')) ? .22 : .075), dt, 6);
       const used = Math.min(this.fuel, this.feedFlow * dt);
       this.fuel = Math.max(0, this.fuel - used); this.consumed += used;
@@ -311,7 +345,8 @@
       const wall = this.nozzleWallTemperature;
       const coolantConductance = this.cooling && !this.faults.has('cooling') ? 16000 : 400;
       this.nozzleCoolingPower = coolantConductance * this.scale * Math.max(0, wall - this.coolantTemperature) / 1e6;
-      this.nozzleRadiationPower = .8 * 5.670374419e-8 * 2.4 * this.scale * Math.max(0, wall ** 4 - 293 ** 4) / 1e6;
+      const radiatingArea = nozzle.CONFIG.baseRadiatingFraction * this.nozzle.baseSurface + this.nozzle.extensionSurface;
+      this.nozzleRadiationPower = .8 * 5.670374419e-8 * radiatingArea * Math.max(0, wall ** 4 - 293 ** 4) / 1e6;
       this.updatePerformance(); this.stepThrust = this.thrust; this.stepTotalFlow = this.totalFlow; this.totalImpulse += this.stepThrust * dt;
       this.wallEnergyRate = this.nozzleHeatLoad - this.nozzleCoolingPower - this.nozzleRadiationPower;
       this.nozzleWallTemperature += this.wallEnergyRate * 1e6 * dt / this.wallHeatCapacity;
@@ -321,7 +356,7 @@
       if (this.mode === 'SHUTDOWN' && this.power < 1 && this.coreTemperature < 500) {
         this.mode = 'STANDBY'; this.log('停机完成 · 系统待机');
       }
-      const danger = this.coreTemperature > 3250 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.nozzleWallTemperature > 1750 ? '自动保护：喷管壁温超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuelExhausted ? '自动保护：可用推进剂耗尽，保留残气' : null;
+      const danger = this.thermoState.blocked ? '自动保护：喷管出口截面不足' : this.coreTemperature > 3250 ? '自动保护：堆芯温度超限' : this.pressure > 7.5 ? '自动保护：腔室压力超限' : this.nozzleWallTemperature > 1750 ? '自动保护：喷管壁温超限' : this.power > this.ratedPower * .12 && this.flow < this.ratedFlow * .09 ? '自动保护：推进剂流量不足' : this.fuelExhausted ? '自动保护：可用推进剂耗尽，保留残气' : null;
       this.protectionTimer = danger ? this.protectionTimer + dt : 0;
       if (this.autoProtection && this.isActive && this.protectionTimer > .75) this.scram(danger);
       if (this.coreTemperature > 3400) this.integrity = Math.max(0, this.integrity - (this.coreTemperature - 3400) / 75 * dt);
@@ -344,7 +379,7 @@
     get lamps() {
       const temperature = grade(this.measuredTemperature, [3050, 3150, 3250]);
       const pressure = grade(this.pressure, [6.5, 7, 7.5]);
-      const nozzle = Math.max(grade(this.nozzleTemperature, [4000, 4500, 5000]), grade(this.nozzleWallTemperature, [1250, 1450, 1650]));
+      const nozzle = Math.max(this.thermoState.blocked ? 3 : 0, grade(this.nozzleTemperature, [4000, 4500, 5000]), grade(this.nozzleWallTemperature, [1250, 1450, 1650]));
       const needsFeed = this.isActive, needsCooling = this.isActive || this.coreTemperature > 650 || this.nozzleWallTemperature > 650;
       const needsOxygen = this.isActive && this.oxygenTankInstalled && this.oxygenValve > 0 && this.usableOxygen > 0;
       const pumpFault = this.faults.has('pump') ? (this.feedFlow / this.ratedFlow < .25 ? 3 : 2) : 0;

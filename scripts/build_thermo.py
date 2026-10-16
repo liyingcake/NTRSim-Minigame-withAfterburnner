@@ -23,11 +23,12 @@ config = json.loads((ROOT / 'propulsion-config.json').read_text(encoding='utf-8'
 NAMES = ['H2', 'H', 'O2', 'O', 'OH', 'H2O', 'HO2', 'H2O2']
 species = {s.name: s for s in ct.Species.list_from_file('nasa_gas.yaml')}
 gas = ct.Solution(thermo='ideal-gas', species=[species[n] for n in NAMES])
+kinetics = ct.Solution('h2o2.yaml')
 water_ratio = gas.molecular_weights[2] / (2 * gas.molecular_weights[0])
 ratios = [0, .025, .05, .1, .2, .35, .5, .75, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, float(water_ratio), 8, 10, 12, 16]
 pressures = [100, 200, 300, 1e3, 2e3, 3e3, 1e4, 3e4, 1e5, 3e5, 5e5, 1e6, 2e6, 3e6, 1e7, 3e7]
 temperatures = sorted(set([200, 250, 293.15, 350] + list(range(400, 6001, 100))))
-fields = ['h', 'cp', 'gamma', 'molarMass', 'formation', 'exitDrop', 'exitTemperature', 'injectionDrop', 'injectionTemperature'] + NAMES + ['equilibriumExitDrop', 'equilibriumExitTemperature']
+fields = ['h', 'cp', 'gamma', 'molarMass', 'formation', 'exitDrop', 'exitTemperature', 'injectionDrop', 'injectionTemperature'] + NAMES + ['equilibriumExitDrop', 'equilibriumExitTemperature', 'entropy', 'logReactionTime']
 formation = np.array([s.thermo.h(298.15) / mw for s, mw in zip(gas.species(), gas.molecular_weights)])
 exit_pressure = config['exitPressure']
 
@@ -76,6 +77,12 @@ for pressure in pressures:
             y = gas.Y.copy()
             h, entropy = gas.enthalpy_mass, gas.entropy_mass
             cp, gamma, molar = gas.cp_mass, gas.cp_mass / gas.cv_mass, gas.mean_molecular_weight
+            kinetics.TPY = temperature, pressure, dict(zip(NAMES, y))
+            h_destruction = kinetics.destruction_rates[kinetics.species_index('H')] * kinetics.molecular_weights[kinetics.species_index('H')] / kinetics.density
+            # Effective H relaxation scale, calibrated to the local linearized
+            # 2H+M recombination mode. Used by the documented sudden-freeze model.
+            reaction_time = .5 * y[1] / h_destruction if y[1] > 1e-30 and h_destruction > 1e-30 else 1e6
+            log_reaction_time = float(np.log10(np.clip(reaction_time, 1e-12, 1e6)))
             exit_drop, exit_t = frozen_expansion(y, entropy, h, min(pressure, exit_pressure))
             injection_drop, injection_t = frozen_expansion(y, entropy, h, pressure * config['injectionPressureRatio'])
             # Equilibrium nozzle is a separate upper-performance reference. At
@@ -103,12 +110,13 @@ for pressure in pressures:
                         else:
                             low = mid
                 equilibrium_drop, equilibrium_t = max(0, h - gas.enthalpy_mass), gas.T
-            values.extend([h, cp, gamma, molar, float(y @ formation), exit_drop, exit_t, injection_drop, injection_t, *y.tolist(), equilibrium_drop, equilibrium_t])
+            values.extend([h, cp, gamma, molar, float(y @ formation), exit_drop, exit_t, injection_drop, injection_t, *y.tolist(), equilibrium_drop, equilibrium_t, entropy, log_reaction_time])
     print(f'Generated equilibrium and frozen expansion: {pressure / 1e6:g} MPa', flush=True)
 
 data_path = next(Path(directory) / 'nasa_gas.yaml' for directory in ct.get_data_directories() if (Path(directory) / 'nasa_gas.yaml').exists())
 metadata = {
-    'version': 1, 'generator': 'scripts/build_thermo.py', 'cantera': ct.__version__,
+    'version': 2, 'generator': 'scripts/build_thermo.py', 'cantera': ct.__version__,
+    'reactionTimeSource': 'Cantera h2o2.yaml; half the H abundance / one-way H destruction rate; effective relaxation proxy, not a full nozzle kinetics solution',
     'source': 'Cantera nasa_gas.yaml / NASA TM-4513 thermodynamic polynomials',
     'sourceSHA256': hashlib.sha256(data_path.read_bytes()).hexdigest(),
     'species': NAMES, 'fields': fields, 'pressures': pressures, 'ratios': ratios,

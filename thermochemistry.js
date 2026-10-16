@@ -4,6 +4,7 @@
   'use strict';
   const table = typeof module !== 'undefined' && module.exports ? require('./thermo-table.js') : root.NTR_THERMO_TABLE;
   const M = table.metadata, data = table.getData(), stride = M.fields.length;
+  const nozzleModel = typeof module !== 'undefined' && module.exports ? require('./nozzle.js') : root.NTR_NOZZLE;
   const nt = M.temperatures.length, nr = M.ratios.length, clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   function bracket(axis, value) {
     let low = 0, high = axis.length - 1;
@@ -31,7 +32,7 @@
     const cp = fields[1], molarMass = 1 / inverseMolar, gamma = cp / (cp - 8314.462618 / molarMass);
     const state = { temperature, h: fields[0], cp, gamma, molarMass, formation: fields[4], exitDrop: fields[5],
       exitTemperature: fields[6], injectionDrop: fields[7], injectionTemperature: fields[8],
-      equilibriumExitDrop: fields[17], equilibriumExitTemperature: fields[18], y,
+      equilibriumExitDrop: fields[17], equilibriumExitTemperature: fields[18], entropy: fields[19], logReactionTime: fields[20], y,
       outside: s.outside || temperature < M.temperatures[0] || temperature > M.temperatures.at(-1) };
     const boundary = clamp(temperature, loT, hiT), delta = temperature - boundary;
     if (delta) {
@@ -60,6 +61,19 @@
     if (enthalpy > hiH) temperature += (enthalpy - hiH) / s.read(high, 1);
     return interpolate(s, temperature, low, high);
   }
+  function fromEntropy(entropy, pressure, ratio = 0) {
+    const s = slice(pressure, ratio); let low = 0, high = nt - 1;
+    while (high - low > 1) { const mid = (low + high) >> 1; if (s.read(mid, 19) > entropy) high = mid; else low = mid; }
+    const lo = s.read(low, 19), hi = s.read(high, 19), f = clamp((entropy - lo) / (hi - lo), 0, 1);
+    const temperature = M.temperatures[low] + f * (M.temperatures[high] - M.temperatures[low]);
+    const state = interpolate(s, temperature, low, high);
+    if (entropy < lo || entropy > hi) {
+      const boundary = entropy < lo ? low : high, edge = interpolate(s, M.temperatures[boundary], boundary === nt - 1 ? boundary - 1 : boundary, boundary === nt - 1 ? boundary : boundary + 1);
+      const frozen = frozenAtEntropy(frozenEntropy(edge.temperature, pressure, edge.y) + entropy - edge.entropy, pressure, edge.y, edge.temperature);
+      return { ...frozen, entropy, logReactionTime: 6, outside: true };
+    }
+    return state;
+  }
   function wallTransfer(state, flow, wallTemperature, scale, ratedFlow) {
     const difference = Math.max(0, state.temperature - wallTemperature);
     if (!(flow > 0) || !difference) return 0;
@@ -82,14 +96,31 @@
     return { temperature, h, cp, molarMass, gamma: cp / (cp - 8314.462618 / molarMass), formation, y, outside: temperature < 200 || temperature > 6000 };
   }
   function frozenFromEnthalpy(h, y) {
-    let low = 1, high = 10000;
-    for (let i = 0; i < 26; i++) { const mid = (low + high) / 2; if (frozenProperties(mid, y).h > h) high = mid; else low = mid; }
-    return frozenProperties((low + high) / 2, y);
+    let temperature = 1500, state;
+    for (let i = 0; i < 12; i++) { state = frozenProperties(temperature, y); const error = state.h - h; if (Math.abs(error) < 1e-5) break; temperature = clamp(temperature - error / state.cp, 1, 10000); }
+    return frozenProperties(temperature, y);
   }
-  function exhaust(mainFlow, oxygenFlow, gasTemperature, pressureMPa = 4, wallTemperature = 650, scale = 1, propellant = 'hydrogen', expansion = 'equilibrium', regenerativeMW = 0) {
+  function frozenEntropy(temperature, pressure, y) {
+    const t = clamp(temperature, 200, 6000); let entropy = 0, inverseMolar = 0;
+    for (let i = 0; i < y.length; i++) inverseMolar += y[i] / M.molecularWeights[i];
+    for (let i = 0; i < y.length; i++) if (y[i] > 0) {
+      const nasa = M.speciesThermo[i], a = nasa.slice(t > nasa[0] ? 1 : 8, t > nasa[0] ? 8 : 15), r = 8314.462618 / M.molecularWeights[i];
+      const s = r * (a[0] * Math.log(t) + t * (a[1] + t * (a[2] / 2 + t * (a[3] / 3 + t * a[4] / 4))) + a[6]);
+      const fraction = y[i] / M.molecularWeights[i] / inverseMolar;
+      entropy += y[i] * (s - r * Math.log(Math.max(1e-300, fraction * pressure / 101325)));
+    }
+    if (temperature !== t) entropy += frozenProperties(t, y).cp * Math.log(Math.max(1, temperature) / t);
+    return entropy;
+  }
+  function frozenAtEntropy(entropy, pressure, y, guess = 1000) {
+    let temperature = clamp(guess, 1, 10000);
+    for (let i = 0; i < 14; i++) { const state = frozenProperties(temperature, y), error = frozenEntropy(temperature, pressure, y) - entropy; if (Math.abs(error) < 1e-6) break; temperature = clamp(temperature * Math.exp(clamp(-error / state.cp, -1, 1)), 1, 10000); }
+    return { ...frozenProperties(temperature, y), entropy };
+  }
+  function exhaust(mainFlow, oxygenFlow, gasTemperature, pressureMPa = 4, wallTemperature = 650, scale = 1, propellant = 'hydrogen', expansion = 'equilibrium', regenerativeMW = 0, geometry = null, mainEnthalpy = null) {
     const flow = mainFlow + oxygenFlow, water = propellant === 'water';
     const ratio = water ? M.waterRatio : mainFlow > 0 ? oxygenFlow / mainFlow : 0;
-    const pressure = Math.max(1e3, pressureMPa * 1e6), base = atTemperature(gasTemperature, pressure, water ? M.waterRatio : 0);
+    const pressure = Math.max(100, pressureMPa * 1e6), base = Number.isFinite(mainEnthalpy) ? fromEnthalpy(mainEnthalpy, pressure, water ? M.waterRatio : 0) : atTemperature(gasTemperature, pressure, water ? M.waterRatio : 0);
     // Wall coolant returns energy to the main stream. This is internal heat
     // recovery, counted once in gas input and subtracted from external cooling.
     const regenerativePower = Math.min(Math.max(0, regenerativeMW), mainFlow * base.cp * M.model[water ? 'waterRegenerativeRise' : 'hydrogenRegenerativeRise'] / 1e6);
@@ -102,18 +133,26 @@
     // Use the same downstream station at zero oxygen: no discontinuous jump in
     // temperature, composition or velocity when the injection valve closes.
     const mixed = flow > 0 ? fromEnthalpy(input / flow - retainedKinetic, mixPressure, ratio) : primary;
-    const heat = wallTransfer(mixed, flow, wallTemperature, scale, (water ? 45 : M.model.hydrogenRatedFlow) * scale);
+    const referenceSurface = geometry ? nozzleModel.geometry(1.4 * Math.sqrt(scale)).surface : 1;
+    const heat = wallTransfer(mixed, flow, wallTemperature, geometry ? scale * geometry.surface / referenceSurface : scale, (water ? 45 : M.model.hydrogenRatedFlow) * scale);
     const final = flow > 0 && heat > 0 ? fromEnthalpy(mixed.h - heat / flow, mixPressure, ratio) : mixed;
     const drop = expansion === 'frozen' ? final.exitDrop : final.equilibriumExitDrop;
-    const kinetic = Math.max(0, retainedKinetic + efficiency * drop), jetVelocity = flow > .001 ? Math.sqrt(2 * kinetic) : 0;
-    const exitEnthalpy = final.h - efficiency * drop;
-    const exit = expansion === 'frozen' ? frozenFromEnthalpy(exitEnthalpy, final.y) : fromEnthalpy(exitEnthalpy, Math.min(pressure, M.exitPressure), ratio);
+    let kinetic = Math.max(0, retainedKinetic + efficiency * drop), jetVelocity = flow > .001 ? Math.sqrt(2 * kinetic) : 0;
+    let exitEnthalpy = final.h - efficiency * drop;
+    let exit = expansion === 'frozen' ? frozenFromEnthalpy(exitEnthalpy, final.y) : fromEnthalpy(exitEnthalpy, Math.min(pressure, M.exitPressure), ratio);
+    let solution = null;
+    if (geometry && flow > .001 && base.temperature > 180) {
+      solution = nozzleModel.solve({ flow, h0: final.h + retainedKinetic, reference: final, pressure: mixPressure, ratio, geometry, efficiency, expansion }, api);
+      exit = solution.exit; kinetic = exit.kinetic; jetVelocity = solution.jetVelocity; exitEnthalpy = exit.h;
+    }
+    const coldFeed = Boolean(geometry && base.temperature <= 180), inactiveFlow = Boolean(geometry && flow <= .001);
+    if (coldFeed || inactiveFlow) { kinetic = 0; jetVelocity = 0; exitEnthalpy = final.h + retainedKinetic; exit = fromEnthalpy(exitEnthalpy, pressure, ratio); }
     // Vacuum pressure thrust. The fixed-Pe approximation implies an equivalent
     // exit area from continuity; it does not solve a fixed nozzle geometry.
     const gasConstant = 8314.462618 / exit.molarMass, soundSpeed = Math.sqrt(Math.max(1, exit.gamma * gasConstant * exit.temperature));
     const mach = jetVelocity / soundSpeed, u = clamp(mach - 1, 0, 1), chokedWeight = u * u * (3 - 2 * u);
     const pressureVelocity = jetVelocity > 0 ? chokedWeight * gasConstant * Math.max(1, exit.temperature) / jetVelocity : 0;
-    const pressureThrust = flow * pressureVelocity / 1000, velocity = jetVelocity + pressureVelocity;
+    const pressureThrust = solution ? solution.pressureThrust : coldFeed || inactiveFlow ? 0 : flow * pressureVelocity / 1000, velocity = solution ? solution.velocity : jetVelocity + pressureVelocity;
     const masses = exit.y.map(fraction => fraction * flow);
     const chemicalPower = oxygenFlow > 0 ? Math.max(0, -exit.formation * flow / 1e6) : 0;
     const waterFraction = Math.min(1, ratio / M.waterRatio) * (1 + M.waterRatio) / (1 + ratio);
@@ -121,8 +160,11 @@
     const reference = completeFormation * flow, exitFormation = exit.formation * flow;
     const feedFormation = water ? mainFlow * M.formationEnthalpies[5] : 0;
     const feedInput = mainFlow * M.feedEnthalpy[water ? 'water' : 'hydrogen'] + oxygenFlow * M.feedEnthalpy.oxygen;
-    return { flow, velocity, jetVelocity, pressureThrust, equivalentExitArea: pressureThrust * 1000 / Math.min(pressure, M.exitPressure),
-      exitTemperature: exit.temperature, expansion, regenerativePower, primaryTemperature: primary.temperature, temperature: final.temperature, chemicalPower, kineticPower: kinetic * flow / 1e6,
+    return { flow, velocity, jetVelocity, pressureThrust, equivalentExitArea: geometry ? geometry.exitArea : pressureThrust * 1000 / Math.min(pressure, M.exitPressure),
+      exitPressure: solution ? exit.pressure : geometry ? 0 : Math.min(pressure, M.exitPressure), geometry, freezePressure: solution?.freezePressure ?? null,
+      residenceTime: solution?.residenceTime || 0, criticalArea: solution?.criticalArea || 0, blocked: solution?.blocked || false,
+      axialVelocity: solution ? solution.axialVelocity : jetVelocity,
+      exitTemperature: coldFeed ? Math.max(water ? 293 : 20, exit.temperature) : exit.temperature, phase: coldFeed ? 'cold-feed' : 'gas', expansion, regenerativePower, primaryTemperature: coldFeed ? Math.max(water ? 293 : 20, primary.temperature) : primary.temperature, temperature: coldFeed ? Math.max(water ? 293 : 20, final.temperature) : final.temperature, chemicalPower, kineticPower: kinetic * flow / 1e6,
       heatLoad: heat / 1e6, mixtureRatio: water ? 0 : ratio, pressure: mixPressure / 1e6, molarMass: exit.molarMass, gamma: exit.gamma,
       steam: masses[5], hydrogen: masses[0], oxygen: masses[2], atomicHydrogen: masses[1], atomicOxygen: masses[3], hydroxyl: masses[4],
       hydroperoxyl: masses[6], peroxide: masses[7], radicals: masses[1] + masses[3] + masses[4] + masses[6] + masses[7],
@@ -138,6 +180,6 @@
         exhaustThermal: (flow * exitEnthalpy - exitFormation) / 1e6, dissociation: (exitFormation - reference) / 1e6,
         residual: (input - heat - flow * kinetic - flow * exitEnthalpy) / 1e6 } };
   }
-  const api = { metadata: M, atTemperature, fromEnthalpy, wallTransfer, exhaust };
+  const api = { metadata: M, atTemperature, fromEnthalpy, fromEntropy, frozenProperties, frozenFromEnthalpy, frozenEntropy, frozenAtEntropy, wallTransfer, exhaust };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NTR_THERMO = api;
 })(typeof window !== 'undefined' ? window : globalThis);
