@@ -1,10 +1,49 @@
-# NERVA 核热推进试验控制台 · v0.10
+# 核热补燃模拟器 · Mini Game
+
+**NERVA / LANTR 核热推进与液氧补燃试验控制台 · v0.10**
+
+[![release](https://img.shields.io/badge/release-v0.10-orange)](CHANGELOG.md)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![tests](https://img.shields.io/badge/tests-10%20suites-brightgreen)](tests)
+[![dependencies](https://img.shields.io/badge/dependencies-0-success)](package.json)
+[![node](https://img.shields.io/badge/node-%E2%89%A522-339933)](package.json)
+
+![核热补燃模拟器控制台](screenshots/console.jpg)
 
 可直接打开的 HTML 模拟小游戏。冷战与阿波罗时代的金属仪表、绿磷 CRT、模拟表针、状态灯矩阵与机械开关，现支持纯核热推进、液氧增推 LANTR、150 m³ 储罐和三个挑战。
+
+- **零依赖**：单个 `NERVA.html` 双击即玩，不需要构建、不需要服务器、不联网。
+- **有物理**：反应堆功率、氢 / 水流量、喷管几何与膨胀、喉部下游液氧补燃共用一套焓预算，物性表由 Cantera 离线生成。
+- **有玩法**：沙盒 + 三个计分挑战、2 Hz 遥测与操作记录、飞行档案、本地排行榜、独立声部的告警音效。
+
+## English
+
+A single-file, dependency-free browser mini game that puts you at the console of a NERVA-style nuclear thermal rocket test stand. It models reactor power and core heat balance, liquid-hydrogen / water propellant flow, nozzle geometry and expansion, and LANTR oxygen afterburning injected downstream of the throat — all sharing one enthalpy budget, with the gas property table generated offline from Cantera. It ships a sandbox plus three scored challenges (unlimited Δv, precision injection, trans-lunar injection), 2 Hz telemetry recording, flight archives, a local leaderboard and a full Web Audio alarm suite. Open `NERVA.html`: no build step, no server, no network.
+
+## 目录
+
+- [打开](#打开)
+- [驾驶与窗口](#驾驶与窗口)
+- [设置与快捷键](#设置与快捷键)
+- [喷管设计与延长段](#喷管设计与延长段)
+- [150 m³ 推进剂储罐](#150-m³-推进剂储罐)
+- [液氧补燃 LANTR](#液氧补燃-lantr)
+- [残气与低余量供液](#残气与低余量供液)
+- [舱内监听与警音](#舱内监听与警音)
+- [三个挑战](#三个挑战)
+- [停机、结算与成绩](#停机结算与成绩)
+- [统计与飞行记录](#统计与飞行记录)
+- [性能与诊断](#性能与诊断)
+- [模型与参考](#模型与参考)
+- [开发验证](#开发验证)
+- [界面截图](#界面截图)
+- [开源协议](#开源协议)
 
 ## 打开
 
 直接用浏览器打开 **NERVA.html**，无需安装依赖。源码入口是 `index.html`；开发时运行 `npm start`，访问 `http://127.0.0.1:4173`。模拟可离线运行，字体不可用时回退系统字体。修改源码后运行 `npm run standalone` 同步单文件试玩版。
+
+在线试玩：把仓库推到 GitHub 后，在 **Settings → Pages** 把 Source 选为 `Deploy from a branch`、分支选 `master` 与 `/ (root)`，页面就会发布在 `https://liyingcake.github.io/NTRSim-Minigame-withAfterburnner/`。`index.html` 只用相对路径引用资源，不需要为子路径做任何改动。
 
 ## 驾驶与窗口
 
@@ -156,3 +195,20 @@ v0.8 在可见预览窗口、开启液氢音效时，8 秒采样的 MFD 绘制�
 `npm test` 检查质量与能量、容积、波动边界、残气供液、联锁、载荷和计分、告警确认、历史记录及原有发动机行为。`npm run check` 检查语法，`npm run standalone` 生成单文件。`systems.js` 集中存放罐容、价格、波动、残气；`thermochemistry.js` 与生成的 `thermo-table.js` 提供浏览器和测试共用的物性与尾流计算。132 个独立热化学状态与五个完整补燃工况对照 Cantera，测试同时检查元素、质量和能量守恒。
 
 本地服务下打开 `tests/audio-browser.html`，点击运行，可通过 OfflineAudioContext 实际渲染三种推进音色、待机、静音与 ACK 场景。声学检查记录见 [v0.8-audio-results.json](benchmarks/v0.8-audio-results.json)。
+
+## 界面截图
+
+截图摄于 v0.5–v0.8 期间的界面；控制台外观与 v0.10 一致，v0.10 新增的喷管设计与堆芯热量通道见[喷管设计与延长段](#喷管设计与延长段)。
+
+| 系统总览 F1：反应堆、双泵、储罐与补燃支路 | 挑战配置：体积条、装载成本与载荷奖励 |
+| --- | --- |
+| ![系统总览](screenshots/overview-f1.jpg) | ![挑战配置](screenshots/challenge-setup.jpg) |
+
+## 开源协议
+
+本项目以 [MIT 协议](LICENSE) 发布，可自由使用、修改、分发与商用，保留版权声明即可。
+
+- 这是交互概念演示，**不用于真实设备控制或工程计算**。模型假设、适用范围与独立对照见[模型与参考](#模型与参考)以及 `PROPULSION-V0.8.md`、`HYDROGEN-V0.9.md`、`NOZZLE-V0.10.md`、`THERMOCHEMISTRY.md`。
+- 气动物性表由 [Cantera](https://cantera.org/) 离线生成；液氢 / 液氧储存密度与 LANTR 原理参考 NASA 公开文献，链接见[模型与参考](#模型与参考)。
+- 界面与音效均为原创：唯一位图 `assets/panel-noise.png` 由 `build-texture.cjs` 用固定种子程序化生成，声音由 Web Audio 振荡器与噪声实时合成，仓库不含任何第三方素材或音频文件。
+- 问题与建议欢迎开 Issue；提交前请先跑 `npm run check` 与 `npm test`。

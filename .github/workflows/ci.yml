@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: 语法检查
+        run: npm run check
+
+      - name: 物理、计分与存储测试
+        run: npm test
+
+      - name: 校验单文件试玩版与源码同步
+        run: |
+          npm run version:sync
+          npm run standalone
+          git diff --exit-code -- NERVA.html version.js

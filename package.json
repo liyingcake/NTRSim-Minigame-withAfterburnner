@@ -1,11 +1,36 @@
 {
-  "name": "nerva-simulator",
+  "name": "ntrsim-minigame-withafterburnner",
   "version": "0.10.0",
   "nerva": {
     "scoreSchema": 9
   },
   "private": true,
-  "description": "Retro interactive nuclear thermal propulsion console",
+  "description": "Single-file retro HTML console simulator for NERVA-style nuclear thermal rockets and LANTR oxygen afterburning",
+  "license": "MIT",
+  "author": "cake1145",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liyingcake/NTRSim-Minigame-withAfterburnner.git"
+  },
+  "homepage": "https://liyingcake.github.io/NTRSim-Minigame-withAfterburnner/",
+  "bugs": {
+    "url": "https://github.com/liyingcake/NTRSim-Minigame-withAfterburnner/issues"
+  },
+  "keywords": [
+    "nerva",
+    "ntr",
+    "lantr",
+    "nuclear-thermal-propulsion",
+    "rocket-simulator",
+    "browser-game",
+    "canvas",
+    "web-audio",
+    "cantera",
+    "single-file"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.cjs",
     "standalone": "node build-standalone.cjs",
