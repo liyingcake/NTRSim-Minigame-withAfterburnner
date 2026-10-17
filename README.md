@@ -1,49 +1,44 @@
 # 核热补燃模拟器 · Mini Game
 
-**NERVA / LANTR 核热推进与液氧补燃试验控制台 · v0.10**
+**NERVA / LANTR 核热推进与液氧补燃试验控制台 · v0.11.1**
 
-[![release](https://img.shields.io/badge/release-v0.10-orange)](CHANGELOG.md)
-[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-10%20suites-brightgreen)](tests)
-[![dependencies](https://img.shields.io/badge/dependencies-0-success)](package.json)
-[![node](https://img.shields.io/badge/node-%E2%89%A522-339933)](package.json)
+[![release](https://img.shields.io/badge/release-v0.11.1-orange)](CHANGELOG.md) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![tests](https://img.shields.io/badge/tests-13%20suites-brightgreen)](#开发验证) [![runtime deps](https://img.shields.io/badge/runtime%20deps-0-success)](package.json) [![node](https://img.shields.io/badge/node-%E2%89%A522-339933)](package.json)
 
 ![核热补燃模拟器控制台](screenshots/console.jpg)
 
-可直接打开的 HTML 模拟小游戏。冷战与阿波罗时代的金属仪表、绿磷 CRT、模拟表针、状态灯矩阵与机械开关，现支持纯核热推进、液氧增推 LANTR、150 m³ 储罐和三个挑战。
+- **零安装**：双击 `NERVA.html` 就能玩——一个约 2.9 MB 的单文件，离线可用，没有运行时依赖，也不需要构建。
+- **有物理**：Cantera 离线生成的氢 / 氧 / 水物性表，质量与能量守恒、喷管几何与突冻结近似、泵波动与残气供液。
+- **有玩法**：三个计分挑战、本地排行榜、71 通道遥测与可导出的飞行记录，界面中英双语。
 
-- **零依赖**：单个 `NERVA.html` 双击即玩，不需要构建、不需要服务器、不联网。
-- **有物理**：反应堆功率、氢 / 水流量、喷管几何与膨胀、喉部下游液氧补燃共用一套焓预算，物性表由 Cantera 离线生成。
-- **有玩法**：沙盒 + 三个计分挑战、2 Hz 遥测与操作记录、飞行档案、本地排行榜、独立声部的告警音效。
+可直接打开的 HTML 模拟小游戏。冷战与阿波罗时代的金属仪表、绿磷 CRT、模拟表针、状态灯矩阵与机械开关，现支持纯核热推进、液氧增推 LANTR、150 m³ 储罐和三个挑战。
 
 ## English
 
-A single-file, dependency-free browser mini game that puts you at the console of a NERVA-style nuclear thermal rocket test stand. It models reactor power and core heat balance, liquid-hydrogen / water propellant flow, nozzle geometry and expansion, and LANTR oxygen afterburning injected downstream of the throat — all sharing one enthalpy budget, with the gas property table generated offline from Cantera. It ships a sandbox plus three scored challenges (unlimited Δv, precision injection, trans-lunar injection), 2 Hz telemetry recording, flight archives, a local leaderboard and a full Web Audio alarm suite. Open `NERVA.html`: no build step, no server, no network.
+A single-file, dependency-free browser mini-game that simulates a NERVA-style nuclear thermal rocket with LANTR oxygen afterburning. You run the reactor, pumps and valves from a retro control console, design the nozzle, load a 150 m³ propellant tank, and chase three scored challenges — unlimited Δv, a 325.00 m/s precise injection, and a 2,000.00 m/s trans-lunar injection. Physics is driven by offline-generated Cantera property tables; the whole UI switches between Chinese and English (ZH / EN). No build step, no runtime dependencies.
+
+- **Play online**: <https://liyingcake.github.io/NTRSim-Minigame-withAfterburnner/>
+- **Offline**: download `NERVA.html` and open it in any modern browser.
 
 ## 目录
 
-- [打开](#打开)
-- [驾驶与窗口](#驾驶与窗口)
-- [设置与快捷键](#设置与快捷键)
-- [喷管设计与延长段](#喷管设计与延长段)
-- [150 m³ 推进剂储罐](#150-m³-推进剂储罐)
-- [液氧补燃 LANTR](#液氧补燃-lantr)
-- [残气与低余量供液](#残气与低余量供液)
-- [舱内监听与警音](#舱内监听与警音)
-- [三个挑战](#三个挑战)
-- [停机、结算与成绩](#停机结算与成绩)
-- [统计与飞行记录](#统计与飞行记录)
-- [性能与诊断](#性能与诊断)
-- [模型与参考](#模型与参考)
-- [开发验证](#开发验证)
-- [界面截图](#界面截图)
-- [开源协议](#开源协议)
+| | |
+| --- | --- |
+| [打开](#打开) | [驾驶与窗口](#驾驶与窗口) |
+| [工具提示与语言](#工具提示与语言) | [设置与快捷键](#设置与快捷键) |
+| [喷管设计与延长段](#喷管设计与延长段) | [v0.11 能量与故障](#v011-能量与故障) |
+| [v0.11.1 喉部面积对照](#v0111-喉部面积对照) | [150 m³ 推进剂储罐](#150-m³-推进剂储罐) |
+| [液氧补燃 LANTR](#液氧补燃-lantr) | [残气与低余量供液](#残气与低余量供液) |
+| [舱内监听与警音](#舱内监听与警音) | [三个挑战](#三个挑战) |
+| [停机、结算与成绩](#停机结算与成绩) | [统计与飞行记录](#统计与飞行记录) |
+| [性能与诊断](#性能与诊断) | [模型与参考](#模型与参考) |
+| [开发验证](#开发验证) | [界面截图](#界面截图) |
+| [开源协议](#开源协议) | [更新记录](CHANGELOG.md) |
 
 ## 打开
 
 直接用浏览器打开 **NERVA.html**，无需安装依赖。源码入口是 `index.html`；开发时运行 `npm start`，访问 `http://127.0.0.1:4173`。模拟可离线运行，字体不可用时回退系统字体。修改源码后运行 `npm run standalone` 同步单文件试玩版。
 
-在线试玩：把仓库推到 GitHub 后，在 **Settings → Pages** 把 Source 选为 `Deploy from a branch`、分支选 `master` 与 `/ (root)`，页面就会发布在 `https://liyingcake.github.io/NTRSim-Minigame-withAfterburnner/`。`index.html` 只用相对路径引用资源，不需要为子路径做任何改动。
+在线试玩：<https://liyingcake.github.io/NTRSim-Minigame-withAfterburnner/>（单文件版 `NERVA.html` 同样可直接打开）。发布方式为 GitHub Pages：Settings → Pages → Deploy from a branch → 分支 `main`、目录 `/ (root)`；`index.html` 全部使用相对路径引用，不需要任何构建或路径改动，向 `main` 推送后会自动重新发布。
 
 ## 驾驶与窗口
 
@@ -54,6 +49,12 @@ A single-file, dependency-free browser mini game that puts you at the console of
 - MFD 六页：系统总览、热力回路、推进性能、遥测趋势、故障诊断、补燃储罐。F1–F6 或 1–6 切换；空格暂停，? 打开手册。
 - 遥测趋势保留温度、核热功率、堆芯腔压及比冲，比冲右轴为 0–1,000 s；实际数据不因图表上限截断。
 - 注入与修复泵失速、冷却故障、泄漏、主阀卡滞和传感器漂移，观察保护联锁与耐久损伤。
+
+## 工具提示与语言
+
+自 v0.11.1 起支持中英双语。设置旁的 **ZH / EN** 按钮切换中英文，设置内部也可切换；界面、动态遥测、MFD、挑战结算、手册和工具提示同步改变，试飞继续运行。语言自动保存。
+
+按钮与滑条默认悬停 **1 秒**显示说明，设置中可改为 **0–10 秒**。鼠标可以移入说明，高亮关键词可悬停或点击打开次级概念卡；键盘焦点停留后按 **Tab** 进入说明，**Esc** 逐层返回。说明显示当前快捷键和不可用状态。完整范围、维护方式与验证说明见 [中英易用性说明](USABILITY-ZH-EN.md)。
 
 ## 设置与快捷键
 
@@ -72,6 +73,18 @@ v0.8 同为 360 MW、70% 主阀时，纯核热约 827 s、30% 氧阀约 637 s，
 - 堆芯按核热、主剂吸热、冷却与热容量积分，停机余热有对应储热消耗；记录器保存几何、组分和热量通道。
 
 模型假设、质量公式、独立对照及不同延长段的实际数据见 [v0.10 喷管说明](NOZZLE-V0.10.md)。此前的 v0.8 / v0.9 数值说明是历史版本参考。
+
+## v0.11 能量与故障
+
+当前几何喷管的气侧热负荷整体减半；面板显示氧入水比例、余留 O₂、净化学能、喷流动能及喷管辐射。喷管壁已有独立辐射，按壁面热收支散热，不会重复从气流扣除。
+
+主腔压力 13 / 14 / 15 MPa 分别黄 / 橙 / 红；连续处于至少 15.5 MPa 时，每 5 个模拟秒按超压程度抽签产生部件损伤，随后累计升级为降级、故障、失效。自动保护会提前 SCRAM。F5 显示部件损伤与判定次数，飞行日志记录抽签及损伤详情。
+
+氧反应、3,900 K 附近的温度变化、能量去向、膨胀比和半角的同设置对照及随机损伤范围见 [v0.11 核查与规则](LANTR-V0.11.md)。
+
+## v0.11.1 喉部面积对照
+
+当前喉部旋钮保持基础膨胀比不变，因此出口面积与喷管长度同步变化。已核对 0.25–4 倍喉部在纯氢、液氧补燃、水三种模式中的腔压、推力、比冲、质量、加速度与 Δv，并补充实际出口面积固定的对照；小喉部触发保护的行单独标记。面积、喉径、出口直径、几何膨胀比和完整表格见 [v0.11.1 喉部核查](THROAT-V0.11.1.md)。复现命令：`node scripts/audit_throat.cjs`。
 
 ## 150 m³ 推进剂储罐
 
@@ -99,7 +112,7 @@ v0.8 同为 360 MW、70% 主阀时，纯核热约 827 s、30% 氧阀约 637 s，
 
 `输入总焓流 = 喷管壁吸热 + 实际喷流动能 + 出口焓流`
 
-`真空推力 = 总流量 × 实际喷速 + 出口压力 × 等效出口面积`
+`真空推力 = 轴向动量系数 × 总流量 × 实际喷速 + 出口压力 × 实际出口面积`
 
 `有效排气速度 = 推力 / 总流量`，`Isp = 有效排气速度 / g₀`。仪表同时标出实际喷速、压力推力和出口温度，动能功率仅用实际喷速计算。v0.10 使用实际出口面积求解出口压力，锥形半角折算轴向动量。突冻结是有限反应时间的简化近似，仍没有求解完整有限速率流场。100 Pa 固定出口与充分平衡是 v0.8 的历史参考路径。
 
@@ -125,7 +138,7 @@ v0.8 同为 360 MW、70% 主阀时，纯核热约 827 s、30% 氧阀约 637 s，
 
 顶部「开启音效」激活声音，引擎环境与警报分别有音量滑块，默认 35% / 55%，设置自动保存。音效表现舱内机械传导和试车监听：仪表有低声电气底噪与操作提示音；液氢为较高频喷流和泵声，液氧补燃叠加更厚重的低频声层，水模式使用较低沉的水汽喷流。氢系具有立体声混响，音色、强弱与实际功率和流量联动。暂停、结算或页面隐藏时淡出。
 
-高温、高压、喷管高温、泵故障、管路故障、热控故障、紧急停堆、两罐余量不足及残气供液各有独立警音节奏与音高。多告警最多四声部立体声齐鸣，紧急等级加快节奏，更多告警按优先级轮换。**ACK 停止所有警音，故障灯和实际故障保留**；新告警或已有告警升级重新鸣警。正常状态灯与余热冷却状态不反复鸣警。堆芯温度 3,050 / 3,150 / 3,250 K 分别黄 / 橙 / 红，腔压 6.5 / 7.0 / 7.5 MPa 同样分级。健康系统为绿色；故障按程度黄、橙、红，运行所需系统关闭时琥珀循环提示。
+高温、高压、喷管高温、泵故障、管路故障、热控故障、紧急停堆、两罐余量不足及残气供液各有独立警音节奏与音高。多告警最多四声部立体声齐鸣，紧急等级加快节奏，更多告警按优先级轮换。**ACK 停止所有警音，故障灯和实际故障保留**；新告警或已有告警升级重新鸣警。正常状态灯与余热冷却状态不反复鸣警。堆芯温度 3,050 / 3,150 / 3,250 K 分别黄 / 橙 / 红，腔压 13 / 14 / 15 MPa 分别黄 / 橙 / 红，15.5 MPa 起触发压力保护与持续超压风险。健康系统为绿色；故障按程度黄、橙、红，运行所需系统关闭时琥珀循环提示。
 
 使用原生 Web Audio 振荡器、缓存噪声与短混响脉冲；不下载外部音频，不在逐帧 JS 中生成波形。浏览器要求声音由用户手势激活，见 [MDN 音频实践](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices)；混响使用 [ConvolverNode](https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode)。
 
@@ -156,14 +169,14 @@ v0.8 同为 360 MW、70% 主阀时，纯核热约 827 s、30% 氧阀约 637 s，
 
 本地排行榜可按三个模式与主推进剂筛选，保存每种模式、每种主剂各 50 条最好成绩，取前 10 名。同分优先较短用时。数据存于当前浏览器 localStorage，不可用时暂存会话。
 
-当前为 **0.10.0 / v0.10，挑战规则版本 9**。本次加入固定喷管几何、延长段质量、近似化学冻结与堆芯热量积分，计分公式不变；新版榜单独立保存，旧榜仍留在原发行版本。`package.json` 是版本唯一来源，构建生成 `version.js` 和 `NERVA.html`。Git 发布方式见 VERSIONING.md，变化见 CHANGELOG.md。
+当前版本为 **0.11.1 / v0.11.1，挑战规则版本 10**，已加入工具提示与中英界面。压力提醒仍为 13 / 14 / 15 MPa，保护与随机损伤阈值仍为 15.5 MPa；推进物理、计分和当前排行榜保持原规则，历史发行标签不移动。`package.json` 是版本唯一来源，构建生成 `version.js` 和 `NERVA.html`。Git 发布方式见 VERSIONING.md，变化见 CHANGELOG.md。
 
 ## 统计与飞行记录
 
 「统计与飞行记录」在沙盒和挑战中均可打开。主控台与 F3 同时显示飞船总质量、总干重、加速度和累计 Δv；结算报告增加基础 / 引擎 / 货物质量、峰值推力、全程平均与有推力段平均推力、总冲量、有推力时长、累计有效比冲、峰值加速度和船体 / 引擎推重比。推重比使用标准重力作无量纲比较，并不在真空飞行中加入重力。
 
 - 遥测按模拟时间约 **2 Hz** 记录，保留开头 **0–60 s** 与滚动的最后 **120 s**，快照额外包含精确结束时刻；两个窗口重叠时 CSV 自动去重。长航行只保留约 362 条遥测行。
-- 50 个通道含推力、热功率、压力、温度、氢 / 水与液氧流量、比冲、排速、加速度、Δv、质量、余量、阀位、功率指令、泵及冷却和保护状态等。界面表格显示常用通道，CSV 保存全部通道。
+- 71 个通道含推力、热功率、压力、温度、氢 / 水与液氧流量、比冲、排速、加速度、Δv、质量、余量、阀位、功率指令、泵及冷却和保护状态等。界面表格显示常用通道，CSV 保存全部通道。
 - 操作日志记录开局设置、引擎配置、加注、泵开关、功率与阀门指令、点火、停机、SCRAM、ACK、故障、暂停与倍率等。指令使用飞行时间与实际时间戳；首次点火前标为准备阶段。每次试飞最多保留 10,000 条操作，达到上限时报告被移除的条数。
 - 首次点火配置、结算数据和计分各项修正均冻结保存，不会被下一局或后续操纵改写。引擎漏液只减质量，不计入喷流消耗比冲。
 - 挑战结算自动归档；沙盒可保存当前快照，重置或切换任务前也会保存已经启动的试飞。选择历史档案可查看两个时间窗和指令；JSON 保存全部记录与算分依据，另可下载遥测 CSV、指令 CSV。
@@ -196,19 +209,22 @@ v0.8 在可见预览窗口、开启液氢音效时，8 秒采样的 MFD 绘制�
 
 本地服务下打开 `tests/audio-browser.html`，点击运行，可通过 OfflineAudioContext 实际渲染三种推进音色、待机、静音与 ACK 场景。声学检查记录见 [v0.8-audio-results.json](benchmarks/v0.8-audio-results.json)。
 
+开发测试新增本地 DOM 与文案覆盖检查；首次运行 `npm test` 前执行 `npm install`。这些依赖仅用于开发验证，不影响直接打开单文件试玩。
 ## 界面截图
 
-截图摄于 v0.5–v0.8 期间的界面；控制台外观与 v0.10 一致，v0.10 新增的喷管设计与堆芯热量通道见[喷管设计与延长段](#喷管设计与延长段)。
+控制台本体（`screenshots/console.jpg` 摄于 v0.5，仪表外观与 v0.11.1 一致）：
 
-| 系统总览 F1：反应堆、双泵、储罐与补燃支路 | 挑战配置：体积条、装载成本与载荷奖励 |
+| F1 系统总览 MFD | 挑战配置 |
 | --- | --- |
-| ![系统总览](screenshots/overview-f1.jpg) | ![挑战配置](screenshots/challenge-setup.jpg) |
+| ![F1 系统总览](screenshots/overview-f1.jpg) | ![挑战配置](screenshots/challenge-setup.jpg) |
 
 ## 开源协议
 
-本项目以 [MIT 协议](LICENSE) 发布，可自由使用、修改、分发与商用，保留版权声明即可。
+本项目以 [MIT 协议](LICENSE) 发布，可自由使用、修改与再分发，保留版权声明即可。
 
-- 这是交互概念演示，**不用于真实设备控制或工程计算**。模型假设、适用范围与独立对照见[模型与参考](#模型与参考)以及 `PROPULSION-V0.8.md`、`HYDROGEN-V0.9.md`、`NOZZLE-V0.10.md`、`THERMOCHEMISTRY.md`。
-- 气动物性表由 [Cantera](https://cantera.org/) 离线生成；液氢 / 液氧储存密度与 LANTR 原理参考 NASA 公开文献，链接见[模型与参考](#模型与参考)。
-- 界面与音效均为原创：唯一位图 `assets/panel-noise.png` 由 `build-texture.cjs` 用固定种子程序化生成，声音由 Web Audio 振荡器与噪声实时合成，仓库不含任何第三方素材或音频文件。
-- 问题与建议欢迎开 Issue；提交前请先跑 `npm run check` 与 `npm test`。
+- 这是交互概念演示，**不适用于真实设备控制或工程计算**。
+- 物性表由 [Cantera](https://cantera.org/) 离线生成；储存密度与 LANTR 数值参考 NASA 公开文献，见「模型与参考」。
+- 界面音效全部由原生 Web Audio 程序合成；项目内唯一的位图 `assets/panel-noise.png` 由 `build-texture.cjs` 以固定种子程序化生成，不含任何第三方素材。
+
+问题与建议欢迎开 [Issue](https://github.com/liyingcake/NTRSim-Minigame-withAfterburnner/issues)；提交改动前请先运行 `npm install`、`npm run check` 与 `npm test`。
+

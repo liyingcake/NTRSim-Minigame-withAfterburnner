@@ -22,22 +22,27 @@
     constructor(storage) {
       this.storage = storage; this.persistent = Boolean(storage);
       this.environmentVolume = .35; this.alarmVolume = .55; this.bindings = { ...DEFAULT_BINDINGS };
+      this.language = 'zh'; this.tooltipDelay = 1000;
       try {
         const saved = JSON.parse(storage?.getItem(KEY) || 'null');
         if (saved) {
           this.environmentVolume = clampVolume(saved.environmentVolume, .35); this.alarmVolume = clampVolume(saved.alarmVolume, .55);
+          if (['zh', 'en'].includes(saved.language)) this.language = saved.language;
+          if (Number.isFinite(saved.tooltipDelay)) this.tooltipDelay = Math.round(Math.max(0, Math.min(10000, saved.tooltipDelay)));
           if (saved.bindings && Object.keys(ACTIONS).every(id => allowed(saved.bindings[id])) && new Set(Object.values(saved.bindings)).size === Object.keys(ACTIONS).length) this.bindings = Object.fromEntries(Object.keys(ACTIONS).map(id => [id, saved.bindings[id]]));
         }
       } catch { this.persistent = false; }
     }
     save() {
-      try { this.storage?.setItem(KEY, JSON.stringify({ environmentVolume: this.environmentVolume, alarmVolume: this.alarmVolume, bindings: this.bindings })); }
+      try { this.storage?.setItem(KEY, JSON.stringify({ environmentVolume: this.environmentVolume, alarmVolume: this.alarmVolume, bindings: this.bindings, language: this.language, tooltipDelay: this.tooltipDelay })); }
       catch { this.persistent = false; }
     }
     setVolume(channel, value) {
       if (!['environment', 'alarm'].includes(channel) || !Number.isFinite(value)) return;
       this[channel + 'Volume'] = clampVolume(value, this[channel + 'Volume']); this.save();
     }
+    setLanguage(language) { if (!['zh', 'en'].includes(language)) return false; this.language = language; this.save(); return true; }
+    setTooltipDelay(value) { if (!Number.isFinite(value)) return; this.tooltipDelay = Math.round(Math.max(0, Math.min(10000, value))); this.save(); }
     bind(action, code) {
       if (!ACTIONS[action] || !allowed(code)) return { ok: false, message: '请选择字母、数字、空格或符号键；F1–F6 保留切换 MFD。' };
       const duplicate = Object.keys(this.bindings).find(id => id !== action && this.bindings[id] === code);
@@ -48,6 +53,7 @@
     actionFor(event) {
       if (event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return null;
       const target = event.target;
+      if (target?.closest?.('[data-tooltip-card]')) return null;
       if (target?.isContentEditable || /TEXTAREA|SELECT/.test(target?.tagName || '') || target?.tagName === 'INPUT' && target.type !== 'range') return null;
       if (event.code === 'Space' && target?.closest?.('button')) return null;
       return Object.keys(this.bindings).find(id => this.bindings[id] === event.code) || null;

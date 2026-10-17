@@ -21,6 +21,6 @@ for (const extension of [0, 4]) for (const expansion of ['finite', 'equilibrium'
     exitPressure: s.exitPressure, exitH: s.fractions.H, exitHFlow: s.atomicHydrogen, freezePressure: s.freezePressure, residence: s.residenceTime, energy: s.energy });
 }
 const report = { version: require('../version.js').version, method: 'Engine scenarios use 60 s cold startup, D1.4, demand60, main70, 5000kgH2+20000kgO2. Sample50 comparisons preserve the previous supplied inlet state, not a full flight replay.', hardware, sample50 };
-fs.writeFileSync('benchmarks/v0.10-nozzle-audit.json', JSON.stringify(report, null, 2) + '\n');
+fs.writeFileSync(`benchmarks/${require('../version.js').label}-nozzle-audit.json`, JSON.stringify(report, null, 2) + '\n');
 console.table(hardware.map(r => ({ extension: r.extension, oxygenValve: r.oxygenValve, mass: r.geometry.mass.toFixed(1), expansion: r.geometry.expansion.toFixed(1), mode: r.mode, isp: r.isp.toFixed(1), thrust: r.thrust.toFixed(1), wall: r.wallTemperature.toFixed(0) })));
 console.table(sample50.map(r => ({ extension: r.extension, mode: r.expansion, isp: r.isp.toFixed(2), H_g_s: (r.exitHFlow * 1000).toFixed(3), Pe: r.exitPressure.toFixed(2) })));

@@ -134,7 +134,10 @@
     // temperature, composition or velocity when the injection valve closes.
     const mixed = flow > 0 ? fromEnthalpy(input / flow - retainedKinetic, mixPressure, ratio) : primary;
     const referenceSurface = geometry ? nozzleModel.geometry(1.4 * Math.sqrt(scale)).surface : 1;
-    const heat = wallTransfer(mixed, flow, wallTemperature, geometry ? scale * geometry.surface / referenceSurface : scale, (water ? 45 : M.model.hydrogenRatedFlow) * scale);
+    // Scale the entire bounded transfer, including its saturation limit. Keep
+    // the no-geometry historical reference branch at its original calibration.
+    const wallHeatScale = geometry ? M.model.wallHeatTransferScale : 1;
+    const heat = wallHeatScale * wallTransfer(mixed, flow, wallTemperature, geometry ? scale * geometry.surface / referenceSurface : scale, (water ? 45 : M.model.hydrogenRatedFlow) * scale);
     const final = flow > 0 && heat > 0 ? fromEnthalpy(mixed.h - heat / flow, mixPressure, ratio) : mixed;
     const drop = expansion === 'frozen' ? final.exitDrop : final.equilibriumExitDrop;
     let kinetic = Math.max(0, retainedKinetic + efficiency * drop), jetVelocity = flow > .001 ? Math.sqrt(2 * kinetic) : 0;
@@ -160,12 +163,28 @@
     const reference = completeFormation * flow, exitFormation = exit.formation * flow;
     const feedFormation = water ? mainFlow * M.formationEnthalpies[5] : 0;
     const feedInput = mainFlow * M.feedEnthalpy[water ? 'water' : 'hydrogen'] + oxygenFlow * M.feedEnthalpy.oxygen;
+    const idealChemical = (feedFormation - reference) / 1e6;
+    const oxygenInWater = M.waterRatio / (1 + M.waterRatio);
+    const burning = !water && mainFlow > 0 && oxygenFlow > 0;
+    const combustion = {
+      active: burning, stoichiometricRatio: M.waterRatio, idealChemicalPower: burning ? idealChemical : 0,
+      // Oxygen atoms bound in water differ from disappearance of molecular O2.
+      oxygenToWater: burning ? clamp(masses[5] * oxygenInWater / oxygenFlow, 0, 1) : 0,
+      oxygenRemaining: burning ? clamp(masses[2] / oxygenFlow, 0, 1) : 0,
+      mixedOxygenToWater: burning ? clamp(final.y[5] * flow * oxygenInWater / oxygenFlow, 0, 1) : 0,
+      mixedOxygenRemaining: burning ? clamp(final.y[2] * flow / oxygenFlow, 0, 1) : 0,
+      hydrogenToWater: burning ? clamp(masses[5] * (1 - oxygenInWater) / mainFlow, 0, 1) : 0,
+      mixedChemicalPower: burning ? Math.max(0, -final.formation * flow / 1e6) : 0,
+      releasedFraction: burning && idealChemical > 0 ? chemicalPower / idealChemical : 0,
+      recombinationPower: burning ? (final.formation - exit.formation) * flow / 1e6 : 0
+    };
     return { flow, velocity, jetVelocity, pressureThrust, equivalentExitArea: geometry ? geometry.exitArea : pressureThrust * 1000 / Math.min(pressure, M.exitPressure),
       exitPressure: solution ? exit.pressure : geometry ? 0 : Math.min(pressure, M.exitPressure), geometry, freezePressure: solution?.freezePressure ?? null,
       residenceTime: solution?.residenceTime || 0, criticalArea: solution?.criticalArea || 0, blocked: solution?.blocked || false,
       axialVelocity: solution ? solution.axialVelocity : jetVelocity,
       exitTemperature: coldFeed ? Math.max(water ? 293 : 20, exit.temperature) : exit.temperature, phase: coldFeed ? 'cold-feed' : 'gas', expansion, regenerativePower, primaryTemperature: coldFeed ? Math.max(water ? 293 : 20, primary.temperature) : primary.temperature, temperature: coldFeed ? Math.max(water ? 293 : 20, final.temperature) : final.temperature, chemicalPower, kineticPower: kinetic * flow / 1e6,
-      heatLoad: heat / 1e6, mixtureRatio: water ? 0 : ratio, pressure: mixPressure / 1e6, molarMass: exit.molarMass, gamma: exit.gamma,
+      heatLoad: heat / 1e6, wallHeatScale, wallInletTemperature: mixed.temperature, combustion,
+      mixtureRatio: water ? 0 : ratio, pressure: mixPressure / 1e6, molarMass: exit.molarMass, gamma: exit.gamma,
       steam: masses[5], hydrogen: masses[0], oxygen: masses[2], atomicHydrogen: masses[1], atomicOxygen: masses[3], hydroxyl: masses[4],
       hydroperoxyl: masses[6], peroxide: masses[7], radicals: masses[1] + masses[3] + masses[4] + masses[6] + masses[7],
       fractions: Object.fromEntries(M.species.map((name, i) => [name, exit.y[i]])),

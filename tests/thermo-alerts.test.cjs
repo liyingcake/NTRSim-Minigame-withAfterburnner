@@ -125,7 +125,7 @@ test('temperature and pressure annunciators use yellow, orange and exact red thr
   for (const [temperature, color, level] of [[3049, 'green', 0], [3050, 'yellow', 1], [3150, 'orange', 2], [3250, 'red', 3]]) {
     e.coreTemperature = temperature; assert.equal(lamp(e, 'tempHigh')[3], color); assert.equal(lamp(e, 'tempHigh')[5], level);
   }
-  for (const [pressure, color] of [[6.5, 'yellow'], [7, 'orange'], [7.5, 'red']]) { e.pressure = pressure; assert.equal(lamp(e, 'pressureHigh')[3], color); }
+  for (const [pressure, color] of [[12.999, 'green'], [13, 'yellow'], [13.999, 'yellow'], [14, 'orange'], [14.999, 'orange'], [15, 'red']]) { e.pressure = pressure; assert.equal(lamp(e, 'pressureHigh')[3], color); }
 });
 
 test('healthy monitors are green, sensor drift yellow, failed cooling red, required OFF systems amber', () => {

@@ -3,9 +3,9 @@ const sim = new NTRSimulation();
 const elements = new Map();
 const $ = id => { if (!elements.has(id)) elements.set(id, document.getElementById(id)); return elements.get(id); };
 const lastHtml = new Map();
-function setText(id, value) { const element = $(id), next = String(value); if (element.textContent !== next) element.textContent = next; }
-function setAttr(element, name, value) { const next = String(value); if (element.getAttribute(name) !== next) element.setAttribute(name, next); }
-function setHtml(id, value) { if (lastHtml.get(id) !== value) { $(id).innerHTML = value; lastHtml.set(id, value); } }
+function setText(id, value) { i18n.writeText($(id), value); }
+function setAttr(element, name, value) { i18n.attr(element, name, value); }
+function setHtml(id, value) { if (lastHtml.get(id) !== value) { i18n.writeHTML($(id), value); lastHtml.set(id, value); } }
 function setUnit(id, value) {
   const element = $(id), next = value + ' ';
   if (element.firstChild?.nodeType === 3 && element.firstChild.nodeValue !== next) element.firstChild.nodeValue = next;
@@ -29,6 +29,16 @@ let scoreStorage;
 try { scoreStorage = window.localStorage; } catch { /* Private/file contexts may disallow browser storage. */ }
 const leaderboard = new NTRLeaderboard(scoreStorage);
 const preferences = new NTR_PREFERENCES.NTRSettings(scoreStorage);
+const i18n = new NTR_LOCALIZATION.Localizer({ document, language: preferences.language });
+i18n.mount();
+const help = new NTR_TOOLTIPS.TooltipController({ document, i18n, getDelay: () => preferences.tooltipDelay,
+  getContext: () => ({ complete: Boolean(mission?.complete) }),
+  getShortcut: element => {
+    const action = Object.entries(NTR_PREFERENCES.ACTIONS).find(([, a]) => a[2] === element.id)?.[0];
+    if (action) return i18n.t(NTR_PREFERENCES.keyLabel(preferences.bindings[action]));
+    return element.dataset.page ? 'F' + (Object.keys(pageNames).indexOf(element.dataset.page) + 1) : '';
+  }
+});
 const flightArchive = new NTR_ARCHIVE.FlightArchive();
 const flightView = new NTRFlightView({ archive: flightArchive, snapshot: currentFlightReport, notify: toast });
 let controlSource = 'panel';
@@ -48,6 +58,8 @@ const points = NTR_FORMAT_POINTS;
 const clock = t => [Math.floor(t / 3600), Math.floor(t / 60) % 60, Math.floor(t) % 60].map(n => String(n).padStart(2, '0')).join(':');
 const safe = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const massFlow = value => !(value > 0) ? '0' : value >= 1 ? num(value, 3) + ' kg/s' : value >= .001 ? num(value * 1000, 3) + ' g/s' : value >= 1e-6 ? num(value * 1e6, 3) + ' mg/s' : '＜0.001 mg/s';
+const pressureLimits = NTR_RELIABILITY.PRESSURE;
+const componentColor = (key, normal = C.blue) => sim.faultLevel(key) ? [null, C.yellow, C.orange, C.red][sim.faultLevel(key)] : sim[key] === false ? (sim.isActive ? C.amber : C.dim) : normal;
 
 function nozzleDrawing(g) {
   const k = Math.min(630 / Math.max(.1, g.length), 73 / g.exitRadius), x = 55, y = 94;
@@ -66,10 +78,14 @@ function renderNozzleLive() {
   }
   setText('nozzleLiveState', '出口压力 ' + points(s.exitPressure, 2) + ' Pa · 轴向系数 ' + num(g.divergenceEfficiency, 4) + (s.blocked ? ' · 流场超出可用出口截面' : ''));
   setText('coreHeatBalance', '堆芯 → 主剂 ' + num(sim.coreHeatToPropellant, 2) + ' MW · 闭式冷却 ' + num(sim.coreCoolingPower, 2) + ' MW · 储热变化 ' + num(sim.coreStoredPower, 2) + ' MW');
+  setText('nozzleHeatBalance', '喷管吸热 ' + num(sim.nozzleHeatLoad, 2) + ' MW · 冷却带走 ' + num(sim.nozzleCoolingPower, 2) + ' MW · 壁面辐射 ' + num(sim.nozzleRadiationPower, 3) + ' MW · 储热变化 ' + num(sim.wallEnergyRate, 2) + ' MW');
+  const b = s.combustion, available = s.energy.available;
+  setText('combustionBalance', b.active ? '氧入水：混合站 ' + num(b.mixedOxygenToWater * 100, 2) + '% → 出口 ' + num(b.oxygenToWater * 100, 2) + '% · 出口余留 O₂ ' + num(b.oxygenRemaining * 100, 2) + '% · 其余 O / OH 等 ' + num(Math.max(0, 1 - b.oxygenToWater - b.oxygenRemaining) * 100, 2) + '%\n净放热：混合站 ' + num(b.mixedChemicalPower, 2) + ' → 出口 ' + num(s.chemicalPower, 2) + ' / 理论 ' + num(b.idealChemicalPower, 2) + ' MW（' + num(b.releasedFraction * 100, 2) + '%）' : '补燃未运行');
+  setText('jetEnergyBalance', '喷流动能 ' + num(s.kineticPower, 2) + ' / 可用功率 ' + num(available, 2) + ' MW · 转化率 ' + (available > 0 ? num(s.kineticPower / available * 100, 2) : '0.00') + '% · 出口余热 ' + num(s.energy.exhaustThermal, 2) + ' MW · 解离携能 ' + num(s.energy.dissociation, 2) + ' MW');
 }
 
 function toast(message) {
-  $('toast').textContent = message; $('toast').classList.add('visible');
+  i18n.writeText($('toast'), message); $('toast').classList.add('visible');
   clearTimeout(toastTimeout); toastTimeout = setTimeout(() => $('toast').classList.remove('visible'), 3600);
 }
 
@@ -80,17 +96,19 @@ function gaugeMarkup(max, major, label, danger) {
   for (let i = 0; i <= major * 5; i++) {
     const v = max * i / (major * 5), isMajor = i % 5 === 0;
     const a = point(v, 88), b = point(v, isMajor ? 77 : 82);
-    ticks += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${v >= danger ? '#c58c70' : '#b3b797'}" stroke-width="${isMajor ? 1.5 : .7}"/>`;
+    const tickColor = label === 'CHAMBER / MPa' ? v >= pressureLimits.red ? C.red : v >= pressureLimits.orange ? C.orange : v >= pressureLimits.yellow ? C.yellow : '#b3b797' : v >= danger ? '#c58c70' : '#b3b797';
+    ticks += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${tickColor}" stroke-width="${isMajor ? 1.5 : .7}"/>`;
     if (isMajor) { const p = point(v, 66); ticks += `<text x="${p[0]}" y="${p[1] + 3}" text-anchor="middle" fill="#c6c6a3" font-size="10" font-family="${mono.replaceAll('"', '')}">${num(v, max < 5 && v % 1 !== 0 ? 1 : 0)}</text>`; }
   }
   let bands = '';
   if (label === 'CHAMBER / MPa') {
+    for (const [from, to, color] of [[pressureLimits.yellow, pressureLimits.orange, C.yellow], [pressureLimits.orange, pressureLimits.red, C.orange], [pressureLimits.red, max, C.red]]) bands += `<path d="${arc(from, to, 92)}" stroke="${color}" fill="none" stroke-width="5"/>`;
     for (let i = 0; i < 32; i++) { const c = Math.round(85 + 170 * i / 31), blue = Math.round(190 + 65 * i / 31); bands += `<path d="${arc(i * .5 / 32, (i + 1) * .5 / 32 + .001, 92)}" stroke="rgb(${c},${Math.round(165 + 90 * i / 31)},${blue})" fill="none" stroke-width="5"/>`; }
   } else bands = `<path d="${arc(2.95, 3.2, 92)}" stroke="#e3ce62" fill="none" stroke-width="5"/>`;
-  return `${bands}<path d="${arc(0, max, 96)}" stroke="#56634c" fill="none" stroke-width="1"/><path d="${arc(danger, max, 92)}" stroke="#b27b5d" fill="none" stroke-width="3" opacity=".7"/>${ticks}<text x="120" y="67" text-anchor="middle" fill="#7e8d70" font-size="8" font-family="Consolas">${label}</text><g class="needle" style="transform-origin:120px 110px"><path d="M 117 119 L 120 29 L 123 119 Z" fill="#dac897"/><circle cx="120" cy="110" r="8" fill="#68725a" stroke="#20291f" stroke-width="3"/><circle cx="120" cy="110" r="3" fill="#b5b99a"/></g><rect x="87" y="132" width="66" height="20" rx="1" fill="#182319" stroke="#4c5c40"/><text class="gauge-reading" x="120" y="146" text-anchor="middle" fill="#c3cf9f" font-size="12" font-family="Consolas">0.00</text>`;
+  return `${bands}<path d="${arc(0, max, 96)}" stroke="#56634c" fill="none" stroke-width="1"/><path d="${arc(danger, max, 92)}" stroke="${label === 'CHAMBER / MPa' ? '#d56d55' : '#b27b5d'}" fill="none" stroke-width="3" opacity=".7"/>${ticks}<text x="120" y="67" text-anchor="middle" fill="#7e8d70" font-size="8" font-family="Consolas">${label}</text><g class="needle" style="transform-origin:120px 110px"><path d="M 117 119 L 120 29 L 123 119 Z" fill="#dac897"/><circle cx="120" cy="110" r="8" fill="#68725a" stroke="#20291f" stroke-width="3"/><circle cx="120" cy="110" r="3" fill="#b5b99a"/></g><rect x="87" y="132" width="66" height="20" rx="1" fill="#182319" stroke="#4c5c40"/><text class="gauge-reading" x="120" y="146" text-anchor="middle" fill="#c3cf9f" font-size="12" font-family="Consolas">0.00</text>`;
 }
 $('temperatureGauge').innerHTML = gaugeMarkup(4, 4, 'CORE / K', 3.25);
-$('pressureGauge').innerHTML = gaugeMarkup(8, 4, 'CHAMBER / MPa', 6.5);
+$('pressureGauge').innerHTML = gaugeMarkup(NTR_TELEMETRY_LIMITS.pressure, 4, 'CHAMBER / MPa', pressureLimits.red);
 $('tankSegments').innerHTML = '<i></i>'.repeat(20);
 $('lampMatrix').innerHTML = sim.lamps.map(([id, label, english, color]) => `<div class="status-lamp ${color}" id="lamp-${id}" aria-label="${label}"><span>${label}</span><small>${english}</small></div>`).join('');
 
@@ -163,9 +181,9 @@ function render() {
   const temperatureLevel = sim.lamps.find(lamp => lamp[0] === 'tempHigh')[5], pressureLevel = sim.lamps.find(lamp => lamp[0] === 'pressureHigh')[5];
   $('temperatureValue').style.color = [null, C.yellow, C.orange, C.red][temperatureLevel] || '';
   $('pressureValue').style.color = [null, C.yellow, C.orange, C.red][pressureLevel] || '';
-  const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / 8, flow: sim.totalFlow / (sim.ratedFlow + (sim.oxygenTankInstalled ? sim.ratedOxygenFlow : 0)), velocity: sim.exhaustVelocity / 10000 };
+  const bars = { thrust: sim.thrust / (sim.propellant === 'hydrogen' ? 140 : 150) / sim.scale, power: sim.power / sim.ratedPower, temperature: sim.measuredTemperature / 3500, pressure: sim.pressure / NTR_TELEMETRY_LIMITS.pressure, flow: sim.totalFlow / (sim.ratedFlow + (sim.oxygenTankInstalled ? sim.ratedOxygenFlow : 0)), velocity: sim.exhaustVelocity / 10000 };
   for (const [key, value] of Object.entries(bars)) $(key + 'Bar').style.width = `${Math.min(100, Math.max(0, value * 100))}%`;
-  drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, 8, 2);
+  drawGauge('temperatureGauge', sim.measuredTemperature / 1000, 4, 2); drawGauge('pressureGauge', sim.pressure, NTR_TELEMETRY_LIMITS.pressure, 2);
   setText('tankPercent', num(sim.fuelPercent, 1) + '%'); setText('tankLabel', sim.prop.symbol + ' / ' + sim.prop.label);
   setText('oxygenTankPercent', sim.oxygenTankInstalled ? num(sim.oxygenPercent, 1) + '%' : '未安装');
   $('oxygenTankLevel').style.width = Math.min(100, Math.max(0, sim.oxygenPercent)) + '%';
@@ -321,7 +339,7 @@ function updateChallengeSetup() {
   $('fuelLoadInput').value = Number.isFinite(load) ? load : '';
   $('fuelLoadSlider').value = Number.isFinite(load) ? load : 10;
   $('fuelLoadInput').setAttribute('aria-invalid', !validFuel);
-  $('fuelLoadInput').setCustomValidity(validFuel ? '' : '加注量必须为容积范围内的整数公斤');
+  $('fuelLoadInput').setCustomValidity(i18n.t(validFuel ? '' : '加注量必须为容积范围内的整数公斤'));
   $('fuelLoadSlider').style.setProperty('--range', `${Math.max(0, Math.min(100, (load - 10) / (maximum - 10) * 100))}%`);
   $('fuelLoadMax').textContent = points(maximum) + ' kg / 单舱上限';
   $('fuelPresets').innerHTML = (selectedPropellant === 'hydrogen' ? [500, 1000, 5000, 9000, 10620] : [3000, 30000, 60000, 150000]).map(value => `<button data-fuel-preset="${value}" class="${value === load ? 'selected' : ''}">${points(value)} kg</button>`).join('');
@@ -510,7 +528,9 @@ function setPage(value) {
 
 // CRT drawing uses a fixed logical coordinate system for clear, stable layout.
 function text(value, x, y, size = 10, color = C.green, align = 'left') {
-  ctx.fillStyle = color; ctx.font = `${size}px ${mono}`; ctx.textAlign = align; ctx.fillText(value, x, y);
+  ctx.fillStyle = color; ctx.font = `${size}px ${mono}`; ctx.textAlign = align;
+  const translated = i18n.t(value), available = align === 'right' ? x - 28 : align === 'center' ? 2 * Math.min(x - 28, 652 - x) : 652 - x;
+  if (translated !== String(value)) ctx.fillText(translated, x, y, Math.max(24, available)); else ctx.fillText(value, x, y);
 }
 function line(points, color = C.dim, width = 1, dash = []) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath();
@@ -533,6 +553,7 @@ function flowLine(points, color = C.green) {
   line(points, color, 1.1, [5, 10]); ctx.lineDashOffset = 0;
 }
 function miniMetric(label, value, unit, x, y, color = C.bright) {
+  value = i18n.t(value);
   text(label, x, y, 8, C.dim); text(value, x, y + 25, 22, color); text(unit, x + ctx.measureText(value).width + 7, y + 24, 9, C.dim);
 }
 
@@ -562,9 +583,9 @@ function drawOverview() {
   flowLine([[125, 162], [164, 162]], C.blue); arrow(150, 162, 'right', C.blue);
 
   // Feed turbopump.
-  const pumpColor = sim.faults.has('pump') || !sim.pump ? C.red : C.blue;
+  const pumpColor = componentColor('pump');
   circle(183, 162, 19, pumpColor, C.bg); circle(183, 162, 7, pumpColor);
-  ctx.save(); ctx.translate(183, 162); ctx.rotate(sim.pump && !paused ? motionTime * 1.2 : 0);
+  ctx.save(); ctx.translate(183, 162); ctx.rotate(sim.pump && !paused ? motionTime * 1.2 * sim.componentEfficiency('pump') : 0);
   for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); line([[0, -7], [10, -11], [5, -15]], pumpColor); } ctx.restore();
   text('TURBOPUMP', 183, 204, 7, C.dim, 'center');
   text(num(sim.flow, 1) + ' kg/s', 183, 219, 9, pumpColor, 'center');
@@ -572,7 +593,7 @@ function drawOverview() {
   flowLine([[202, 162], [241, 162], [241, 134], [308, 134], [308, 155]], C.blue);
   arrow(242, 146, 'up', C.blue); arrow(293, 134, 'right', C.blue);
   // Main valve symbol.
-  line([[218, 153], [232, 169], [232, 153], [218, 169], [218, 153]], sim.faults.has('valve') ? C.red : C.blue);
+  line([[218, 153], [232, 169], [232, 153], [218, 169], [218, 153]], componentColor('valve'));
 
   // Reactor pressure vessel and shield.
   rect(264, 145, 125, 126, C.green, '#192a1e', 14);
@@ -606,7 +627,7 @@ function drawOverview() {
   }
   if (sim.oxygenTankInstalled) drawOverviewOxygen();
   text('REGENERATIVE NOZZLE', 502, 294, 8, C.dim, 'center');
-  flowLine([[565, 270], [565, 283], [407, 283], [407, 258]], sim.cooling && !sim.faults.has('cooling') ? C.blue : C.red);
+  flowLine([[565, 270], [565, 283], [407, 283], [407, 258]], componentColor('cooling'));
   text(num(sim.pressure, 2) + ' MPa', 450, 247, 9, C.green, 'center');
   line([[327, 274], [327, 294], [279, 294]], C.dim); text(num(sim.measuredTemperature) + ' K', 271, 297, 11, C.amber, 'right');
 
@@ -618,7 +639,7 @@ function drawOverview() {
 
 function drawOverviewOxygen() {
   const injecting = sim.oxygenFlow > .001;
-  const color = injecting ? C.amber : C.dim, pumpColor = sim.oxygenPump && sim.oxygen > 0 ? C.amber : C.dim;
+  const color = injecting ? C.amber : C.dim, pumpColor = componentColor('oxygenPump', sim.oxygen > 0 ? C.amber : C.dim);
   // Separate oxidizer feed stays outside the reactor and enters after the throat.
   rect(458, 88, 86, 44, C.amber, '#19281d', 10);
   const fraction = sim.initialOxygen > 0 ? Math.min(1, sim.oxygen / sim.initialOxygen) : 0;
@@ -630,7 +651,7 @@ function drawOverviewOxygen() {
   const feed = points => injecting ? flowLine(points, C.amber) : line(points, C.dim, 1, [3, 4]);
   feed([[544, 108], [562, 108]]);
   circle(576, 108, 14, pumpColor, C.bg); circle(576, 108, 4, pumpColor);
-  ctx.save(); ctx.translate(576, 108); ctx.rotate(sim.oxygenPump && sim.oxygen > 0 && !paused ? motionTime * 1.2 : 0);
+  ctx.save(); ctx.translate(576, 108); ctx.rotate(sim.oxygenPump && sim.oxygen > 0 && !paused ? motionTime * 1.2 * sim.componentEfficiency('oxygenPump') : 0);
   for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); line([[0, -5], [7, -8], [3, -11]], pumpColor); } ctx.restore();
   text('LOX PUMP ' + (sim.oxygenPump ? 'ON' : 'OFF'), 576, 85, 7, pumpColor, 'center');
   feed([[590, 108], [624, 108], [624, 136], [494, 136], [494, 182]]);
@@ -647,7 +668,7 @@ function drawOverviewOxygen() {
 
 function drawThermal() {
   text('REACTOR HEAT → PROPELLANT → KINETIC ENERGY', 34, 72, 9, C.dim);
-  const coolingColor = sim.cooling && !sim.faults.has('cooling') ? C.blue : C.red;
+  const coolingColor = componentColor('cooling');
   flowLine([[127, 170], [254, 170]], C.blue); arrow(210, 170, 'right', C.blue);
   flowLine([[397, 170], [544, 170]], C.amber); arrow(490, 170, 'right', C.amber);
   flowLine([[563, 221], [563, 276], [93, 276], [93, 221]], coolingColor);
@@ -659,7 +680,7 @@ function drawThermal() {
   rect(265, 255, 125, 43, coolingColor, C.bg, 4); text('COOLANT LOOP', 327, 272, 8, coolingColor, 'center'); text(num(sim.coolantTemperature) + ' K', 327, 289, 12, coolingColor, 'center');
   line([[33, 326], [647, 326]], C.faint);
   miniMetric('FEED PUMP', num(sim.fuelPumpEfficiency * 100, 1), '%', 40, 347, C.blue);
-  miniMetric('HEAT EXCHANGE', sim.cooling && !sim.faults.has('cooling') ? 'NOMINAL' : 'DEGRADED', '', 255, 347, coolingColor);
+  miniMetric('WALL RADIATION', num(sim.nozzleRadiationPower, 3), 'MW', 255, 347, coolingColor);
   miniMetric('DECAY HEAT', num(sim.decayPower, 2), 'MW', 482, 347, C.amber);
 }
 
@@ -741,7 +762,7 @@ function drawTrend() {
   }
   for (let i = 0; i <= 6; i++) { const x = chart.x + i * chart.w / 6; line([[x, chart.y], [x, chart.y + chart.h]], C.faint, .7, [2, 4]); text('-' + (120 - i * 20) + 's', x, 330, 7, C.dim, 'center'); }
   text('%', 26, 95, 8, C.dim); text('ISP / s', 650, 95, 8, C.bright, 'right');
-  const lines = [['temperature', NTR_TELEMETRY_LIMITS.temperature, C.amber, 'TEMP / 4,000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + points(sim.ratedPower) + 'MW'], ['pressure', NTR_TELEMETRY_LIMITS.pressure, C.blue, 'PRESS / 8MPa'], ['isp', NTR_TELEMETRY_LIMITS.isp, C.bright, 'ISP / 0–1,000s']];
+  const lines = [['temperature', NTR_TELEMETRY_LIMITS.temperature, C.amber, 'TEMP / 4,000K'], ['power', sim.ratedPower, C.green, 'POWER / ' + points(sim.ratedPower) + 'MW'], ['pressure', NTR_TELEMETRY_LIMITS.pressure, C.blue, 'PRESS / 20MPa'], ['isp', NTR_TELEMETRY_LIMITS.isp, C.bright, 'ISP / 0–1,000s']];
   for (const [key, max, color] of lines) {
     const samples = sim.history.map(p => [chart.x + (120 - (sim.time - p.time)) / 120 * chart.w, chart.y + chart.h - Math.min(1, Math.max(0, p[key] / max)) * chart.h]);
     if (samples.length === 1) samples.unshift([samples[0][0] - 2, samples[0][1]]);
@@ -761,22 +782,25 @@ function drawDiagnostics() {
     text(sim.alarms.length ? 'SYSTEM ALERT / CHECK ANNUNCIATORS' : 'ALL SYSTEMS NOMINAL', 82, 118, 13, sim.alarms.length ? C.amber : C.bright); text(sim.alarms.length ? '存在运行告警 · 检查温压、热负荷与所需系统开关' : '系统自检通过 · 未检测到子系统故障', 82, 137, 10, C.green);
   } else {
     const fault = NTR_FAULTS[faults[0]];
-    const faultColor = lampColor({ pump: 'pumpFault', cooling: 'thermalFault', sensor: 'thermalFault', leak: 'leakFault', valve: 'leakFault' }[faults[0]]);
+    const faultColor = componentColor(faults[0]);
     rect(34, 94, 612, 66, faultColor, '#5d34232f', 2);
-    text(fault.code + ' / ' + fault.title, 50, 117, 13, faultColor);
+    text(fault.code + ' / ' + fault.title + ' · ' + sim.faultLabel(faults[0]), 50, 117, 13, faultColor);
     text(fault.remedy, 50, 140, 9, C.amber);
   }
+  const condition = (key, normal = 'ONLINE') => sim.faults.has(key) ? sim.faultLabel(key) + ' / 损伤 ' + num(sim.damageOf(key) * 100, 1) + '%' : normal;
   const checks = [
     ['REACTOR / 反应堆', sim.mode === 'DAMAGED' ? 'FAILED' : sim.mode === 'SCRAM' ? 'TRIPPED' : 'NOMINAL', sim.mode === 'DAMAGED' || sim.mode === 'SCRAM' ? C.red : lampColor('reactor')],
-    ['FEED PUMP / 供液泵', sim.faults.has('pump') ? 'FAULT P–021' : sim.pump ? 'ONLINE' : 'OFFLINE', sim.faults.has('pump') ? lampColor('pumpFault') : lampColor('pump')],
-    ['COOLANT / 冷却系统', sim.faults.has('cooling') ? 'FAULT T–014' : sim.cooling ? 'ONLINE' : 'OFFLINE', lampColor('cooling')],
-    ['MAIN LINE / 主供液管路', sim.faults.has('leak') ? 'LEAK F–032' : sim.faults.has('valve') ? 'JAM V–008' : 'NOMINAL', lampColor('leakFault')],
-    ['TEMP. SENSOR / 温度传感器', sim.faults.has('sensor') ? 'DRIFT +280K' : 'CALIBRATED', sim.faults.has('sensor') ? C.yellow : C.bright]
+    ['FEED PUMP / 供液泵', condition('pump', sim.pump ? 'ONLINE' : 'OFFLINE'), componentColor('pump')],
+    ['LOX PUMP / 液氧泵', condition('oxygenPump', !sim.oxygenTankInstalled ? 'N/A' : sim.oxygenPump ? 'ONLINE' : 'OFFLINE'), componentColor('oxygenPump')],
+    ['COOLANT / 冷却系统', condition('cooling', sim.cooling ? 'ONLINE' : 'OFFLINE'), componentColor('cooling')],
+    ['MAIN LINE / 主供液管路', sim.faults.has('leak') ? condition('leak') : condition('valve', 'NOMINAL'), lampColor('leakFault')],
+    ['TEMP. SENSOR / 温度传感器', sim.sensorOffset ? 'DRIFT +' + num(sim.sensorOffset) + 'K' : 'CALIBRATED', componentColor('sensor', C.bright)]
   ];
-  checks.forEach(([label, value, color], i) => { const y = 185 + i * 29; text(label, 44, y, 10, C.green); text(value, 633, y, 10, color, 'right'); line([[43, y + 11], [637, y + 11]], C.faint, .5); });
-  text('INDEPENDENT TEMP: ' + num(sim.coreTemperature) + ' K', 44, 359, 9, C.amber);
-  text('INTEGRITY: ' + num(sim.integrity, 1) + '%', 633, 359, 9, sim.integrity < 90 ? C.red : C.bright, 'right');
-  text(faults.length ? `${faults.length} 项注入故障 · 打开「故障注入」进行检修` : sim.alarms.length ? 'ACTIVE ALERTS / CHECK REQUIRED SYSTEMS' : 'NO ACTIVE FAULTS / READY FOR TEST', 44, 382, 9, faults.length ? C.amber : C.dim);
+  checks.forEach(([label, value, color], i) => { const y = 180 + i * 25; text(label, 44, y, 10, C.green); text(value, 633, y, 10, color, 'right'); line([[43, y + 9], [637, y + 9]], C.faint, .5); });
+  text('INDEPENDENT TEMP: ' + num(sim.coreTemperature) + ' K', 44, 350, 9, C.amber);
+  text('INTEGRITY: ' + num(sim.integrity, 1) + '%', 633, 350, 9, sim.integrity < 90 ? C.red : C.bright, 'right');
+  text('PRESSURE CHECKS ' + sim.pressureFaultChecks + ' / HITS ' + sim.pressureFailures + ' · NEXT ' + num(Math.max(0, 5 - sim.pressureFaultTimer), 1) + 's', 44, 370, 9, C.amber);
+  text(faults.length ? `${faults.length} 项部件异常 ·「故障注入」可检修` : `${pressureLimits.yellow} YELLOW / ${pressureLimits.orange} ORANGE / ${pressureLimits.red} RED · ${pressureLimits.fault} TRIP / MPa`, 44, 390, 8, faults.length ? C.amber : C.dim);
 }
 
 function drawMFD(now = performance.now()) {
@@ -795,7 +819,10 @@ function drawMFD(now = performance.now()) {
 }
 
 function faultOptions() {
-  $('faultOptions').innerHTML = Object.entries(NTR_FAULTS).map(([key, fault]) => `<button class="fault-option ${sim.faults.has(key) ? 'injected' : ''}" data-fault="${key}"><i>${fault.code}</i><span><b>${fault.title}</b><small>${fault.description}</small></span><em>${sim.faults.has(key) ? '修复 ↗' : '注入 + '}</em></button>`).join('');
+  $('faultOptions').innerHTML = Object.entries(NTR_FAULTS).map(([key, fault]) => {
+    const active = sim.faults.has(key), absent = key === 'oxygenPump' && !sim.oxygenTankInstalled && !active;
+    return `<button class="fault-option ${active ? 'injected' : ''}" data-level="${sim.faultLevel(key)}" data-fault="${key}" ${absent ? 'disabled' : ''}><i>${fault.code}</i><span><b>${fault.title}${active ? ' · ' + sim.faultLabel(key) : ''}</b><small>${active ? '部件损伤 ' + num(sim.damageOf(key) * 100, 2) + '% · ' : ''}${fault.description}</small></span><em>${absent ? '未安装' : active ? '修复 ↗' : '注入 + '}</em></button>`;
+  }).join('');
 }
 
 document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => setPage(button.dataset.page)));
@@ -807,7 +834,7 @@ $('faultOptions').addEventListener('click', event => {
   const button = event.target.closest('[data-fault]'); if (!button) return;
   const key = button.dataset.fault;
   if (sim.faults.has(key)) { sim.repairFault(key); toast(NTR_FAULTS[key].title + '已修复'); }
-  else { sim.injectFault(key); toast('已注入：' + NTR_FAULTS[key].title); setPage('diagnostics'); }
+  else if (sim.injectFault(key)) { toast('已注入：' + NTR_FAULTS[key].title); setPage('diagnostics'); }
   faultOptions(); render();
 });
 $('repairButton').addEventListener('click', () => { toast(sim.repairAll() ? '全部故障已修复' : '当前没有需要修复的故障'); faultOptions(); render(); });
@@ -846,7 +873,7 @@ function updateShortcutHints() {
 function renderBindings() {
   $('keyBindings').innerHTML = Object.entries(NTR_PREFERENCES.ACTIONS).map(([id, [label]]) => '<div class="key-binding-row"><span>' + label + '</span><button data-bind="' + id + '" class="' + (pendingBinding === id ? 'listening' : '') + '" aria-label="修改' + label + '快捷键" aria-pressed="' + (pendingBinding === id) + '">' + (pendingBinding === id ? '请按键…' : safe(NTR_PREFERENCES.keyLabel(preferences.bindings[id]))) + '</button></div>').join('');
 }
-$('settingsButton').addEventListener('click', () => { pendingBinding = null; renderBindings(); syncAudioControls(); setText('bindingStatus', preferences.persistent ? '快捷键与音量自动保存在此浏览器。' : '当前浏览器无法持久保存，设置在本次会话中有效。'); $('settingsDialog').showModal(); });
+$('settingsButton').addEventListener('click', () => { pendingBinding = null; renderBindings(); syncAudioControls(); syncHelpSettings(); setText('bindingStatus', preferences.persistent ? '语言、提示、快捷键与音量自动保存在此浏览器。' : '当前浏览器无法持久保存，设置在本次会话中有效。'); $('settingsDialog').showModal(); });
 $('settingsDialog').addEventListener('close', () => { pendingBinding = null; });
 $('keyBindings').addEventListener('click', event => {
   const button = event.target.closest('[data-bind]'); if (!button) return;
@@ -856,7 +883,31 @@ $('resetBindingsButton').addEventListener('click', () => { pendingBinding = null
 for (const [action, id] of [['pump', 'pumpToggle'], ['cooling', 'coolingToggle'], ['protection', 'autoToggle'], ['oxygenPump', 'oxygenPumpToggle']]) {
   const hint = document.createElement('kbd'); hint.className = 'shortcut-hint'; hint.dataset.shortcut = action; $(id).querySelector('span').append(' ', hint);
 }
-syncAudioControls(); updateShortcutHints();
+function syncHelpSettings() {
+  $('tooltipDelaySlider').value = preferences.tooltipDelay / 1000;
+  $('tooltipDelaySlider').style.setProperty('--range', preferences.tooltipDelay / 100 + '%');
+  setText('tooltipDelayOutput', num(preferences.tooltipDelay / 1000, 2) + ' s');
+  for (const id of ['languageButton', 'settingsLanguageButton']) {
+    setText(id, (preferences.language === 'zh' ? '🇨🇳' : '🇬🇧') + ' ' + preferences.language.toUpperCase());
+    setAttr($(id), 'aria-label', preferences.language === 'zh' ? '切换到英文' : '切换到中文');
+    setAttr($(id), 'aria-pressed', preferences.language === 'en');
+  }
+}
+function switchLanguage() {
+  const language = preferences.language === 'zh' ? 'en' : 'zh';
+  preferences.setLanguage(language); sim.flight.operation('language', language, 'settings'); i18n.setLanguage(language);
+}
+i18n.subscribe(() => {
+  syncHelpSettings(); setText('mfdTitle', pageNames[page]); mfdDirty = true;
+  render(); i18n.apply();
+});
+for (const id of ['languageButton', 'settingsLanguageButton']) $(id).addEventListener('click', switchLanguage);
+$('tooltipDelaySlider').addEventListener('input', event => {
+  preferences.setTooltipDelay(Number(event.target.value) * 1000); syncHelpSettings();
+  help.delayChanged();
+  sim.flight.operation('tooltipDelay', preferences.tooltipDelay, 'settings');
+});
+syncAudioControls(); updateShortcutHints(); syncHelpSettings();
 document.addEventListener('visibilitychange', () => render());
 $('lampTestButton').addEventListener('click', () => { lampTest = true; $('lampTestButton').classList.add('testing'); render(); clearTimeout(lampTimeout); lampTimeout = setTimeout(() => { lampTest = false; $('lampTestButton').classList.remove('testing'); render(); }, 2200); });
 function updatePauseButton() { $('pauseButton').textContent = paused ? '▶' : 'Ⅱ'; $('pauseButton').setAttribute('aria-label', paused ? '继续模拟' : '暂停模拟'); }
@@ -914,6 +965,7 @@ for (const id of ['leaderboardTable', 'resultLeaderboard']) $(id).addEventListen
 });
 document.querySelectorAll('[data-release]').forEach(element => { element.textContent = NTR_RELEASE.label; });
 document.addEventListener('keydown', event => {
+  if (event.target.closest?.('[data-tooltip-card]')) return;
   if (pendingBinding && $('settingsDialog').open) {
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.repeat) return;
     event.preventDefault();
@@ -948,5 +1000,5 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 // Exposed read-only instrumentation is useful for inspecting the demo in DevTools.
-window.nerva = { sim, get mission() { return mission; }, get page() { return page; }, get paused() { return paused; }, get speed() { return speed; } };
-updateSliders(); render(); requestAnimationFrame(frame);
+window.nerva = { sim, get mission() { return mission; }, get page() { return page; }, get paused() { return paused; }, get speed() { return speed; }, get language() { return preferences.language; }, get tooltipDelay() { return preferences.tooltipDelay; } };
+updateSliders(); render(); i18n.apply(); requestAnimationFrame(frame);

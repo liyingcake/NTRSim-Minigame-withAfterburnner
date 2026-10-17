@@ -4,6 +4,9 @@ artifacts/
 .tmp-*/
 .dsh-*/
 
+# 本地版本暂存目录（Ver/ 下是待合并的版本快照，不纳入版本管理）
+/Ver/
+
 # 系统与编辑器
 .DS_Store
 Thumbs.db
@@ -12,10 +15,9 @@ desktop.ini
 .vscode/
 *.swp
 
-# 调试与开发日志
 *.log
 
-# 根目录下的开发截图与临时导出（README 用图已收入 screenshots/ 并纳入版本管理）
+# 开发期截图与临时产物（根目录）。README 用图已收入 screenshots/ 并纳入版本管理。
 /*.jpg
 /*.png
 /*.json.bak

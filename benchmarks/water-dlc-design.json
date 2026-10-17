@@ -1,0 +1,322 @@
+{
+  "status": "design-proposal-not-runtime-config",
+  "caveats": "Optimistic game design, ideal continuous power and no wear/leaks/reserve; not an implemented flight model. Gas preparation transfers water inventory. Costs are fictional. Solar figures assume 1 AU, continuous illumination.",
+  "constants": {
+    "waterOxygenHydrogenMassRatio": 7.936011904761905,
+    "hydrogenFraction": 0.11190674437968359,
+    "oxygenFraction": 0.8880932556203164,
+    "balancedElectricEffectiveIspS": 2447.6269775187343,
+    "oxygenKWhPerKg": 97.14180224494947,
+    "hydrogenKWhPerKg": 874.2762202045452,
+    "balancedElectricCycleKWhPerKgWater": 190.10838490420815,
+    "balancedPowerShares": {
+      "electrolysis": 0.03156094352715311,
+      "hydrogenElectric": 0.5146401382609417,
+      "oxygenElectric": 0.4537989182119051
+    },
+    "nuclearRejectedHeatKW": 300,
+    "nuclearIdealHighTemperatureRadiatingAreaM2": 45.35884706814367
+  },
+  "models": [
+    {
+      "id": "WSP-S20-M",
+      "name": "水萤 / 最小平台",
+      "dryMassKg": 350,
+      "payloadKg": 50,
+      "initialWetMassKg": 1600,
+      "hardwareMassKg": {
+        "power": 120,
+        "waterTank": 40,
+        "gasTanks": 4,
+        "battery": 10,
+        "electrolyzer": 12,
+        "electricPropulsion": 28,
+        "chemicalEngines": 5,
+        "feedAndThermal": 40,
+        "busAndMission": 91
+      },
+      "hardwareCostKCr": {
+        "power": 80,
+        "electricPropulsion": 60,
+        "electrolyzer": 20,
+        "chemicalEngines": 2,
+        "gasTanks": 14,
+        "waterTank": 18.6,
+        "battery": 6,
+        "feedAndThermal": 40,
+        "busAndMission": 27.3
+      },
+      "totalHardwareCostKCr": 267.9,
+      "waterLoadingCostKCr": 2.4,
+      "usablePowerKW": 19.4,
+      "batteryPeakPowerKW": 8,
+      "batteryBusOnlyHours": 2.666666666666667,
+      "preparedBufferKg": {
+        "hydrogen": 5,
+        "oxygen": 39.680059523809526,
+        "total": 44.680059523809526
+      },
+      "initialWaterAfterBufferPreparationKg": 1155.3199404761904,
+      "chargeOnlyPowerKW": 5,
+      "chargeOnlyWaterKgPerHour": 0.8333333333333334,
+      "fullBufferChargeHours": 53.61607142857143,
+      "chemicalThrustN": 500,
+      "chemicalInitialAccelerationMPerS2": 0.3125,
+      "balancedChemicalBurn": {
+        "mixtureRatio": 7.936011904761905,
+        "ispS": 410,
+        "consumedKg": 44.680059523809526,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 0,
+        "burnSeconds": 359.2925986979167,
+        "deltaVMPerS": 113.87644439938522
+      },
+      "bestIspChemicalBurn": {
+        "mixtureRatio": 6,
+        "ispS": 430,
+        "consumedKg": 35,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 9.680059523809526,
+        "burnSeconds": 295.180165,
+        "deltaVMPerS": 93.26767720287307
+      },
+      "oxygenOnlyElectricThrustN": 1.0880371992474496,
+      "hydrogenOnlyElectricThrustN": 0.3626790664158165,
+      "balancedElectricAverageThrustN": 0.6803993088773888,
+      "balancedElectricWaterKgPerDay": 2.449129217707081,
+      "balancedElectricInitialDeltaVMPerSDay": 36.76971166908936,
+      "idealElectricWaterExhaustionDays": 489.97006418610357,
+      "idealAllWaterElectricDeltaVMPerS": 33275.252799502035,
+      "balancedElectricPowerKW": {
+        "electrolysis": 0.6122823044267702,
+        "hydrogenElectric": 9.984018682262269,
+        "oxygenElectric": 8.803699013310958
+      }
+    },
+    {
+      "id": "WSP-S20-L",
+      "name": "水燕 / 轻量长航时平台",
+      "dryMassKg": 600,
+      "payloadKg": 300,
+      "initialWetMassKg": 3900,
+      "hardwareMassKg": {
+        "power": 120,
+        "waterTank": 85,
+        "gasTanks": 16,
+        "battery": 25,
+        "electrolyzer": 32,
+        "electricPropulsion": 40,
+        "chemicalEngines": 10,
+        "feedAndThermal": 70,
+        "busAndMission": 202
+      },
+      "hardwareCostKCr": {
+        "power": 80,
+        "electricPropulsion": 90,
+        "electrolyzer": 50,
+        "chemicalEngines": 4,
+        "gasTanks": 56,
+        "waterTank": 24,
+        "battery": 15,
+        "feedAndThermal": 70,
+        "busAndMission": 90.6
+      },
+      "totalHardwareCostKCr": 479.6,
+      "waterLoadingCostKCr": 6,
+      "usablePowerKW": 19.2,
+      "batteryPeakPowerKW": 20,
+      "batteryBusOnlyHours": 5,
+      "preparedBufferKg": {
+        "hydrogen": 20,
+        "oxygen": 158.7202380952381,
+        "total": 178.7202380952381
+      },
+      "initialWaterAfterBufferPreparationKg": 2821.279761904762,
+      "chargeOnlyPowerKW": 15,
+      "chargeOnlyWaterKgPerHour": 2.5,
+      "fullBufferChargeHours": 71.48809523809524,
+      "chemicalThrustN": 1000,
+      "chemicalInitialAccelerationMPerS2": 0.2564102564102564,
+      "balancedChemicalBurn": {
+        "mixtureRatio": 7.936011904761905,
+        "ispS": 410,
+        "consumedKg": 178.7202380952381,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 0,
+        "burnSeconds": 718.5851973958333,
+        "deltaVMPerS": 188.60794575230153
+      },
+      "bestIspChemicalBurn": {
+        "mixtureRatio": 6,
+        "ispS": 430,
+        "consumedKg": 140,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 38.7202380952381,
+        "burnSeconds": 590.36033,
+        "deltaVMPerS": 154.15824486722352
+      },
+      "oxygenOnlyElectricThrustN": 1.0768203209046923,
+      "hydrogenOnlyElectricThrustN": 0.35894010696823075,
+      "balancedElectricAverageThrustN": 0.6733848830126734,
+      "balancedElectricWaterKgPerDay": 2.4238804628853585,
+      "balancedElectricInitialDeltaVMPerSDay": 14.922702869286967,
+      "idealElectricWaterExhaustionDays": 1237.6847975534386,
+      "idealAllWaterElectricDeltaVMPerS": 35196.51960061775,
+      "balancedElectricPowerKW": {
+        "electrolysis": 0.6059701157213396,
+        "hydrogenElectric": 9.88109065461008,
+        "oxygenElectric": 8.712939229668578
+      }
+    },
+    {
+      "id": "WSP-R100-T",
+      "name": "水獭 / 核电拖船",
+      "dryMassKg": 2500,
+      "payloadKg": 10000,
+      "initialWetMassKg": 22500,
+      "hardwareMassKg": {
+        "power": 1200,
+        "waterTank": 260,
+        "gasTanks": 64,
+        "battery": 40,
+        "electrolyzer": 122,
+        "electricPropulsion": 150,
+        "chemicalEngines": 30,
+        "feedAndThermal": 200,
+        "busAndMission": 434
+      },
+      "hardwareCostKCr": {
+        "power": 700,
+        "electricPropulsion": 350,
+        "electrolyzer": 185,
+        "chemicalEngines": 12,
+        "gasTanks": 224,
+        "waterTank": 45,
+        "battery": 24,
+        "feedAndThermal": 200,
+        "busAndMission": 330.2
+      },
+      "totalHardwareCostKCr": 2070.2,
+      "waterLoadingCostKCr": 20,
+      "usablePowerKW": 98.5,
+      "batteryPeakPowerKW": 32,
+      "batteryBusOnlyHours": 4.266666666666667,
+      "preparedBufferKg": {
+        "hydrogen": 80,
+        "oxygen": 634.8809523809524,
+        "total": 714.8809523809524
+      },
+      "initialWaterAfterBufferPreparationKg": 9285.119047619048,
+      "chargeOnlyPowerKW": 60,
+      "chargeOnlyWaterKgPerHour": 10,
+      "fullBufferChargeHours": 71.48809523809524,
+      "chemicalThrustN": 3000,
+      "chemicalInitialAccelerationMPerS2": 0.13333333333333333,
+      "balancedChemicalBurn": {
+        "mixtureRatio": 7.936011904761905,
+        "ispS": 410,
+        "consumedKg": 714.8809523809524,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 0,
+        "burnSeconds": 958.1135965277778,
+        "deltaVMPerS": 129.82196104974406
+      },
+      "bestIspChemicalBurn": {
+        "mixtureRatio": 6,
+        "ispS": 430,
+        "consumedKg": 560,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 154.8809523809524,
+        "burnSeconds": 787.1471066666666,
+        "deltaVMPerS": 106.28111270845653
+      },
+      "oxygenOnlyElectricThrustN": 5.5243125838079274,
+      "hydrogenOnlyElectricThrustN": 1.8414375279359758,
+      "balancedElectricAverageThrustN": 3.454604738372309,
+      "balancedElectricWaterKgPerDay": 12.435011749698324,
+      "balancedElectricInitialDeltaVMPerSDay": 13.269349300179064,
+      "idealElectricWaterExhaustionDays": 804.1809852123864,
+      "idealAllWaterElectricDeltaVMPerS": 14108.655719405835,
+      "balancedElectricPowerKW": {
+        "electrolysis": 3.108752937424581,
+        "hydrogenElectric": 50.69205361870276,
+        "oxygenElectric": 44.69919344387265
+      }
+    },
+    {
+      "id": "WSP-R100-H",
+      "name": "水鲸 / 重型运输平台",
+      "dryMassKg": 5000,
+      "payloadKg": 50000,
+      "initialWetMassKg": 85000,
+      "hardwareMassKg": {
+        "power": 1200,
+        "waterTank": 760,
+        "gasTanks": 240,
+        "battery": 50,
+        "electrolyzer": 202,
+        "electricPropulsion": 240,
+        "chemicalEngines": 100,
+        "feedAndThermal": 350,
+        "busAndMission": 1858
+      },
+      "hardwareCostKCr": {
+        "power": 700,
+        "electricPropulsion": 500,
+        "electrolyzer": 305,
+        "chemicalEngines": 40,
+        "gasTanks": 840,
+        "waterTank": 105,
+        "battery": 30,
+        "feedAndThermal": 350,
+        "busAndMission": 1057.4
+      },
+      "totalHardwareCostKCr": 3927.4,
+      "waterLoadingCostKCr": 60,
+      "usablePowerKW": 98,
+      "batteryPeakPowerKW": 40,
+      "batteryBusOnlyHours": 4,
+      "preparedBufferKg": {
+        "hydrogen": 300,
+        "oxygen": 2380.8035714285716,
+        "total": 2680.8035714285716
+      },
+      "initialWaterAfterBufferPreparationKg": 27319.196428571428,
+      "chargeOnlyPowerKW": 98,
+      "chargeOnlyWaterKgPerHour": 16.333333333333332,
+      "fullBufferChargeHours": 164.1308309037901,
+      "chemicalThrustN": 10000,
+      "chemicalInitialAccelerationMPerS2": 0.11764705882352941,
+      "balancedChemicalBurn": {
+        "mixtureRatio": 7.936011904761905,
+        "ispS": 410,
+        "consumedKg": 2680.8035714285716,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 0,
+        "burnSeconds": 1077.87779609375,
+        "deltaVMPerS": 128.8519269029537
+      },
+      "bestIspChemicalBurn": {
+        "mixtureRatio": 6,
+        "ispS": 430,
+        "consumedKg": 2100,
+        "hydrogenRemainingKg": 0,
+        "oxygenRemainingKg": 580.8035714285716,
+        "burnSeconds": 885.540495,
+        "deltaVMPerS": 105.4897767947105
+      },
+      "oxygenOnlyElectricThrustN": 5.496270387951034,
+      "hydrogenOnlyElectricThrustN": 1.8320901293170115,
+      "balancedElectricAverageThrustN": 3.4370686737105203,
+      "balancedElectricWaterKgPerDay": 12.371889862644018,
+      "balancedElectricInitialDeltaVMPerSDay": 3.4939334966219016,
+      "idealElectricWaterExhaustionDays": 2424.851848267961,
+      "idealAllWaterElectricDeltaVMPerS": 10448.948849214657,
+      "balancedElectricPowerKW": {
+        "electrolysis": 3.0929724656610045,
+        "hydrogenElectric": 50.434733549572286,
+        "oxygenElectric": 44.4722939847667
+      }
+    }
+  ]
+}

@@ -1,11 +1,11 @@
 {
   "name": "ntrsim-minigame-withafterburnner",
-  "version": "0.10.0",
+  "version": "0.11.1",
   "nerva": {
-    "scoreSchema": 9
+    "scoreSchema": 10
   },
   "private": true,
-  "description": "Single-file retro HTML console simulator for NERVA-style nuclear thermal rockets and LANTR oxygen afterburning",
+  "description": "Single-file retro HTML console simulator for NERVA-style nuclear thermal rockets and LANTR oxygen afterburning, with ZH/EN UI",
   "license": "MIT",
   "author": "cake1145",
   "repository": {
@@ -26,7 +26,8 @@
     "canvas",
     "web-audio",
     "cantera",
-    "single-file"
+    "single-file",
+    "localization"
   ],
   "engines": {
     "node": ">=22"
@@ -37,7 +38,11 @@
     "version:sync": "node build-version.cjs",
     "test": "node --test tests/*.test.cjs",
     "benchmark": "node benchmarks/physics.cjs",
-    "check": "node --check version.js && node --check thermo-table.js && node --check nozzle.js && node --check thermochemistry.js && node --check systems.js && node --check flight-recorder.js && node --check flight-archive.js && node --check flight-view.js && node --check simulation.js && node --check challenge.js && node --check leaderboard.js && node --check audio.js && node --check settings.js && node --check performance.js && node --check app.js && node --check server.cjs && node --check build-version.cjs && node --check build-standalone.cjs && node --check build-texture.cjs",
+    "check": "node --check version.js && node --check thermo-table.js && node --check nozzle.js && node --check thermochemistry.js && node --check systems.js && node --check flight-recorder.js && node --check flight-archive.js && node --check flight-view.js && node --check reliability.js && node --check simulation.js && node --check challenge.js && node --check leaderboard.js && node --check audio.js && node --check settings.js && node --check performance.js && node --check locale-en.js && node --check localization.js && node --check help-content.js && node --check tooltips.js && node --check app.js && node --check server.cjs && node --check build-version.cjs && node --check build-standalone.cjs && node --check build-texture.cjs",
     "thermo:build": "python scripts/build_thermo.py"
+  },
+  "devDependencies": {
+    "acorn": "^8.19.0",
+    "linkedom": "^0.18.13"
   }
 }

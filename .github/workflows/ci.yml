@@ -19,13 +19,16 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: 语法检查
+      - name: Install dev dependencies (acorn, linkedom)
+        run: npm ci
+
+      - name: Syntax check
         run: npm run check
 
-      - name: 物理、计分与存储测试
+      - name: Physics, scoring, storage and UI tests
         run: npm test
 
-      - name: 校验单文件试玩版与源码同步
+      - name: Verify single-file build is in sync with sources
         run: |
           npm run version:sync
           npm run standalone

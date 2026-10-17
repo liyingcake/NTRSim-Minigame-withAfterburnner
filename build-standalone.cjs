@@ -17,10 +17,12 @@ const html = read('index.html')
   .replace('<script src="performance.js" defer></script>', '')
   .replace('<script src="challenge.js" defer></script>', '')
   .replace('<script src="flight-recorder.js" defer></script>', '')
+  .replace('<script src="reliability.js" defer></script>', '')
   .replace('<script src="flight-archive.js" defer></script>', '')
   .replace('<script src="flight-view.js" defer></script>', '')
   .replace('<script src="app.js" defer></script>', '')
-  .replace('</body>', () => ['version.js', 'thermo-table.js', 'nozzle.js', 'thermochemistry.js', 'systems.js', 'flight-recorder.js', 'simulation.js', 'challenge.js', 'leaderboard.js', 'audio.js', 'settings.js', 'performance.js', 'flight-archive.js', 'flight-view.js', 'app.js'].map(file => '<script>\n' + read(file) + '\n</script>').join('\n') + '\n</body>')
+  .replace(/<script src="(?:locale-en|localization|help-content|tooltips)\.js" defer><\/script>/g, '')
+  .replace('</body>', () => ['version.js', 'thermo-table.js', 'nozzle.js', 'thermochemistry.js', 'systems.js', 'flight-recorder.js', 'reliability.js', 'simulation.js', 'challenge.js', 'leaderboard.js', 'audio.js', 'settings.js', 'performance.js', 'flight-archive.js', 'flight-view.js', 'locale-en.js', 'localization.js', 'help-content.js', 'tooltips.js', 'app.js'].map(file => '<script>\n' + read(file) + '\n</script>').join('\n') + '\n</body>')
   .replace(/\r\n/g, '\n').replace(/^[\t ]+$/gm, '');
 fs.writeFileSync(path.join(__dirname, 'NERVA.html'), html);
 console.log('Standalone demo written: NERVA.html / ' + release.label);

@@ -28,7 +28,7 @@ test('main pump scales from custom initial loads, in both propellants, and combi
     e.fuel = 25; e.mode = 'RUNNING'; e.autoProtection = false;
     near(e.fuelPercent, 1.25); near(e.fuelPumpEfficiency, Math.sqrt(.5));
     e.tick(.05); near(e.commandedFlow, e.ratedFlow * .7 * Math.sqrt(.5));
-    e.fuel = 25; e.injectFault('pump'); near(e.fuelPumpEfficiency, Math.sqrt(.5) * .23);
+    e.fuel = 25; e.injectFault('pump'); near(e.fuelPumpEfficiency, 0); // A red failed pump cannot sustain pumping.
     e.pump = false; assert.equal(e.fuelPumpEfficiency, 0);
     e.pump = true; e.repairAll(); e.fuel = e.fuelReserve + .01; e.feedNominal = e.ratedFlow;
     const before = e.fuel; e.tick(.05); near(e.fuel, e.fuelReserve); near(before - e.fuel, e.feedFlow * .05);
@@ -59,7 +59,7 @@ test('a full burn reaches the finite reserve and auto-settles while preserving i
 test('ACK silences current alarms and a newly appearing warning re-arms them', () => {
   const e = new NTRSimulation(); e.injectFault('pump'); e.refreshAlarms(); e.acknowledge();
   assert.ok(e.acknowledged); e.refreshAlarms(); assert.ok(e.acknowledged);
-  e.pressure = 7; e.refreshAlarms(); assert.equal(e.acknowledged, false);
+  e.pressure = 13; e.refreshAlarms(); assert.equal(e.acknowledged, false);
   e.acknowledge(); e.fuel = e.fuelCapacity * .01; e.refreshAlarms(); assert.equal(e.acknowledged, false);
   assert.ok(e.alarms.includes('fuelResidual')); e.acknowledge(); e.refreshAlarms(); assert.ok(e.acknowledged);
 });

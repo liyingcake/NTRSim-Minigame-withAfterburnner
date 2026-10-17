@@ -27,6 +27,21 @@ test('throat area sets chamber pressure at the same feed and thermodynamic state
   near(nozzle.chamberPressure(10, gas, geometry({ throatScale: 2 })), p / 2);
   assert.equal(nozzle.chamberPressure(0, gas, geometry()), 0);
 });
+
+test('changing throat area at fixed expansion scales the whole base cone; fixed exit instead changes expansion', () => {
+  const base = geometry();
+  for (const factor of [.25, .5, 1, 2, 4]) {
+    const scaled = geometry({ throatScale: factor });
+    near(scaled.throatArea, base.throatArea * factor); near(scaled.exitArea, base.exitArea * factor);
+    near(scaled.throatRadius, base.throatRadius * Math.sqrt(factor)); near(scaled.length, base.length * Math.sqrt(factor));
+    near(scaled.expansion, base.expansion); near(scaled.baseSurface, base.baseSurface * factor);
+    if (factor >= .5) {
+      const fixedExit = geometry({ throatScale: factor, expansionRatio: 240 / factor });
+      near(fixedExit.exitArea, base.exitArea); near(fixedExit.expansion * factor, base.expansion);
+    }
+  }
+  assert.equal(nozzle.valid({ ...nozzle.DEFAULTS, throatScale: .25, expansionRatio: 960 }), false);
+});
 test('NASA-mixture frozen entropy and expansion agree with independent Cantera SP references', () => {
   for (const c of reference.cases) {
     near(thermo.frozenEntropy(c.temperature, c.pressure, c.y), c.entropy, 1e-5);

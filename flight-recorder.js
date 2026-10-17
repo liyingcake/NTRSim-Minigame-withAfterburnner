@@ -10,7 +10,11 @@
     'regenerative_MW', 'pressureThrust_kN', 'hMassFraction', 'mainFlowCommand_kg_s', 'oxygenFlowCommand_kg_s', 'powerCommand_MW',
     'mixHMassFraction', 'exitHMassFraction', 'primaryH_kg_s', 'mixH_kg_s', 'exitH_kg_s', 'primaryGas_K', 'exit_K', 'exitPressure_Pa',
     'throatArea_m2', 'exitArea_m2', 'expansionRatio', 'halfAngle_deg', 'extension_m', 'nozzleMass_kg', 'residence_ms', 'freezePressure_Pa',
-    'coreHeatToPropellant_MW', 'coreCooling_MW', 'coreStored_MW', 'coreHeatResidual_MW']);
+    'coreHeatToPropellant_MW', 'coreCooling_MW', 'coreStored_MW', 'coreHeatResidual_MW',
+    'gasToWall_MW', 'nozzleCooling_MW', 'nozzleRadiation_MW', 'wallStored_MW', 'jetKinetic_MW', 'chemicalReleased_MW', 'idealChemical_MW',
+    'oxygenToWaterFraction', 'oxygenRemainingFraction', 'chemicalReleasedFraction', 'jetVelocity_m_s',
+    'pumpDamage', 'oxygenPumpDamage', 'coolingDamage', 'lineDamage', 'pressureChecks', 'pressureFailures',
+    'mixedChemical_MW', 'recombination_MW', 'mixOxygenToWaterFraction', 'mixOxygenRemainingFraction']);
   let sequence = 0;
   const clone = value => JSON.parse(JSON.stringify(value));
   function freeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(freeze); Object.freeze(value); } return value; }
@@ -20,7 +24,9 @@
       mainPropellant: e.fuel, oxygen: e.oxygen, mainTankInitial: e.fuelCapacity, oxygenTankInitial: e.initialOxygen,
       tankVolume: e.tankState.usedVolume, demand: e.demand, mainValve: e.valve, oxygenValve: e.oxygenValve,
       mainPump: e.pump, oxygenPump: e.oxygenPump, cooling: e.cooling, autoProtection: e.autoProtection,
-      integrity: e.integrity, mode: e.mode, consumedFuel: e.consumed, consumedOxygen: e.oxygenConsumed };
+      integrity: e.integrity, mode: e.mode, consumedFuel: e.consumed, consumedOxygen: e.oxygenConsumed,
+      wallHeatTransferScale: e.thermoState.wallHeatScale, faultDamage: { ...e.faultDamage }, faultHits: { ...e.faultHits },
+      pressureChecks: e.pressureFaultChecks, pressureFailures: e.pressureFailures };
   }
   class FlightRecorder {
     constructor() {
@@ -46,7 +52,11 @@
         (e.thermoState?.mixFractions?.H || 0) * e.totalFlow, e.products.atomicHydrogen, e.thermoState?.primaryTemperature || 20,
         e.thermoState?.exitTemperature || 20, e.thermoState?.exitPressure || 0, e.nozzle.throatArea, e.nozzle.exitArea, e.nozzle.expansion,
         e.nozzle.halfAngle, e.nozzle.extension, e.nozzleMass, (e.thermoState?.residenceTime || 0) * 1000, e.thermoState?.freezePressure || 0,
-        e.coreHeatToPropellant, e.coreCoolingPower, e.coreStoredPower, e.coreOverflowPower];
+        e.coreHeatToPropellant, e.coreCoolingPower, e.coreStoredPower, e.coreOverflowPower,
+        e.nozzleHeatLoad, e.nozzleCoolingPower, e.nozzleRadiationPower, e.wallEnergyRate, e.kineticPower, e.afterburnerPower, e.thermoState.combustion.idealChemicalPower,
+        e.thermoState.combustion.oxygenToWater, e.thermoState.combustion.oxygenRemaining, e.thermoState.combustion.releasedFraction, e.jetVelocity,
+        e.damageOf('pump'), e.damageOf('oxygenPump'), e.damageOf('cooling'), e.damageOf('leak'), e.pressureFaultChecks, e.pressureFailures,
+        e.thermoState.combustion.mixedChemicalPower, e.thermoState.combustion.recombinationPower, e.thermoState.combustion.mixedOxygenToWater, e.thermoState.combustion.mixedOxygenRemaining];
       if (this.elapsed <= 60 + 1e-8 && this.first.at(-1)?.[0] !== this.elapsed) this.first.push(row);
       if (this.last.at(-1)?.[0] !== this.elapsed) this.last.push(row);
       while (this.last.length && this.last[0][0] < this.elapsed - 120 - 1e-8) this.last.shift();

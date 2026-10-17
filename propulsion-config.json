@@ -1,5 +1,6 @@
 {
-  "description": "v0.10 fixed conical geometry and chemistry-time sudden-freeze game model; legacy fixed-pressure references retained",
+  "description": "v0.11 LANTR diagnostics, half gas-side wall transfer and graded overpressure faults; legacy fixed-pressure references retained",
+  "wallHeatTransferScale": 0.5,
   "exitPressure": 100,
   "injectionPressureRatio": 0.45,
   "kineticEfficiency": 0.99,
